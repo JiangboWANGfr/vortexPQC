@@ -118,6 +118,12 @@ ifneq (,$(filter -DVX_CFG_EXT_RTU_ENABLE, $(XCONFIGS)))
 	RTL_INCLUDE += -I$(RTL_DIR)/rtu
 endif
 
+# Add PQC extension sources
+ifneq (,$(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_PQC_ENABLE=1 -DVX_CFG_EXT_PQC_ENABLED=1, $(XCONFIGS)))
+	RTL_PKGS += $(RTL_DIR)/pqc/VX_pqc_pkg.sv
+	RTL_INCLUDE += -I$(RTL_DIR)/pqc
+endif
+
 RTL_PKGS += $(RTL_DIR)/VX_trace_pkg.sv
 
 SRCS = $(SW_COMMON_DIR)/util.cpp $(SIM_COMMON_DIR)/mem.cpp $(SW_COMMON_DIR)/softfloat_ext.cpp $(SW_COMMON_DIR)/rvfloats.cpp $(SIM_COMMON_DIR)/dram_sim.cpp $(SIM_COMMON_DIR)/elf_loader.cpp $(SIM_COMMON_DIR)/host_monitor.cpp $(SIM_COMMON_DIR)/cout_drainer.cpp

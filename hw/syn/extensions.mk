@@ -90,3 +90,9 @@ ifneq (,$(filter -DVX_CFG_EXT_OM_ENABLE -DVX_CFG_EXT_OM_ENABLE=1 -DVX_CFG_EXT_OM
 	RTL_PKGS += $(RTL_DIR)/om/VX_om_pkg.sv
 	RTL_INCLUDE += -I$(RTL_DIR)/om
 endif
+
+# Add PQC extension sources
+ifneq (,$(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_PQC_ENABLE=1 -DVX_CFG_EXT_PQC_ENABLED=1, $(XCONFIGS)))
+	RTL_PKGS += $(RTL_DIR)/pqc/VX_pqc_pkg.sv
+	RTL_INCLUDE += -I$(RTL_DIR)/pqc
+endif

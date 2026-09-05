@@ -129,6 +129,12 @@ ifneq (,$(filter -DVX_CFG_EXT_RTU_ENABLE, $(XCONFIGS)))
 	RTL_INCLUDE += -I$(RTL_DIR)/rtu
 endif
 
+# Add PQC extension sources
+ifneq (,$(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_PQC_ENABLE=1 -DVX_CFG_EXT_PQC_ENABLED=1, $(XCONFIGS)))
+	RTL_PKGS += $(RTL_DIR)/pqc/VX_pqc_pkg.sv
+	RTL_INCLUDE += -I$(RTL_DIR)/pqc
+endif
+
 RTL_PKGS += $(RTL_DIR)/VX_trace_pkg.sv
 
 # Command Processor: declare the package only. Interfaces live in

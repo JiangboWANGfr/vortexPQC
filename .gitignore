@@ -18,3 +18,8 @@ hw/syn/libs/asap7/verilog/
 hw/syn/libs/asap7/metadata/
 hw/syn/libs/asap7/.installed_*
 hw/syn/libs/asap7/install.sh
+
+# PQC experiment outputs. Raw runner logs are large and regenerable; the
+# manifest and the derived numbers are the record and stay tracked.
+pqc/results/*/raw/
+pqc/results/*/figures/

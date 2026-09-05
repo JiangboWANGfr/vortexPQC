@@ -31,6 +31,9 @@ graphics:
 mpi:
 	$(MAKE) -C mpi
 
+pqc:
+	$(MAKE) -C pqc
+
 clean:
 	$(MAKE) -C unittest clean
 	$(MAKE) -C kernel clean
@@ -40,5 +43,6 @@ clean:
 	$(MAKE) -C hip clean
 	$(MAKE) -C graphics clean
 	$(MAKE) -C mpi clean
+	$(MAKE) -C pqc clean
 
-.PHONY: all unittest kernel regression opencl riscv hip graphics mpi
+.PHONY: all unittest kernel regression opencl riscv hip graphics mpi pqc
