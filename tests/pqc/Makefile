@@ -3,7 +3,8 @@ include $(ROOT_DIR)/config.mk
 
 # --- master list ------------------------------------------------------
 TESTS := \
-    mlkem mldsa
+    mlkem mlkem_microbench mlkem_profile \
+    mldsa
 
 BACKENDS := simx rtlsim aved
 
