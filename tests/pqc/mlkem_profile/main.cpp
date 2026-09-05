@@ -124,7 +124,22 @@ int main(int argc, char** argv) {
         else
             std::printf("%-18s %10u %14s\n", kCost[i].name, h_cnt[i], "-");
     }
+    // A count of zero for a primitive ML-KEM demonstrably uses means the hook
+    // was not wired in -- the library would have run its own code either way,
+    // so the run passes while the profile describes nothing.
+    static const int must_be_called[] = {
+        MLK_PROF_KECCAK_X1, MLK_PROF_NTT, MLK_PROF_INTT, MLK_PROF_REJ_UNIFORM
+    };
+    for (int i : must_be_called)
+        if (h_cnt[i] == 0) {
+            std::printf("*** %s was never called -- its hook is not wired in\n",
+                        kCost[i].name);
+            ++errors;
+        }
+
     std::printf("attributed cycles: %.0f\n", attributed);
+    for (int i = 0; i < 3; ++i)
+        if (h_cyc[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
     const uint64_t total = h_cyc[0] + h_cyc[1] + h_cyc[2];
     std::printf("CYCLES: keypair=%llu encaps=%llu decaps=%llu total=%llu\n",
                 (unsigned long long)h_cyc[0], (unsigned long long)h_cyc[1],

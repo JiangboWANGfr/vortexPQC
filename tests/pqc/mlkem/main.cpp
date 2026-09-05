@@ -196,6 +196,8 @@ int main(int argc, char** argv) {
 
     // Device cycles per phase. Single thread, so this is the software baseline
     // every later speedup divides into.
+    for (int i = 0; i < MLKEM_CY_COUNT; ++i)
+        if (h_cycles[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
     const uint64_t total = h_cycles[MLKEM_CY_KEYPAIR] + h_cycles[MLKEM_CY_ENCAPS]
                          + h_cycles[MLKEM_CY_DECAPS];
     std::printf("CYCLES: keypair=%llu encaps=%llu decaps=%llu total=%llu\n",
