@@ -13,3 +13,9 @@
 [submodule "third_party/cocogfx"]
 	path = third_party/cocogfx
 	url = https://github.com/gtcasl/cocogfx.git
+[submodule "pqc/third_party/mlkem-native"]
+	path = pqc/third_party/mlkem-native
+	url = https://github.com/pq-code-package/mlkem-native.git
+[submodule "pqc/third_party/mldsa-native"]
+	path = pqc/third_party/mldsa-native
+	url = https://github.com/pq-code-package/mldsa-native.git
