@@ -12,28 +12,33 @@ extern "C" {
 #include "common.h"
 #include "pqc_stack.h"
 
-// ML-KEM-768 round trip, one thread.
+// ML-KEM-768 round trip, one independent request per CTA, one lane per request.
 //
-// The baseline is deliberately single-threaded: it is the denominator every
-// later speedup is measured against, and a parallel baseline would fold the
-// question "does the extension help?" together with "did we parallelise it
-// well?". Threading comes after the profile says where the time goes.
+// One lane per request on purpose. This test builds the library pristine, so
+// its x4 Keccak hook falls back to four serial permutations and there is no
+// lane-cooperative work to hand a second lane; extra lanes would redundantly
+// recompute the whole KEM over the same output slice and multiply the arena for
+// nothing. The lane axis is tests/pqc/mlkem_width's job. This one is the
+// request axis, and the software throughput baseline every later ISA throughput
+// number has to divide into.
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
-  // One warp, one lane. The launch is 1x1, so this is belt-and-braces against
-  // a harness that rounds a grid up.
-  if (blockIdx.x != 0 || threadIdx.x != 0)
+  const unsigned req = blockIdx.x;
+  // block_dim is 1 and grid_dim is exactly `requests`, so both of these only
+  // fire if a harness rounds the launch up -- in which case the extra work
+  // would write past the end of the output slices.
+  if (threadIdx.x != 0 || req >= arg->requests)
     return;
 
   auto coins_kp  = reinterpret_cast<const uint8_t*>(arg->coins_kp_addr);
   auto coins_enc = reinterpret_cast<const uint8_t*>(arg->coins_enc_addr);
-  auto pk        = reinterpret_cast<uint8_t*>(arg->pk_addr);
-  auto sk        = reinterpret_cast<uint8_t*>(arg->sk_addr);
-  auto ct        = reinterpret_cast<uint8_t*>(arg->ct_addr);
-  auto ss_enc    = reinterpret_cast<uint8_t*>(arg->ss_enc_addr);
-  auto ss_dec    = reinterpret_cast<uint8_t*>(arg->ss_dec_addr);
-  auto status    = reinterpret_cast<int32_t*>(arg->status_addr);
-  auto cycles    = reinterpret_cast<uint64_t*>(arg->cycles_addr);
-  auto probe     = reinterpret_cast<uint32_t*>(arg->probe_addr);
+  auto pk        = reinterpret_cast<uint8_t*>(arg->pk_addr)     + req * MLKEM_PK_BYTES;
+  auto sk        = reinterpret_cast<uint8_t*>(arg->sk_addr)     + req * MLKEM_SK_BYTES;
+  auto ct        = reinterpret_cast<uint8_t*>(arg->ct_addr)     + req * MLKEM_CT_BYTES;
+  auto ss_enc    = reinterpret_cast<uint8_t*>(arg->ss_enc_addr) + req * MLKEM_SS_BYTES;
+  auto ss_dec    = reinterpret_cast<uint8_t*>(arg->ss_dec_addr) + req * MLKEM_SS_BYTES;
+  auto status    = reinterpret_cast<int32_t*>(arg->status_addr) + req * MLKEM_ST_COUNT;
+  auto cycles    = reinterpret_cast<uint64_t*>(arg->cycles_addr)+ req * MLKEM_CY_COUNT;
+  auto probe     = reinterpret_cast<uint32_t*>(arg->probe_addr) + req * MLKEM_PR_COUNT;
 
   uint32_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);

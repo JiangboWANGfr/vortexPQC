@@ -42,11 +42,14 @@
 
 int main(int argc, char** argv) {
     const char* kernel_file = "kernel.vxbin";
+    uint32_t requests = 1;
     int c;
-    while ((c = getopt(argc, argv, "k:h")) != -1) {
+    while ((c = getopt(argc, argv, "k:b:h")) != -1) {
         if (c == 'k') kernel_file = optarg;
-        else { std::cout << "Usage: [-k kernel] [-h]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
+        else if (c == 'b') requests = (uint32_t)std::atoi(optarg);
+        else { std::cout << "Usage: [-k kernel] [-b requests] [-h]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
     }
+    if (requests < 1) { std::fprintf(stderr, "FAIL: -b must be >= 1\n"); return -1; }
 
     std::cout << "ML-DSA-" << MLD_CONFIG_PARAMETER_SET
               << "  pk=" << MLDSA_PK_BYTES
@@ -65,12 +68,12 @@ int main(int argc, char** argv) {
         { nullptr, MLDSA_SEEDBYTES,                    0 },  // seed
         { nullptr, MLDSA_RNDBYTES,                     0 },  // rnd
         { nullptr, MLDSA_MSG_BYTES,                    0 },  // msg
-        { nullptr, MLDSA_PK_BYTES,                     1 },
-        { nullptr, MLDSA_SK_BYTES,                     1 },
-        { nullptr, MLDSA_SIG_BYTES,                    1 },
-        { nullptr, MLDSA_ST_COUNT * sizeof(int32_t),   1 },
-        { nullptr, MLDSA_CY_COUNT * sizeof(uint64_t),  1 },
-        { nullptr, 4 * sizeof(uint32_t),               1 },  // arena peak/fail, stack peak/span
+        { nullptr, (uint64_t)requests * MLDSA_PK_BYTES,                    1 },
+        { nullptr, (uint64_t)requests * MLDSA_SK_BYTES,                    1 },
+        { nullptr, (uint64_t)requests * MLDSA_SIG_BYTES,                   1 },
+        { nullptr, (uint64_t)requests * MLDSA_ST_COUNT * sizeof(int32_t),  1 },
+        { nullptr, (uint64_t)requests * MLDSA_CY_COUNT * sizeof(uint64_t), 1 },
+        { nullptr, (uint64_t)requests * MLDSA_AR_COUNT * sizeof(uint32_t), 1 },
     };
     for (auto& b : bufs)
         CHECK(vx_buffer_create(dev, b.bytes, b.write ? VX_MEM_WRITE : VX_MEM_READ, &b.h));
@@ -81,6 +84,7 @@ int main(int argc, char** argv) {
                           &arg.status_addr, &arg.cycles_addr, &arg.arena_addr };
     for (size_t i = 0; i < sizeof(bufs)/sizeof(bufs[0]); ++i)
         CHECK(vx_buffer_address(bufs[i].h, slots[i]));
+    arg.requests = requests;
 
     STEP("module_load");
     vx_module_h mod = nullptr; vx_kernel_h kern = nullptr;
@@ -96,25 +100,34 @@ int main(int argc, char** argv) {
     CHECK(vx_enqueue_write(q, bufs[1].h, 0, h_rnd.data(),  h_rnd.size(),  0, nullptr, nullptr));
     CHECK(vx_enqueue_write(q, bufs[2].h, 0, h_msg.data(),  h_msg.size(),  0, nullptr, nullptr));
 
-    std::vector<int32_t> h_st(MLDSA_ST_COUNT, -12345);
+    std::vector<int32_t> h_st(requests * MLDSA_ST_COUNT, -12345);
     CHECK(vx_enqueue_write(q, bufs[6].h, 0, h_st.data(), h_st.size()*sizeof(int32_t), 0, nullptr, nullptr));
 
     STEP("launch");
     vx_launch_info_t li{};
     li.struct_size = sizeof(li); li.kernel = kern;
     li.args_host = &arg; li.args_size = sizeof(arg);
-    li.ndim = 1; li.grid_dim[0] = 1; li.block_dim[0] = 1;
+    li.ndim = 1; li.grid_dim[0] = requests; li.block_dim[0] = 1;
     vx_event_h lev = nullptr;
     CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &lev));
 
     STEP("readback");
-    std::vector<uint64_t> h_cy(MLDSA_CY_COUNT, 0);
-    std::vector<uint32_t> h_ar(4, 0);
+    std::vector<uint64_t> h_cy(requests * MLDSA_CY_COUNT, 0);
+    std::vector<uint32_t> h_ar(requests * MLDSA_AR_COUNT, 0);
+    std::vector<uint8_t>  h_pk(requests * MLDSA_PK_BYTES), h_sk(requests * MLDSA_SK_BYTES),
+                          h_sig(requests * MLDSA_SIG_BYTES);
     vx_event_h e1=nullptr, e2=nullptr, e3=nullptr;
     CHECK(vx_enqueue_read(q, h_st.data(), bufs[6].h, 0, h_st.size()*sizeof(int32_t), 1, &lev, &e1));
     CHECK(vx_enqueue_read(q, h_cy.data(), bufs[7].h, 0, h_cy.size()*sizeof(uint64_t), 1, &lev, &e2));
     CHECK(vx_enqueue_read(q, h_ar.data(), bufs[8].h, 0, h_ar.size()*sizeof(uint32_t), 1, &lev, &e3));
+    vx_event_h e4=nullptr, e5=nullptr, e6=nullptr;
+    CHECK(vx_enqueue_read(q, h_pk.data(),  bufs[3].h, 0, h_pk.size(),  1, &lev, &e4));
+    CHECK(vx_enqueue_read(q, h_sk.data(),  bufs[4].h, 0, h_sk.size(),  1, &lev, &e5));
+    CHECK(vx_enqueue_read(q, h_sig.data(), bufs[5].h, 0, h_sig.size(), 1, &lev, &e6));
     STEP("wait");
+    CHECK(vx_event_wait_value(e4, 1, VX_TIMEOUT_INFINITE));
+    CHECK(vx_event_wait_value(e5, 1, VX_TIMEOUT_INFINITE));
+    CHECK(vx_event_wait_value(e6, 1, VX_TIMEOUT_INFINITE));
     CHECK(vx_event_wait_value(e1, 1, VX_TIMEOUT_INFINITE));
     CHECK(vx_event_wait_value(e2, 1, VX_TIMEOUT_INFINITE));
     CHECK(vx_event_wait_value(e3, 1, VX_TIMEOUT_INFINITE));
@@ -122,54 +135,117 @@ int main(int argc, char** argv) {
     STEP("verify");
     int errors = 0;
     static const char* step_name[MLDSA_ST_COUNT] = { "keypair_internal", "signature_internal", "verify_internal" };
-    for (int i = 0; i < MLDSA_ST_COUNT; ++i) {
-        if (h_st[i] != 0) {
-            std::printf("*** %s returned %d%s\n", step_name[i], h_st[i],
-                        h_st[i] == -12345 ? "  (kernel never ran)" : "");
+
+    // There is no published vector to compare against here -- this test drives
+    // the internal, derandomised entry points with its own fixed seed. The
+    // cryptographic anchor is instead verify_internal returning success: the
+    // signature checks against the public key that keygen produced. The
+    // cross-request anchor is byte-identical output, which holds because the
+    // inputs are shared and signing is derandomised, and which is what a
+    // request straying into a neighbour's workspace would break.
+    for (uint32_t r = 0; r < requests; ++r) {
+        const int32_t* st = &h_st[r * MLDSA_ST_COUNT];
+        int req_err = 0;
+        for (int i = 0; i < MLDSA_ST_COUNT; ++i)
+            if (st[i] != 0) {
+                std::printf("*** request %u: %s returned %d%s\n", r, step_name[i], st[i],
+                            st[i] == -12345 ? "  (kernel never ran)" : "");
+                ++req_err;
+            }
+        if (req_err == 0 && r > 0) {
+            struct { const char* name; const uint8_t* p; size_t n; } out[] = {
+                { "pk",  h_pk.data(),  MLDSA_PK_BYTES  },
+                { "sk",  h_sk.data(),  MLDSA_SK_BYTES  },
+                { "sig", h_sig.data(), MLDSA_SIG_BYTES },
+            };
+            for (auto& o : out)
+                if (std::memcmp(o.p + r * o.n, o.p, o.n) != 0) {
+                    size_t k = 0;
+                    while (k < o.n && o.p[r * o.n + k] == o.p[k]) ++k;
+                    std::printf("*** request %u: %s differs from request 0 at byte %zu"
+                                " (got %02x, want %02x)\n", r, o.name, k,
+                                o.p[r * o.n + k], o.p[k]);
+                    ++req_err;
+                }
+        }
+        errors += req_err;
+    }
+
+    uint32_t stack_max = 0, arena_max = 0, arena_fail = 0, span = 0;
+    for (uint32_t r = 0; r < requests; ++r) {
+        const uint32_t* ar = &h_ar[r * MLDSA_AR_COUNT];
+        if (ar[MLDSA_AR_FAIL] != 0) {
+            std::printf("*** request %u: arena exhausted %u times -- raise MLD_ARENA_BYTES\n",
+                        r, ar[MLDSA_AR_FAIL]);
             ++errors;
         }
+        // A peak of zero means MLD_CUSTOM_ALLOC never fired, so the library
+        // allocated somewhere this build cannot see and the run describes a
+        // different program. That happened once already, when the library and
+        // the kernel were separate translation units and each got its own copy
+        // of the file-scope arena.
+        if (ar[MLDSA_AR_PEAK] == 0) {
+            std::printf("*** request %u: arena peak is zero -- the custom allocator was"
+                        " never reached\n", r);
+            ++errors;
+        }
+        // The simulator cannot catch a stack overflow: RAM has no ACL and pages
+        // in on demand, so a hart running past its slab just scribbles on a
+        // neighbour. See tests/pqc/pqc_stack.h.
+        if (ar[MLDSA_AR_STACK_PEAK] == 0) {
+            std::printf("*** request %u: stack watermark is zero -- the probe never ran\n", r);
+            ++errors;
+        } else if (ar[MLDSA_AR_STACK_PEAK] >= ar[MLDSA_AR_STACK_SPAN]) {
+            std::printf("*** request %u: stack peak %u B filled its whole %u B paintable"
+                        " slab -- it overflowed into the next hart\n",
+                        r, ar[MLDSA_AR_STACK_PEAK], ar[MLDSA_AR_STACK_SPAN]);
+            ++errors;
+        }
+        if (ar[MLDSA_AR_STACK_PEAK] > stack_max) stack_max = ar[MLDSA_AR_STACK_PEAK];
+        if (ar[MLDSA_AR_PEAK] > arena_max) arena_max = ar[MLDSA_AR_PEAK];
+        arena_fail += ar[MLDSA_AR_FAIL];
+        span = ar[MLDSA_AR_STACK_SPAN];
     }
-    if (h_ar[1] != 0) {
-        std::printf("*** arena exhausted %u times -- raise MLD_ARENA_BYTES\n", h_ar[1]);
-        ++errors;
-    }
+    std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u"
+                "   (max over %u requests)\n",
+                stack_max, span, (unsigned)PQC_SLAB_BYTES,
+                arena_max, (unsigned)MLD_ARENA_BYTES, arena_fail, requests);
 
-    // A peak of zero means MLD_CUSTOM_ALLOC never fired, which -- because the
-    // library then allocated somewhere this build cannot see -- reads as a
-    // clean pass with a broken instrument. That happened once already, when the
-    // library and the kernel were separate translation units and each got its
-    // own copy of the file-scope arena. An instrument that must read nonzero
-    // and reads zero is a failure, not a footnote.
-    if (h_ar[0] == 0) {
-        std::printf("*** arena peak is zero -- the custom allocator was never "
-                    "reached, so these results describe a build this test is "
-                    "not measuring\n");
-        ++errors;
+    // Concurrent, not additive: the spans overlap, so the batch cost is the
+    // device cycle count from --perf, not their sum. The spread is the read on
+    // how much the requests interfered with each other.
+    uint64_t tmin = ~0ull, tmax = 0, tsum = 0;
+    for (uint32_t r = 0; r < requests; ++r) {
+        const uint64_t* cy = &h_cy[r * MLDSA_CY_COUNT];
+        for (int i = 0; i < MLDSA_CY_COUNT; ++i)
+            if (cy[i] == 0) {
+                std::printf("*** request %u: phase %d measured zero cycles\n", r, i);
+                ++errors;
+            }
+        const uint64_t t = cy[0] + cy[1] + cy[2];
+        if (t < tmin) tmin = t;
+        if (t > tmax) tmax = t;
+        tsum += t;
     }
-    for (int i = 0; i < MLDSA_CY_COUNT; ++i)
-        if (h_cy[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
-
-    // The simulator cannot catch a stack overflow: RAM has no ACL and pages in
-    // on demand, so a hart running past its slab just scribbles on an idle
-    // neighbour and every check above still passes. See tests/pqc/pqc_stack.h.
-    if (h_ar[2] == 0) {
-        std::printf("*** stack watermark is zero -- the probe never ran\n");
-        ++errors;
-    } else if (h_ar[2] >= h_ar[3]) {
-        std::printf("*** stack peak %u B filled its whole %u B paintable slab"
-                    " -- it overflowed into the next hart\n", h_ar[2], h_ar[3]);
-        ++errors;
-    }
-
-    std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u\n",
-                h_ar[2], h_ar[3], (unsigned)PQC_SLAB_BYTES,
-                h_ar[0], (unsigned)MLD_ARENA_BYTES, h_ar[1]);
-    const uint64_t total = h_cy[0] + h_cy[1] + h_cy[2];
-    std::printf("CYCLES: keypair=%llu sign=%llu verify=%llu total=%llu\n",
+    std::printf("CYCLES: keypair=%llu sign=%llu verify=%llu total=%llu   (request 0)\n",
                 (unsigned long long)h_cy[0], (unsigned long long)h_cy[1],
-                (unsigned long long)h_cy[2], (unsigned long long)total);
+                (unsigned long long)h_cy[2],
+                (unsigned long long)(h_cy[0] + h_cy[1] + h_cy[2]));
+    if (requests > 1)
+        std::printf("REQUESTS: n=%u  per-request total min=%llu mean=%llu max=%llu"
+                    "  spread=%.1f%%\n", requests,
+                    (unsigned long long)tmin, (unsigned long long)(tsum / requests),
+                    (unsigned long long)tmax,
+                    100.0 * (double)(tmax - tmin) / (double)tmin);
 
-    vx_event_release(e1); vx_event_release(e2); vx_event_release(e3); vx_event_release(lev);
+    vx_event_release(e1); vx_event_release(e2); vx_event_release(e3);
+    vx_event_release(e4); vx_event_release(e5); vx_event_release(e6);
+    // Device-level counters. The per-request spans above overlap, so this is
+    // the only figure that is the batch's actual cost, and IPC is the column
+    // that says whether a batch stopped scaling on issue or on memory.
+    vx_device_dump_perf(dev, stdout);
+
+    vx_event_release(lev);
     for (auto& b : bufs) vx_buffer_release(b.h);
     vx_kernel_release(kern); vx_module_release(mod);
     vx_queue_release(q); vx_device_release(dev);

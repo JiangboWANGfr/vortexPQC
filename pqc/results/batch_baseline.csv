@@ -1,0 +1,27 @@
+# S2 -- the multi-request software baseline. Full ML-KEM-768 (KeyGen+Encaps+Decaps)
+# and ML-DSA-65 (KeyGen+Sign+Verify), one independent request per CTA, one lane per
+# request, on the pristine libraries with no ISA extension.
+#
+# simx, 1 cluster / 1 core / 8 warps / 4 threads, L2 and L3 off, PERF_ENABLE.
+# M = independent requests. throughput = M * cycles(M=1) / cycles, from the DEVICE
+# cycle count -- the per-request vx_rdcycle spans overlap and must not be summed.
+#
+# Verification, per request, not per batch: ML-KEM compares pk/sk/ct/ss byte for byte
+# against the FIPS 203 vectors AND checks ss_enc == ss_dec; ML-DSA has no published
+# vector for its derandomised internal entry points, so its anchors are
+# verify_internal succeeding and byte-identical output across requests. Outputs are
+# poisoned before launch, so a request whose CTA never ran fails rather than passing
+# on a buffer nobody touched -- which is how a grid_dim that silently stayed at 1 was
+# caught while this file was being produced.
+#
+# Every request uses the SAME inputs on purpose: identical coins mean a request that
+# strays into a neighbour's workspace diverges from the vector, where per-request
+# inputs would let the whole batch agree on the same wrong answer.
+scheme,M,device_cycles,instrs,ipc,instrs_per_request,throughput,efficiency,req0_total,spread_pct,passed
+ML-KEM,1,33569488,3467083,0.103,3467083,1.000,1.000,33269213,,1
+ML-KEM,2,33574778,6934166,0.207,3467083,2.000,1.000,33274429,0.0,1
+ML-KEM,4,34058069,13868332,0.407,3467083,3.943,0.986,33520306,0.7,1
+ML-KEM,8,40360591,27736664,0.687,3467083,6.654,0.832,39104184,2.4,1
+ML-DSA,1,193766601,19873366,0.103,19873366,1.000,1.000,193434384,,1
+ML-DSA,2,193794099,39746895,0.205,19873447,2.000,1.000,193461902,0.0,1
+ML-DSA,4,196699763,79493919,0.404,19873479,3.940,0.985,194735708,0.8,1

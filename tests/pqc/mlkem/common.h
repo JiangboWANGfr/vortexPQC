@@ -40,17 +40,23 @@
 // is ~4.7 KB against an 8 KB per-thread stack (VX_MEM_STACK_LOG2_SIZE = 13),
 // which the library's own working set then has to fit inside -- so none of it
 // goes on the stack.
+// Every output buffer is an array of `requests` slices; the coins are shared,
+// read-only, and identical for every request. Same input, so every request must
+// produce the same KAT-matching output -- which is what makes cross-request
+// interference visible: a request that reads a neighbour's workspace diverges
+// from the vector instead of everyone agreeing on the same wrong answer.
 typedef struct {
-  uint64_t coins_kp_addr;   // in  : 2 * MLKEM_SYM_BYTES (d || z)
-  uint64_t coins_enc_addr;  // in  : MLKEM_SYM_BYTES
-  uint64_t pk_addr;         // out : MLKEM_PK_BYTES
-  uint64_t sk_addr;         // out : MLKEM_SK_BYTES
-  uint64_t ct_addr;         // out : MLKEM_CT_BYTES
-  uint64_t ss_enc_addr;     // out : MLKEM_SS_BYTES
-  uint64_t ss_dec_addr;     // out : MLKEM_SS_BYTES
-  uint64_t status_addr;     // out : MLKEM_ST_COUNT * int32_t
-  uint64_t cycles_addr;     // out : MLKEM_CY_COUNT * uint64_t
-  uint64_t probe_addr;      // out : MLKEM_PR_COUNT * uint32_t
+  uint64_t coins_kp_addr;   // in  : 2 * MLKEM_SYM_BYTES (d || z), shared
+  uint64_t coins_enc_addr;  // in  : MLKEM_SYM_BYTES, shared
+  uint64_t pk_addr;         // out : requests * MLKEM_PK_BYTES
+  uint64_t sk_addr;         // out : requests * MLKEM_SK_BYTES
+  uint64_t ct_addr;         // out : requests * MLKEM_CT_BYTES
+  uint64_t ss_enc_addr;     // out : requests * MLKEM_SS_BYTES
+  uint64_t ss_dec_addr;     // out : requests * MLKEM_SS_BYTES
+  uint64_t status_addr;     // out : requests * MLKEM_ST_COUNT * int32_t
+  uint64_t cycles_addr;     // out : requests * MLKEM_CY_COUNT * uint64_t
+  uint64_t probe_addr;      // out : requests * MLKEM_PR_COUNT * uint32_t
+  uint32_t requests;        // in  : independent KEM round trips, one per CTA
 } kernel_arg_t;
 
 #endif

@@ -18,18 +18,23 @@ extern "C" {
 // as the ML-KEM baseline: single-threaded, so the denominator every later
 // speedup divides into does not also carry a parallelisation decision.
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
-  if (blockIdx.x != 0 || threadIdx.x != 0)
+  const unsigned req = blockIdx.x;
+  // One lane per request, for the same reason as the ML-KEM batch: this build
+  // is the pristine library, so there is no lane-cooperative work to hand a
+  // second lane. block_dim is 1 and grid_dim is exactly `requests`, so both
+  // guards only fire if a harness rounds the launch up.
+  if (threadIdx.x != 0 || req >= arg->requests)
     return;
 
   auto seed   = reinterpret_cast<const uint8_t*>(arg->seed_addr);
   auto rnd    = reinterpret_cast<const uint8_t*>(arg->rnd_addr);
   auto msg    = reinterpret_cast<const uint8_t*>(arg->msg_addr);
-  auto pk     = reinterpret_cast<uint8_t*>(arg->pk_addr);
-  auto sk     = reinterpret_cast<uint8_t*>(arg->sk_addr);
-  auto sig    = reinterpret_cast<uint8_t*>(arg->sig_addr);
-  auto status = reinterpret_cast<int32_t*>(arg->status_addr);
-  auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
-  auto arena  = reinterpret_cast<uint32_t*>(arg->arena_addr);
+  auto pk     = reinterpret_cast<uint8_t*>(arg->pk_addr) + req * MLDSA_PK_BYTES;
+  auto sk     = reinterpret_cast<uint8_t*>(arg->sk_addr) + req * MLDSA_SK_BYTES;
+  auto sig    = reinterpret_cast<uint8_t*>(arg->sig_addr) + req * MLDSA_SIG_BYTES;
+  auto status = reinterpret_cast<int32_t*>(arg->status_addr) + req * MLDSA_ST_COUNT;
+  auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr) + req * MLDSA_CY_COUNT;
+  auto arena  = reinterpret_cast<uint32_t*>(arg->arena_addr) + req * MLDSA_AR_COUNT;
 
   uint32_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);
@@ -56,8 +61,8 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[MLDSA_CY_VERIFY]  = t3 - t2;
 
   const uint32_t h = (uint32_t)vx_hart_id();
-  arena[0] = mld_arena_peak[h];
-  arena[1] = mld_arena_fail[h];
-  arena[2] = pqc_stack_watermark(sp0);
-  arena[3] = span;
+  arena[MLDSA_AR_PEAK]       = mld_arena_peak[h];
+  arena[MLDSA_AR_FAIL]       = mld_arena_fail[h];
+  arena[MLDSA_AR_STACK_PEAK] = pqc_stack_watermark(sp0);
+  arena[MLDSA_AR_STACK_SPAN] = span;
 }

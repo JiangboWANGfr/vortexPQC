@@ -51,17 +51,20 @@
 
 namespace {
 const char* kernel_file = "kernel.vxbin";
+uint32_t requests = 1;
 
 void parse_args(int argc, char** argv) {
     int c;
-    while ((c = getopt(argc, argv, "k:h")) != -1) {
+    while ((c = getopt(argc, argv, "k:b:h")) != -1) {
         switch (c) {
             case 'k': kernel_file = optarg; break;
+            case 'b': requests = (uint32_t)std::atoi(optarg); break;
             default:
-                std::cout << "Usage: [-k kernel] [-h]" << std::endl;
+                std::cout << "Usage: [-k kernel] [-b requests] [-h]" << std::endl;
                 std::exit(c == 'h' ? 0 : -1);
         }
     }
+    if (requests < 1) { std::fprintf(stderr, "FAIL: -b must be >= 1\n"); std::exit(-1); }
 }
 
 int compare(const char* what, const uint8_t* got, const uint8_t* want, size_t n) {
@@ -96,14 +99,14 @@ int main(int argc, char** argv) {
     struct { vx_buffer_h h; uint64_t bytes; int write; } bufs[] = {
         { nullptr, 2 * MLKEM_SYM_BYTES,          0 },  // coins_kp   (host -> dev)
         { nullptr, MLKEM_SYM_BYTES,              0 },  // coins_enc  (host -> dev)
-        { nullptr, MLKEM_PK_BYTES,               1 },
-        { nullptr, MLKEM_SK_BYTES,               1 },
-        { nullptr, MLKEM_CT_BYTES,               1 },
-        { nullptr, MLKEM_SS_BYTES,               1 },  // ss_enc
-        { nullptr, MLKEM_SS_BYTES,               1 },  // ss_dec
-        { nullptr, MLKEM_ST_COUNT * sizeof(int32_t), 1 },
-        { nullptr, MLKEM_CY_COUNT * sizeof(uint64_t), 1 },
-        { nullptr, MLKEM_PR_COUNT * sizeof(uint32_t), 1 },
+        { nullptr, (uint64_t)requests * MLKEM_PK_BYTES,               1 },
+        { nullptr, (uint64_t)requests * MLKEM_SK_BYTES,               1 },
+        { nullptr, (uint64_t)requests * MLKEM_CT_BYTES,               1 },
+        { nullptr, (uint64_t)requests * MLKEM_SS_BYTES,               1 },  // ss_enc
+        { nullptr, (uint64_t)requests * MLKEM_SS_BYTES,               1 },  // ss_dec
+        { nullptr, (uint64_t)requests * MLKEM_ST_COUNT * sizeof(int32_t),  1 },
+        { nullptr, (uint64_t)requests * MLKEM_CY_COUNT * sizeof(uint64_t), 1 },
+        { nullptr, (uint64_t)requests * MLKEM_PR_COUNT * sizeof(uint32_t), 1 },
     };
     for (auto& b : bufs)
         CHECK(vx_buffer_create(dev, b.bytes, b.write ? VX_MEM_WRITE : VX_MEM_READ, &b.h));
@@ -115,6 +118,7 @@ int main(int argc, char** argv) {
                           &arg.cycles_addr, &arg.probe_addr };
     for (size_t i = 0; i < sizeof(bufs) / sizeof(bufs[0]); ++i)
         CHECK(vx_buffer_address(bufs[i].h, slots[i]));
+    arg.requests = requests;
 
     STEP("module_load");
     vx_module_h mod = nullptr;
@@ -134,9 +138,9 @@ int main(int argc, char** argv) {
 
     // Seed the outputs with a value the kernel never writes, so a "match" that
     // is really a buffer nobody touched cannot pass as success.
-    std::vector<int32_t> h_status(MLKEM_ST_COUNT, -12345);
-    std::vector<uint8_t> h_ss_enc(MLKEM_SS_BYTES, 0xAA);
-    std::vector<uint8_t> h_ss_dec(MLKEM_SS_BYTES, 0x55);
+    std::vector<int32_t> h_status(requests * MLKEM_ST_COUNT, -12345);
+    std::vector<uint8_t> h_ss_enc(requests * MLKEM_SS_BYTES, 0xAA);
+    std::vector<uint8_t> h_ss_dec(requests * MLKEM_SS_BYTES, 0x55);
     CHECK(vx_enqueue_write(q, bufs[7].h, 0, h_status.data(),  h_status.size() * sizeof(int32_t), 0, nullptr, nullptr));
     CHECK(vx_enqueue_write(q, bufs[5].h, 0, h_ss_enc.data(),  h_ss_enc.size(), 0, nullptr, nullptr));
     CHECK(vx_enqueue_write(q, bufs[6].h, 0, h_ss_dec.data(),  h_ss_dec.size(), 0, nullptr, nullptr));
@@ -148,23 +152,24 @@ int main(int argc, char** argv) {
     li.args_host    = &arg;
     li.args_size    = sizeof(arg);
     li.ndim         = 1;
-    li.grid_dim[0]  = 1;
+    li.grid_dim[0]  = requests;
     li.block_dim[0] = 1;
     vx_event_h launch_ev = nullptr;
     CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &launch_ev));
 
     STEP("readback");
-    std::vector<uint8_t>  h_pk(MLKEM_PK_BYTES), h_sk(MLKEM_SK_BYTES), h_ct(MLKEM_CT_BYTES);
-    std::vector<uint64_t> h_cycles(MLKEM_CY_COUNT, 0);
-    std::vector<uint32_t> h_probe(MLKEM_PR_COUNT, 0);
+    std::vector<uint8_t>  h_pk(requests * MLKEM_PK_BYTES), h_sk(requests * MLKEM_SK_BYTES),
+                          h_ct(requests * MLKEM_CT_BYTES);
+    std::vector<uint64_t> h_cycles(requests * MLKEM_CY_COUNT, 0);
+    std::vector<uint32_t> h_probe(requests * MLKEM_PR_COUNT, 0);
     struct { void* dst; int buf; uint64_t bytes; vx_event_h ev; } reads[] = {
         { h_status.data(), 7, h_status.size() * sizeof(int32_t),  nullptr },
         { h_cycles.data(), 8, h_cycles.size() * sizeof(uint64_t), nullptr },
-        { h_pk.data(),     2, MLKEM_PK_BYTES, nullptr },
-        { h_sk.data(),     3, MLKEM_SK_BYTES, nullptr },
-        { h_ct.data(),     4, MLKEM_CT_BYTES, nullptr },
-        { h_ss_enc.data(), 5, MLKEM_SS_BYTES, nullptr },
-        { h_ss_dec.data(), 6, MLKEM_SS_BYTES, nullptr },
+        { h_pk.data(),     2, (uint64_t)requests * MLKEM_PK_BYTES, nullptr },
+        { h_sk.data(),     3, (uint64_t)requests * MLKEM_SK_BYTES, nullptr },
+        { h_ct.data(),     4, (uint64_t)requests * MLKEM_CT_BYTES, nullptr },
+        { h_ss_enc.data(), 5, (uint64_t)requests * MLKEM_SS_BYTES, nullptr },
+        { h_ss_dec.data(), 6, (uint64_t)requests * MLKEM_SS_BYTES, nullptr },
         { h_probe.data(),  9, h_probe.size() * sizeof(uint32_t), nullptr },
     };
     for (auto& r : reads)
@@ -177,69 +182,115 @@ int main(int argc, char** argv) {
     STEP("verify");
     int errors = 0;
     static const char* step_name[MLKEM_ST_COUNT] = { "keypair_derand", "enc_derand", "dec" };
-    for (int i = 0; i < MLKEM_ST_COUNT; ++i) {
-        if (h_status[i] != 0) {
-            std::printf("*** %s returned %d%s\n", step_name[i], h_status[i],
-                        h_status[i] == -12345 ? "  (kernel never ran)" : "");
-            ++errors;
+
+    // Every request runs the same coins, so every request must reproduce the
+    // same published vector. That is the point of using identical inputs: a
+    // request that strays into a neighbour's workspace diverges from the KAT,
+    // whereas with per-request coins the whole batch could agree on the same
+    // wrong answer and still look self-consistent.
+    for (uint32_t r = 0; r < requests; ++r) {
+        const int32_t* st = &h_status[r * MLKEM_ST_COUNT];
+        int req_err = 0;
+        for (int i = 0; i < MLKEM_ST_COUNT; ++i) {
+            if (st[i] != 0) {
+                std::printf("*** request %u: %s returned %d%s\n", r, step_name[i], st[i],
+                            st[i] == -12345 ? "  (kernel never ran)" : "");
+                ++req_err;
+            }
         }
-    }
-    if (errors == 0) {
-        errors += compare("pk", h_pk.data(), test_vector_pk, MLKEM_PK_BYTES);
-        errors += compare("sk", h_sk.data(), test_vector_sk, MLKEM_SK_BYTES);
-        errors += compare("ct", h_ct.data(), test_vector_ct, MLKEM_CT_BYTES);
-        errors += compare("ss", h_ss_enc.data(), test_vector_ss, MLKEM_SS_BYTES);
-    }
-    if (errors == 0 && std::memcmp(h_ss_enc.data(), h_ss_dec.data(), MLKEM_SS_BYTES) != 0) {
-        std::printf("*** shared secrets differ\n    enc:");
-        for (int i = 0; i < 8; ++i) std::printf(" %02x", h_ss_enc[i]);
-        std::printf("\n    dec:");
-        for (int i = 0; i < 8; ++i) std::printf(" %02x", h_ss_dec[i]);
-        std::printf("\n");
-        ++errors;
+        if (req_err == 0) {
+            char what[32];
+            std::snprintf(what, sizeof(what), "req%u.pk", r);
+            req_err += compare(what, &h_pk[r * MLKEM_PK_BYTES], test_vector_pk, MLKEM_PK_BYTES);
+            std::snprintf(what, sizeof(what), "req%u.sk", r);
+            req_err += compare(what, &h_sk[r * MLKEM_SK_BYTES], test_vector_sk, MLKEM_SK_BYTES);
+            std::snprintf(what, sizeof(what), "req%u.ct", r);
+            req_err += compare(what, &h_ct[r * MLKEM_CT_BYTES], test_vector_ct, MLKEM_CT_BYTES);
+            std::snprintf(what, sizeof(what), "req%u.ss", r);
+            req_err += compare(what, &h_ss_enc[r * MLKEM_SS_BYTES], test_vector_ss, MLKEM_SS_BYTES);
+            if (std::memcmp(&h_ss_enc[r * MLKEM_SS_BYTES],
+                            &h_ss_dec[r * MLKEM_SS_BYTES], MLKEM_SS_BYTES) != 0) {
+                std::printf("*** request %u: shared secrets differ\n", r);
+                ++req_err;
+            }
+        }
+        errors += req_err;
     }
 
     // Stack watermark. An overflow here is invisible at run time -- the RAM has
     // no ACL and pages in on demand, so hart 0 running past its slab just
     // scribbles on idle hart 1 and every KAT still matches. These checks are
     // the only thing standing between that and a silently wrong measurement.
-    if (h_probe[MLKEM_PR_STACK_PEAK] == 0) {
-        std::printf("*** stack watermark is zero -- the probe never ran\n");
-        ++errors;
-    } else if (h_probe[MLKEM_PR_STACK_PEAK] >= h_probe[MLKEM_PR_STACK_SPAN]) {
-        std::printf("*** stack peak %u B filled its whole %u B paintable slab"
-                    " -- it overflowed into the next hart\n",
-                    h_probe[MLKEM_PR_STACK_PEAK], h_probe[MLKEM_PR_STACK_SPAN]);
-        ++errors;
+    uint32_t stack_max = 0, arena_max = 0, arena_fail = 0, span = 0;
+    for (uint32_t r = 0; r < requests; ++r) {
+        const uint32_t* pr = &h_probe[r * MLKEM_PR_COUNT];
+        if (pr[MLKEM_PR_STACK_PEAK] == 0) {
+            std::printf("*** request %u: stack watermark is zero -- the probe never ran\n", r);
+            ++errors;
+        } else if (pr[MLKEM_PR_STACK_PEAK] >= pr[MLKEM_PR_STACK_SPAN]) {
+            std::printf("*** request %u: stack peak %u B filled its whole %u B paintable"
+                        " slab -- it overflowed into the next hart\n",
+                        r, pr[MLKEM_PR_STACK_PEAK], pr[MLKEM_PR_STACK_SPAN]);
+            ++errors;
+        }
+        if (pr[MLKEM_PR_ARENA_FAIL] != 0) {
+            std::printf("*** request %u: arena exhausted %u times -- raise MLK_ARENA_BYTES\n",
+                        r, pr[MLKEM_PR_ARENA_FAIL]);
+            ++errors;
+        }
+        if (pr[MLKEM_PR_ARENA_PEAK] == 0) {
+            std::printf("*** request %u: arena peak is zero -- MLK_CUSTOM_ALLOC was never"
+                        " reached, so this is not the build being measured\n", r);
+            ++errors;
+        }
+        if (pr[MLKEM_PR_STACK_PEAK] > stack_max) stack_max = pr[MLKEM_PR_STACK_PEAK];
+        if (pr[MLKEM_PR_ARENA_PEAK] > arena_max) arena_max = pr[MLKEM_PR_ARENA_PEAK];
+        arena_fail += pr[MLKEM_PR_ARENA_FAIL];
+        span = pr[MLKEM_PR_STACK_SPAN];
     }
-    if (h_probe[MLKEM_PR_ARENA_FAIL] != 0) {
-        std::printf("*** arena exhausted %u times -- raise MLK_ARENA_BYTES\n",
-                    h_probe[MLKEM_PR_ARENA_FAIL]);
-        ++errors;
-    }
-    if (h_probe[MLKEM_PR_ARENA_PEAK] == 0) {
-        std::printf("*** arena peak is zero -- MLK_CUSTOM_ALLOC was never reached,"
-                    " so this is not the build being measured\n");
-        ++errors;
-    }
-    std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u\n",
-                h_probe[MLKEM_PR_STACK_PEAK], h_probe[MLKEM_PR_STACK_SPAN],
-                (unsigned)PQC_SLAB_BYTES, h_probe[MLKEM_PR_ARENA_PEAK],
-                (unsigned)MLK_ARENA_BYTES, h_probe[MLKEM_PR_ARENA_FAIL]);
+    std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u"
+                "   (max over %u requests)\n",
+                stack_max, span, (unsigned)PQC_SLAB_BYTES,
+                arena_max, (unsigned)MLK_ARENA_BYTES, arena_fail, requests);
 
-    // Device cycles per phase. Single thread, so this is the software baseline
-    // every later speedup divides into.
-    for (int i = 0; i < MLKEM_CY_COUNT; ++i)
-        if (h_cycles[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
-    const uint64_t total = h_cycles[MLKEM_CY_KEYPAIR] + h_cycles[MLKEM_CY_ENCAPS]
-                         + h_cycles[MLKEM_CY_DECAPS];
-    std::printf("CYCLES: keypair=%llu encaps=%llu decaps=%llu total=%llu\n",
-                (unsigned long long)h_cycles[MLKEM_CY_KEYPAIR],
-                (unsigned long long)h_cycles[MLKEM_CY_ENCAPS],
-                (unsigned long long)h_cycles[MLKEM_CY_DECAPS],
-                (unsigned long long)total);
+    // Per-request device cycles. These are concurrent, not additive: request r
+    // measures its own vx_rdcycle span, and the spans overlap. The batch's cost
+    // is the device cycle count from --perf, not the sum of these. What the
+    // spread says is how much the requests interfered with each other -- at
+    // M=1 min and max are the same number by construction.
+    uint64_t tot_min = ~0ull, tot_max = 0, tot_sum = 0;
+    for (uint32_t r = 0; r < requests; ++r) {
+        const uint64_t* cy = &h_cycles[r * MLKEM_CY_COUNT];
+        for (int i = 0; i < MLKEM_CY_COUNT; ++i)
+            if (cy[i] == 0) {
+                std::printf("*** request %u: phase %d measured zero cycles\n", r, i);
+                ++errors;
+            }
+        const uint64_t t = cy[MLKEM_CY_KEYPAIR] + cy[MLKEM_CY_ENCAPS] + cy[MLKEM_CY_DECAPS];
+        if (t < tot_min) tot_min = t;
+        if (t > tot_max) tot_max = t;
+        tot_sum += t;
+    }
+    const uint64_t* cy0 = &h_cycles[0];
+    std::printf("CYCLES: keypair=%llu encaps=%llu decaps=%llu total=%llu   (request 0)\n",
+                (unsigned long long)cy0[MLKEM_CY_KEYPAIR],
+                (unsigned long long)cy0[MLKEM_CY_ENCAPS],
+                (unsigned long long)cy0[MLKEM_CY_DECAPS],
+                (unsigned long long)(cy0[MLKEM_CY_KEYPAIR] + cy0[MLKEM_CY_ENCAPS]
+                                     + cy0[MLKEM_CY_DECAPS]));
+    if (requests > 1)
+        std::printf("REQUESTS: n=%u  per-request total min=%llu mean=%llu max=%llu"
+                    "  spread=%.1f%%\n", requests,
+                    (unsigned long long)tot_min, (unsigned long long)(tot_sum / requests),
+                    (unsigned long long)tot_max,
+                    100.0 * (double)(tot_max - tot_min) / (double)tot_min);
 
     for (auto& r : reads) vx_event_release(r.ev);
+    // Device-level counters. The per-request spans above overlap, so this is
+    // the only figure that is the batch's actual cost, and IPC is the column
+    // that says whether a batch stopped scaling on issue or on memory.
+    vx_device_dump_perf(dev, stdout);
+
     vx_event_release(launch_ev);
     for (auto& b : bufs) vx_buffer_release(b.h);
     vx_kernel_release(kern);
