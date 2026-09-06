@@ -17,14 +17,15 @@ VX_SRCS := $(SRC_DIR)/kernel.cpp
 # The library configuration is the mlkem test's, not a copy. Two configs would
 # eventually diverge, and then the per-primitive costs would belong to a
 # different build than the end-to-end number they are meant to explain.
-MLDSA_FLAGS := -I$(MLDSA_DIR)/mldsa -I$(VORTEX_HOME)/tests/pqc/mldsa -I$(SRC_DIR) -DMLD_CONFIG_FILE='"vortex_mldsa_config.h"'
+MLDSA_FLAGS := -I$(MLDSA_DIR)/mldsa -I$(VORTEX_HOME)/tests/pqc/mldsa -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc -DMLD_CONFIG_FILE='"vortex_mldsa_config.h"'
                -DMLK_CONFIG_FILE='"vortex_mlkem_config.h"'
 VX_CFLAGS += $(MLDSA_FLAGS)
 CXXFLAGS  += $(MLDSA_FLAGS)
 
 # The host binary reads kernel_arg_t out of these; without them a layout
 # change rebuilds the kernel and leaves the host on the old struct.
-HDRS := $(SRC_DIR)/common.h
+HDRS := $(SRC_DIR)/common.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 KERNEL_LIB := vortex2
 

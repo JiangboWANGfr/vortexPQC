@@ -35,7 +35,8 @@ VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_mlkem_config.h \
 HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/vortex_mlkem_config.h \
         $(SRC_DIR)/mlk_vortex_alloc.h \
-        $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+        $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 # KECCAK=asm builds the "optimized software" Keccak column: PQRV's hand-written
 # RV32 assembly instead of mlkem-native's reference C. See

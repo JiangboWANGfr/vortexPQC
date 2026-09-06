@@ -17,14 +17,15 @@ VX_SRCS := $(SRC_DIR)/kernel.cpp
 # The library configuration is the mlkem test's, not a copy. Two configs would
 # eventually diverge, and then the per-primitive costs would belong to a
 # different build than the end-to-end number they are meant to explain.
-MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) \
+MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
                -DMLK_CONFIG_FILE='"vortex_mlkem_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
 
 # The host binary reads kernel_arg_t out of these; without them a layout
 # change rebuilds the kernel and leaves the host on the old struct.
-HDRS := $(SRC_DIR)/common.h
+HDRS := $(SRC_DIR)/common.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 # KECCAK=asm builds the "optimized software" Keccak column: PQRV's hand-written
 # RV32 assembly instead of mlkem-native's reference C. See

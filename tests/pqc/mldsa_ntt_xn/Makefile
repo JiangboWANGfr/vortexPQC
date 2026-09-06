@@ -15,7 +15,8 @@ VX_CFLAGS += $(MLDSA_FLAGS)
 CXXFLAGS  += $(MLDSA_FLAGS)
 
 VX_HDRS := $(SRC_DIR)/common.h $(VORTEX_HOME)/tests/pqc/pqc_stack.h
-HDRS    := $(SRC_DIR)/common.h $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+HDRS    := $(SRC_DIR)/common.h $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 KERNEL_LIB := vortex2
 

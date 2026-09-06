@@ -11,7 +11,7 @@ SRCS := $(SRC_DIR)/main.cpp
 
 VX_SRCS := $(SRC_DIR)/kernel.cpp
 
-MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) \
+MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
                -DMLK_CONFIG_FILE='"vortex_width_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
@@ -32,7 +32,8 @@ endif
 # change rebuilds the kernel and leaves the host on the old struct.
 HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/mlk_width_counters.h \
-        $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+        $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 KERNEL_LIB := vortex2
 

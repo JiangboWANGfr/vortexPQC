@@ -5,6 +5,7 @@
 #include <vector>
 #include <unistd.h>
 #include "common.h"
+#include "pqc_config.h"
 
 #define CHECK(_expr) do { int _r = _expr; if (_r) { \
   std::fprintf(stderr, "FAIL %s:%d: '%s' -> %d\n", __FILE__, __LINE__, #_expr, _r); \
@@ -22,6 +23,8 @@ int main(int argc, char** argv) {
     }
 
     vx_device_h dev=nullptr; CHECK(vx_device_open(0,&dev));
+    const pqc::config cfg = pqc::print_config(dev, blocks, lanes);
+    if (pqc::require_slots(cfg, blocks, lanes) != 0) { vx_device_release(dev); return -1; }
     vx_queue_info_t qi={sizeof(qi),nullptr,VX_QUEUE_PRIORITY_NORMAL,0};
     vx_queue_h q=nullptr; CHECK(vx_queue_create(dev,&qi,&q));
 

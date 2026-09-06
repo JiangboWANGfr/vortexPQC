@@ -18,6 +18,7 @@
 
 #include <vortex2.h>
 #include "common.h"
+#include "pqc_config.h"
 #include "pqc_stack.h"
 #include "mld_vortex_alloc.h"
 
@@ -67,6 +68,8 @@ int main(int argc, char** argv) {
     STEP("device_open");
     vx_device_h dev = nullptr;
     CHECK(vx_device_open(0, &dev));
+    const pqc::config cfg = pqc::print_config(dev, requests, lanes);
+    if (pqc::require_slots(cfg, requests, lanes) != 0) { vx_device_release(dev); return -1; }
     vx_queue_info_t qi = { sizeof(qi), nullptr, VX_QUEUE_PRIORITY_NORMAL, 0 };
     vx_queue_h q = nullptr;
     CHECK(vx_queue_create(dev, &qi, &q));

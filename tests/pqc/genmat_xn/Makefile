@@ -17,7 +17,8 @@ CXXFLAGS  += $(MLKEM_FLAGS)
 # The host binary reads kernel_arg_t out of these; without them a layout
 # change rebuilds the kernel and leaves the host on the old struct.
 HDRS := $(SRC_DIR)/common.h \
-        $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+        $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 KERNEL_LIB := vortex2
 include ../common.mk

@@ -47,7 +47,8 @@ CXXFLAGS  += $(ABLATE_FLAGS)
 # change rebuilds the kernel and leaves the host on the old struct.
 HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/mld_prof_counters.h \
-        $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+        $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 # MLDSA_RAM=full drops MLD_CONFIG_REDUCE_RAM: matrix A is materialised instead of
 # re-expanded per use, which restores the library's 4-wide Keccak batching at the

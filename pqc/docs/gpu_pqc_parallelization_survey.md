@@ -679,7 +679,7 @@ Vortex 有三条已落地的先例 **[源码]**：
 
 **per-lane 一方最强的反驳（必须正面回应，不能绕过）**：per-lane 4 路 stream-batching **不需要任何 lane 间交换**——`mlk_keccakf1600x4_permute` / `mld_keccakf1600x4_permute` 就是 4 个完全独立的 25-lane 状态，SIMT 下 4 个 thread 各跑一个。这和「25 threads 做一个 state」（θ/ρ/π 要 cross-lane shuffle）是完全不同的机制。而 §8 的 XOF 分类说明独立流 XOF 在两个方案里都占绝对多数，天然适合 per-lane。**反驳这一条的唯一依据是利用率算术（0.033–1.36%）与面积**，不是「per-lane 做不到」。
 
-**Fmax 风险**：V80 目标 300 MHz。**手头没有任何 V80 上的 fmax 数字。** 唯一的综合锚点是 `ci/baselines/synthesis/xilinx/core.json`，器件是 **`xcu55c-fsvh2892-2L-e`（Alveo U55C）**：`cache` 290.5 MHz、`core` 298.1 MHz（该 cell 的配置是 `NUM_THREADS=16 / NUM_WARPS=16 / EXT_C / EXT_A`，**不是本文的 4w4t**）、`top`（2 核 4w4t）在 250 MHz 目标下收在 250.0 MHz **[本地实测，已归档]**。**E6 是取得 V80 数字的唯一途径。** θ 是 5 输入 64-bit XOR 树 + 旋转 + 再 XOR（约 4–5 级逻辑），χ 2 级。单轮组合应可过，**但不要展开 2 轮**。
+**Fmax 风险**：V80 目标 300 MHz（`hw/syn/xilinx/aved/platforms.mk:67` `KERNEL_FREQ ?= 300`）。**V80 上确实有一个实测时序结果，但它对本文的配置没有预测力**：upstream `5def82517`（V80 300mhz #410）记录了一个 **tinyGPU** RM 在 XCV80 上经 post-route `phys_opt` 后**收在 300.000 MHz**；phys_opt 之前是 **WNS −0.034 ns、265 个端点不满足**（均值 −13 ps，最差项是 `offset_r` 上的 replica 间跳变，扇出驱动而非逻辑深度）。而 tinyGPU 是 **1 cluster / 1 core / 2 warp × 2 thread、I$ 与 D$ 与 LMEM 全部关闭**的最小调试配置（`docs/synthesis_analysis.md:81-87`）——**本文的评估配置是 1 core / 8 warp × 4 lane、三级存储全开，还要再加一个 Keccak PE。** 一个连缓存都没有的配置尚且要靠 phys_opt 才收得住 300 MHz，这对完整配置是警号而不是保证。`ci/baselines/synthesis/xilinx/core.json` 里那三条归档基线的器件是 `ci/baselines/synthesis/xilinx/core.json`，器件是 **`xcu55c-fsvh2892-2L-e`（Alveo U55C）**：`cache` 290.5 MHz、`core` 298.1 MHz（该 cell 的配置是 `NUM_THREADS=16 / NUM_WARPS=16 / EXT_C / EXT_A`，**不是本文的 4w4t**）、`top`（2 核 4w4t）在 250 MHz 目标下收在 250.0 MHz **[本地实测，已归档]**。**E6 仍是取得本文配置在 V80 上的数字的唯一途径。** θ 是 5 输入 64-bit XOR 树 + 旋转 + 再 XOR（约 4–5 级逻辑），χ 2 级。单轮组合应可过，**但不要展开 2 轮**。
 
 ---
 
@@ -767,6 +767,45 @@ VeloFHE 给了最锋利的度量（N=2¹⁰，A100）：batch=1 用满 1024 线�
 
 ---
 
+## §9.9 配置错位：从纪律变成机制 **[本轮新测]**
+
+本文反复写「所有 arm 的 cores / warps / threads / M / L / L2 必须一致并写进 caption」。**这条纪律在本项目内部被违反过一次，而且差点产出一个虚构的架构结论。**
+
+ML-KEM 的 M×L 网格走 `ci/blackbox.sh --warps=8`；ML-DSA 的走 `make run-simx`，**后者不携带 warp 配置**，于是跑在默认的 4 warp 上。M=8 在 4 个 warp 槽上跑两波，看起来就是「ML-DSA 的请求轴在 M=4 封顶而 ML-KEM 到 M=8」——一个关于两个方案内存足迹差异的、完全成立的、完全错误的故事。
+
+**抓住它的不是主数据，是诊断列**：M=4 → M=8 时**指令数精确 2.0000×、周期 2.0007×、IPC 完全不变（0.418）**。容量墙会压低 IPC，第二波不会。开 L2 只改变那一格 0.02%，进一步确认——墙对 L2 有反应，波没有。
+
+### 9.9.1 修法不是更小心，是让它跑不起来
+
+`tests/pqc/pqc_config.h`，接进全部十个 PQC 测试，三层：
+
+1. **每次运行自报配置。** 开设备后立刻打印一行，格式固定可 grep：
+   ```
+   CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=4 M=8 L=1 l2=0 l3=0 lmem=16384B line=64B isa=0x3340901120
+   ```
+   数字从此不能与产生它的机器分离；每个扫描脚本把这一行抄进结果文件。
+
+2. **值来自设备，不是宏。** `vx_device_query(VX_CAPS_NUM_WARPS)` 等 —— 宏说的是「host 编译时以为是什么」，设备说的是「实际是什么」，而这个区别正是问题所在。唯一的例外是 L2/L3：它们没有 capability ID，只能读宏，头文件里明确标注这一行是**断言**而非**观测**。
+
+3. **装不下就拒绝执行。** `M > warps` 或 `L > threads` 时不启动，并给出重建命令：
+   ```
+   *** -b 8 needs 8 warp slots, device has 4: the extra requests
+       would run in waves and the M axis would measure the waves.
+       Rebuild with CONFIGS="-DVX_CFG_NUM_WARPS=8" (or blackbox --warps=8).
+   ```
+
+在修复前，那条命令**跑完、通过、给出一个漂亮的错数**；修复后它在启动前退出。
+
+### 9.9.2 一般化
+
+这条与 §9 里其余几条同源：**没有正确性检查的周期数不是测量**、**投毒的输出缓冲区**、**「仪器读回 0」是失败条件**。共同的形状是——
+
+> **一个能产出漂亮数字的错误配置，比一个会崩溃的错误配置危险得多。** 所以每个测量装置都要能说出它自己跑在什么上面，并在跑不了要求的实验时拒绝启动，而不是安静地跑一个别的实验。
+
+做法借自 `vortexCrypto` 的 `tests/crypto`，那边先解决了同一个问题；它更进一步：设备缺少所需 ISA 扩展时直接 SKIP 并说明重建方式，理由是**自定义编码在没有该单元的设备上不会 fault，而是被译码成别的指令，且 RTL 与 SimX 译码结果不同**——与本文 §14 记录的 Vortex RORI 译码分歧是同一件事。**PQC 扩展落地时必须一并接上这一层。**
+
+---
+
 ## §10 方法学：十条比产生它们的数字活得更久的教训
 
 **M1 —— 一个廉价的上界仪器只在它覆盖的那条轴上准，必须逐轴声明适用范围。**
@@ -817,7 +856,7 @@ ML-DSA 的 sign 是 Fiat-Shamir 拒绝循环：原语置空后候选永远过不
 | 8 | seed 分布的解析表（144 @ 0.9275 等） | **[推导]** + **[host]** 对照 | 两者一致到 ≤0.13 个百分点；147 的 10% 相对差是 +1.3σ 的抽样噪声 |
 | 9 | 32,777,984 与 33,066,490 的 +0.88% 是 `PERF` 与 `vx_rdcycle` 的口径差 | **[推导]** | 未直接验证（§2.1） |
 | 10 | NTT 估计器 +9.6% 误差的 98.4% 由微基准的输入重建循环解释 | **[推导]** | 两个不同测量上下文（摊销循环 vs 单次调用）之间的相减 |
-| 11 | `.bss` 393,408 B；unit-level fmax 290.5 / 298.1 MHz | **[本地实测，已归档]** | `.bss` 可复算（16 × 24,576 arena + 记账数组）；fmax 有逐配置数字，但**器件是 U55C 不是 V80**，且 298.1 那格是 16w16t |
+| 11 | `.bss` 393,408 B；unit-level fmax 290.5 / 298.1 MHz | **[本地实测，已归档]** | `.bss` 可复算（16 × 24,576 arena + 记账数组）；fmax 有逐配置数字，但归档的三条**器件是 U55C**；V80 上只有 tinyGPU（2w2t、无缓存）经 phys_opt 的 300.000 MHz，见 `5def82517` |
 
 ---
 
@@ -892,7 +931,7 @@ ML-DSA 的 sign 是 Fiat-Shamir 拒绝循环：原语置空后候选永远过不
 **R5 —— 共享 PE 在高核数下变成瓶颈。** 仓库自带的负面先例：RTU slot 1→4 慢 28.5%。
 *应对*：§7.3 的算术给出 0.033–1.36% 占用率，余量极大——**但那是模型不是测量**（§11 第 4 条）。给 PE 加一个占用率计数器（MPM 有 RESERVED class 可用），若批模式下占用率 > 30% 就重新考虑。
 
-**R6 —— Fmax 回退把 cycle 收益吃掉。** V80 目标 300 MHz；手头的锚点全部来自 **U55C**（`cache` 290.5 / `core` 298.1 MHz，后者是 16w16t；2 核 top 只有 250.0 MHz），**V80 上一个数都没有**；Adams et al. 在 16 核时掉了 7.8%。**早期信号**：E6 的第一次综合。
+**R6 —— Fmax 回退把 cycle 收益吃掉。** V80 目标 300 MHz。V80 上唯一的实测是 **tinyGPU**（2w2t、缓存全关）经 phys_opt 收在 300.000 MHz，phys_opt 前 WNS −0.034 ns / 265 端点不满足（`5def82517`）；其余锚点来自 **U55C**（`cache` 290.5 / `core` 298.1 MHz，后者是 16w16t；2 核 top 只有 250.0 MHz）。**本文配置在 V80 上没有任何数字**；Adams et al. 在 16 核时掉了 7.8%。**早期信号**：E6 的第一次综合。
 *应对*：双列报 speedup（可达频率 + 固定频率），并报 time-area product。
 
 **R7 —— ML-DSA 把结论翻过来。** **两条腿都已断：** (i) 3.1% 不是算法约束，是 `polyvec_lazy.h:427` 的一个单槽字段（§6.2），关掉 `REDUCE_RAM` 在 Vortex 上实测 83.2% 可批；(ii) lane 轴在 `full` 下实测 **1.601×**，**高于** ML-KEM 的 1.485×（§4.5）。

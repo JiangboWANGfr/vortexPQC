@@ -28,7 +28,8 @@ VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/mld_simt_counters.h $(SRC_DIR)/vortex_
 HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/vortex_mldsa_config.h \
         $(SRC_DIR)/mld_vortex_alloc.h \
-        $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+        $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 # MLDSA_RAM=full drops MLD_CONFIG_REDUCE_RAM: matrix A is materialised instead of
 # re-expanded per use, which restores the library's 4-wide Keccak batching at the

@@ -13,7 +13,7 @@ VX_SRCS := $(SRC_DIR)/kernel.cpp
 
 # vortex_prof_config.h includes the mlkem test's config and adds the two
 # counting backends, so -I reaches both directories.
-MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) \
+MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
                -DMLK_CONFIG_FILE='"vortex_prof_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
@@ -41,7 +41,8 @@ CXXFLAGS  += $(ABLATE_FLAGS)
 # The host binary reads kernel_arg_t out of these; without them a layout
 # change rebuilds the kernel and leaves the host on the old struct.
 HDRS := $(SRC_DIR)/common.h \
-        $(SRC_DIR)/mlk_prof_counters.h
+        $(SRC_DIR)/mlk_prof_counters.h \
+        $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
 KERNEL_LIB := vortex2
 
