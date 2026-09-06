@@ -67,6 +67,48 @@ KECCAKF   rd=x0, rs1, rs2=x0
 `INST_EXT3` (0x5B) and `INST_EXT4` (0x7B) remain entirely unclaimed; funct7 0x05's
 other six funct3 codes are reserved for the NTT half.
 
+### 2.0 Why one instruction
+
+Because Keccak-f1600 is a fixed function with no parameters, and the library's
+contract at the ISA boundary is one line:
+
+```c
+int mlk_keccak_f1600_x1_native(uint64_t *state);   // permute these 200 bytes in place
+```
+
+That is the whole interface. Absorb, padding, domain separation, rate handling,
+squeeze — the entire sponge — stay in the library's C, because this project has
+committed to leaving the submodules byte-for-byte unmodified. That commitment is
+what makes the two-column Keccak baseline and the equal-permutation-count
+property possible, so it is not negotiable for a 1% gain.
+
+The permutation takes 1600 bits, returns 1600 bits, runs 24 rounds, and has no
+options. At the ISA boundary there are exactly two degrees of freedom:
+
+| degree of freedom | encoded as |
+|---|---|
+| where the state is | `rs1`, one source register |
+| which lanes take part | `funct3`, one bit |
+
+There is nothing else to encode. One instruction is not minimalism, it is the
+shape of the function.
+
+What a larger instruction set would have bought, and why none of it is taken:
+
+| candidate | why not |
+|---|---|
+| state move-in / move-out (`KWR`/`KRD` style) | only needed if the PE cannot address memory. It can (§2.4), so they vanish. The earlier experiment paid **101 instructions per permutation** for them — 50 writes, one permute, 50 reads — and that is the §7 anti-pattern by name |
+| sponge-level absorb/squeeze | lets the state stay resident, worth ~1%; costs an ownership protocol and has to hook *above* the library API, which breaks equal permutation counts across arms (§3.1) |
+| a separate x4 instruction | x4 is four independent states; `KECCAKF_L` with four lanes covers it, and the library's C fallback already decomposes x4 into four x1 calls, so even x1 alone is sufficient |
+| async launch + wait | must live inside synchronous straight-line library code, so the handle has nowhere to survive and becomes pure cost (§3.2) |
+| a round-level instruction | 24 issues per permutation and the state back in the register file — worse on both counts |
+| a configuration instruction or DCR | there is nothing to configure; rate, padding and domain separation are all library-side |
+
+This is not a one-instruction doctrine. NTT has real degrees of freedom —
+forward versus inverse, possibly a twiddle pointer, possibly a layer index — and
+gets funct7 0x05's remaining six funct3 codes and its own proposal. Keccak needs
+one instruction because it has exactly one thing to do.
+
 ### 2.1 Why two funct3 codes, and not one
 
 This is the one place where the obvious design is wrong, and it is a
