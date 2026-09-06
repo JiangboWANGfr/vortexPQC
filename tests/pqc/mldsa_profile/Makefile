@@ -26,8 +26,14 @@ ifeq ($(ABLATE),keccak)
 	ABLATE_FLAGS := -DPQC_ABLATE_KECCAK
 else ifeq ($(ABLATE),ntt)
 	ABLATE_FLAGS := -DPQC_ABLATE_NTT
-else
+else ifeq ($(ABLATE),)
 	ABLATE_FLAGS :=
+else
+# Without this, ABLATE=both -- or any typo -- builds the un-ablated baseline and
+# reports it as an ablation. That is how a "measured" 26,233,434 for a
+# configuration that does not exist got written down. A tab in front of the
+# $(error) would make it a recipe line and it would never fire.
+$(error ABLATE must be keccak, ntt, or unset -- got '$(ABLATE)')
 endif
 # Ablation on ML-DSA is only meaningful for keypair, so an ablated build is
 # built KEYPAIR_ONLY -- see the comment in kernel.cpp.

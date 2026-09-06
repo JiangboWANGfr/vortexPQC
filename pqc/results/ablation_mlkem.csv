@@ -1,0 +1,35 @@
+# Amdahl bounds for ML-KEM-768, measured by ablation rather than estimated.
+#
+# tests/pqc/mlkem_profile, simx, 1 core / 4 warps / 4 threads, L2-L3 off, one lane.
+# An ablated primitive's hook returns SUCCESS without doing the work: the call
+# structure is untouched and the cycle delta is that primitive's real cost,
+# including call overhead. Results are wrong by construction -- this build is an
+# ablation, never a correctness test.
+#
+# DENOMINATOR: the instrumented profile build (35,447,271), not the plain
+# baseline (32,777,984). One build, one subtraction, internally consistent. The
+# profile build carries +8.1% counter overhead; rescaling a delta taken in one
+# build against the other build's total is what produced the inflated figures
+# this file replaces.
+#
+# CAVEAT, measured here: ABLATE=keccak changes the permutation count from 156 to
+# 144, because a stubbed squeeze returns constant bytes and the rejection
+# sampler stops needing top-up blocks. The delta therefore also removes those 12
+# permutations. It is still the honest Amdahl bound -- with Keccak free, those
+# top-ups would not exist either -- but it is not a pure substitution.
+#
+# ABLATE=both does not exist. The Makefiles accepted it silently and built the
+# un-ablated baseline: measured 35,447,271, bit-identical to the baseline row.
+# Unknown ABLATE values are now a build error.
+variant,cycles,delta_vs_baseline,fraction,amdahl_bound,keccak_perms,notes
+baseline,35447271,,,,156,profile build with counters
+ablate_keccak,11443248,24004023,0.6772,3.098,144,count drops 156->144 (see caveat)
+ablate_ntt,31204138,4243133,0.1197,1.136,156,15 fwd + 9 inv transforms
+ablate_both,35447271,0,0.0000,1.000,156,CONFIGURATION DOES NOT EXIST - equals baseline
+#
+# Cross-check of the count x per-call-cost estimator, third independent instance:
+#   156 perms x 151,872.1 cycles = 23,692,048 estimated vs 24,004,023 measured
+#   estimator runs 1.30% low (earlier instances: -1.4% ML-KEM, -1.3% ML-DSA keypair)
+# The shortfall is call overhead, which a microbenchmark of the permutation alone
+# cannot see. Same sign and magnitude three times over: a systematic, explainable
+# bias rather than noise.

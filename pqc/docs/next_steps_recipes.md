@@ -978,9 +978,20 @@ Keccak estimates run *low* on both schemes with the same sign and magnitude (the
 **a) Which denominator for the Amdahl bound.** The delta is clean either way (counter increments occur in both builds and cancel); only the fraction moves.
 | | vs instrumented 33,454,410 | vs plain 32,742,056 |
 |---|---|---|
-| Keccak 21,995,277 | 65.75% → **2.92×** | 67.18% → **3.05×** |
-| NTT 4,242,202 | 12.68% → 1.15× | 12.96% → 1.15× |
-| both 26,233,434 | 78.42% → 4.63× | 80.12% → 5.03× |
+> ⚠️ **CORRECTED -- the numbers that were here were not measured on this repo.**
+> Measured afterwards (`pqc/results/ablation_mlkem.csv`, survey §0.44), against the
+> instrumented baseline 35,447,271:
+>
+> | | delta | fraction | Amdahl |
+> |---|---:|---:|---:|
+> | Keccak | **24,004,023** | **67.72%** | **3.098x** |
+> | NTT | 4,243,133 | 11.97% | 1.136x |
+> | both | -- | -- | **configuration does not exist** |
+>
+> The NTT figure originally written here (4,242,202) was within 0.02% of the truth.
+> The Keccak figure (21,995,277) was 8.4% low. The `both` row described a build the
+> Makefiles never supported: `ABLATE=both` silently produced the un-ablated baseline,
+> bit-identical at 35,447,271. Unknown ABLATE values are now a build error.
 
 **Recommendation:** report the instrumented-denominator fraction as the measurement (internally consistent — one build, one subtraction) and give the plain-baseline rescaling in the same row, with the +2.18% overhead stated once. Never silently mix them — that mixing (profile-build counts over a plain-baseline denominator) is what produced the current 72.3%.
 
