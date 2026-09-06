@@ -29,19 +29,12 @@ extern "C" {
 }
 
 #include "common.h"
+#include "pqc_stack.h"
 
 // sampling.c #undefs this at the end for single-compilation-unit builds, so
 // the same expression is restated here rather than reaching into the library.
 #define GX_NBLOCKS \
   ((12 * MLKEM_N / 8 * ((uint32_t)1 << 12) / MLKEM_Q + SHAKE128_RATE) / SHAKE128_RATE)
-
-static inline uint32_t read_sp() {
-  uint32_t v; asm volatile("mv %0, sp" : "=r"(v)); return v;
-}
-
-// Number of SHAKE-128 blocks each stream actually consumed, so a width sweep
-// can be read as slots rather than guessed at.
-static uint32_t gx_blocks;
 
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   const unsigned blk = blockIdx.x;
@@ -49,22 +42,23 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto nout   = reinterpret_cast<int16_t*>(arg->noise_addr) + blk * GX_NOISE * 256;
   auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
   auto sums   = reinterpret_cast<uint32_t*>(arg->sum_addr);
+  auto xof    = reinterpret_cast<uint32_t*>(arg->xof_addr);
 
   const unsigned tid = (unsigned)vx_thread_id();
   const unsigned W   = arg->lanes;
 
-  const uint32_t sp0 = read_sp();
-  const uint32_t floor_addr = (sp0 & ~8191u);
-  const uint32_t paint_hi = sp0 - 128;
-  for (uint32_t a = floor_addr; a < paint_hi; a += 4)
-    *reinterpret_cast<volatile uint32_t*>(a) = GX_PAINT;
-  vx_fence();
+  uint32_t sp0;
+  const uint32_t span = pqc_stack_paint(&sp0);
 
   uint8_t seed[MLKEM_SYMBYTES];
   for (unsigned i = 0; i < MLKEM_SYMBYTES; ++i) seed[i] = (uint8_t)(i * 7 + 1);
   seed[0] = (uint8_t)(seed[0] ^ blk);   // each CTA is a different message
 
-  gx_blocks = 0;
+  // Per-hart, and accumulated rather than assigned: a second CTA wave lands on
+  // the same hart, and a single shared counter is raced by every lane of the
+  // warp as well. The host sums the slots.
+  const uint32_t hart = (uint32_t)vx_hart_id();
+  uint32_t nblocks = 0;
 
   // ---- gen_matrix, 9 independent streams over W lanes -------------------
   uint64_t t0 = vx_rdcycle();
@@ -90,7 +84,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
       nb++;
     }
     mlk_shake128_release(&st);
-    gx_blocks += nb;
+    nblocks += nb;
   }
   uint64_t t1 = vx_rdcycle();
 
@@ -106,15 +100,13 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   }
   uint64_t t2 = vx_rdcycle();
 
-  uint32_t low = paint_hi;
-  for (uint32_t a = floor_addr; a < paint_hi; a += 4)
-    if (*reinterpret_cast<volatile uint32_t*>(a) != GX_PAINT) { low = a; break; }
+  xof[hart] += nblocks;
 
   if (tid == 0 && blk == 0) {
     cycles[0] = t1 - t0;
     cycles[1] = t2 - t1;
-    cycles[2] = gx_blocks;
-    cycles[3] = sp0 - low;
+    cycles[2] = span;                    // paintable span; == cycles[3] means
+    cycles[3] = pqc_stack_watermark(sp0);// the slab filled and the peak is a floor
     uint32_t a = 0, b = 0;
     for (unsigned i = 0; i < GX_ENTRIES * MLKEM_N; ++i) a = a * 31u + (uint16_t)out[i];
     for (unsigned i = 0; i < GX_NOISE   * MLKEM_N; ++i) b = b * 31u + (uint16_t)nout[i];

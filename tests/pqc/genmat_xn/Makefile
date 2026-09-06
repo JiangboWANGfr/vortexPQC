@@ -9,6 +9,7 @@ SRCS := $(SRC_DIR)/main.cpp
 VX_SRCS := $(SRC_DIR)/kernel.cpp
 
 MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) \
+               -I$(VORTEX_HOME)/tests/pqc \
                -DMLK_CONFIG_FILE='"vortex_gx_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
