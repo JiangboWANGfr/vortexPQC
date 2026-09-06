@@ -1,0 +1,35 @@
+# Two-dimensional parallelism sweep, tests/pqc/genmat_xn
+#   (ML-KEM-768 gen_matrix, 9 independent SHAKE128 streams + encaps noise PRF, 7 streams)
+# simx, VX_CFG_NUM_THREADS=4.  M = independent messages (CTAs).  L = lanes per message.
+# throughput = M * cycles(M=1,L=1,L2 off) / cycles.  efficiency = throughput / harts.
+# Every cell checksum-verified against CTA 0's width- and batch-invariant output.
+#
+# SCOPE: this instrument covers only the independent-XOF-stream stages. The strictly
+# serial G/H/J chain (30.8% of ML-KEM's Keccak permutations), the NTT (14%) and the
+# packing (13%) are not in it, so these are UPPER BOUNDS on the full round trip and
+# must not be used as a baseline. Cross-check: composing L=4 (2.507x) with the 50% of
+# total time that is batchable Keccak predicts 1.43x end to end; tests/pqc/mlkem_width
+# measures 1.436x on the full round trip.
+#
+# THE L2 COLUMN IS NOT A DETAIL. With L2 disabled the lane axis turns negative past
+# L=2 and the best point is M=8,L=2 at 7.00x. With L2 enabled the same axis is
+# monotone and the best point is M=8,L=4 at 14.68x -- a 3.1x difference in the same
+# cell from a cache-hierarchy change. Any statement about how wide a warp should be
+# has to name the cache configuration it was measured under. L2 does nothing at all
+# for a single lane (the M=1 rows are within 0.04%): what it buys is the capacity
+# pressure of many harts.
+nwarps,M,L,harts,cycles_l2off,ipc_l2off,thr_l2off,eff_l2off,cycles_l2on,ipc_l2on,thr_l2on,eff_l2on,l2_gain,instrs,sum_ok
+8,1,1,1,7000136,0.102,1.000,1.000,7003135,0.102,1.000,1.000,+0.0%,713812,1
+8,1,2,2,4304313,0.099,1.626,0.813,4305636,0.099,1.626,0.813,+0.0%,425564,1
+8,1,4,4,2791883,0.097,2.507,0.627,2793230,0.097,2.506,0.627,-0.0%,270042,1
+8,2,1,2,7016819,0.197,1.995,0.998,,,,,,1382767,1
+8,2,2,4,4324497,0.186,3.237,0.809,,,,,,806050,1
+8,2,4,8,3390454,0.146,4.129,0.516,,,,,,494804,1
+8,4,1,4,7047487,0.389,3.973,0.993,,,,,,2739142,1
+8,4,2,8,5095432,0.311,5.495,0.687,4625029,0.343,6.054,0.757,+10.2%,1585552,1
+8,4,4,16,4864179,0.198,5.756,0.360,3223803,0.299,8.686,0.543,+50.9%,962777,1
+8,8,1,8,8398080,0.649,6.668,0.834,7666301,0.711,7.305,0.913,+9.6%,5450156,1
+8,8,2,16,7998850,0.393,7.001,0.438,5252852,0.598,10.661,0.666,+52.3%,3143145,1
+8,8,4,32,11808652,0.161,4.742,0.148,3814962,0.497,14.679,0.459,+209.6%,1897514,1
+16,16,1,16,15063570,0.718,7.435,0.465,13220553,0.818,8.472,0.529,+13.9%,10818560,1
+16,16,2,32,21551074,0.288,5.197,0.162,8344112,0.744,13.423,0.419,+158.3%,6205244,1
