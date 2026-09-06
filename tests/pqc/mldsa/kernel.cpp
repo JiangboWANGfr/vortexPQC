@@ -19,12 +19,18 @@ extern "C" {
 // speedup divides into does not also carry a parallelisation decision.
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   const unsigned req = blockIdx.x;
-  // One lane per request, for the same reason as the ML-KEM batch: this build
-  // is the pristine library, so there is no lane-cooperative work to hand a
-  // second lane. block_dim is 1 and grid_dim is exactly `requests`, so both
-  // guards only fire if a harness rounds the launch up.
-  if (threadIdx.x != 0 || req >= arg->requests)
+  if (req >= arg->requests)
     return;
+  // Every lane of the CTA runs the whole chain over that CTA's slice, writing
+  // identical bytes; the lanes differ only inside the Keccak batch, which is
+  // what SIMT_KECCAK=1 turns into real work. Without that backend the extra
+  // lanes are pure redundancy, which is why -t defaults to 1.
+#if defined(PQC_SIMT_KECCAK)
+  mldw_lanes = arg->lanes;
+  for (int i = 0; i < MLDW_COUNT; ++i)
+    mldw_counts[(unsigned)vx_warp_id() & (MLDW_MAX_WARPS - 1)][i] = 0;
+#endif
+  const bool writer = (threadIdx.x == 0);
 
   auto seed   = reinterpret_cast<const uint8_t*>(arg->seed_addr);
   auto rnd    = reinterpret_cast<const uint8_t*>(arg->rnd_addr);
@@ -61,6 +67,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[MLDSA_CY_VERIFY]  = t3 - t2;
 
   const uint32_t h = (uint32_t)vx_hart_id();
+  if (!writer) return;
   arena[MLDSA_AR_PEAK]       = mld_arena_peak[h];
   arena[MLDSA_AR_FAIL]       = mld_arena_fail[h];
   arena[MLDSA_AR_STACK_PEAK] = pqc_stack_watermark(sp0);

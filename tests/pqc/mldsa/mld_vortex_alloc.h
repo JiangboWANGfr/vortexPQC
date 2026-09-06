@@ -38,7 +38,20 @@
 // .bss the loader zero-fills at every launch.
 #define MLD_HARTS (VX_CFG_NUM_CLUSTERS * VX_CFG_NUM_CORES * \
                    VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS)
+// Two budgets, because MLDSA_RAM selects two different working sets. Low: the
+// lazy matrix path, measured peak 21,568 B. Full: A materialised, measured peak
+// 86,912 B. Both sized with headroom, and mld_arena_fail makes an overflow a
+// test failure rather than a silent wrong answer, so tight is safe.
+//
+// .bss is MLD_HARTS * MLD_ARENA_BYTES and the loader zero-fills it every launch:
+// 3.1 MB at 8 warps x 4 threads on the full budget. That is load time, not
+// device cycles, but it is worth knowing before wondering why a run got slower
+// to start.
+#if defined(PQC_MLDSA_RAM_FULL)
+#define MLD_ARENA_BYTES 90112u
+#else
 #define MLD_ARENA_BYTES 24576u
+#endif
 #define MLD_ARENA_ALIGN 32u
 
 #if defined(__VORTEX__)

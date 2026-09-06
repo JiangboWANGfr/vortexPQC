@@ -1,0 +1,39 @@
+# ML-DSA-65: the memory budget and the lane axis are the same decision.
+# tests/pqc/mldsa, simx, 1 core / 8 warps / 4 threads, L2-L3 off, one request,
+# SIMT_KECCAK=1 (lane-cooperative Keccak backend) throughout. Every cell verified:
+# verify_internal succeeds, so the signature checks against its own keygen's key.
+#
+# MLDSA_RAM=low is MLD_CONFIG_REDUCE_RAM: matrix A is expanded lazily, one entry
+# at a time. That path has no 4-wide window, so only 24 of 782 permutations are
+# batchable (3.1%). MLDSA_RAM=full materialises A: 484 of 582 (83.2%).
+#
+# speedup_vs_low_L1 is against the low/L=1 cell -- the configuration this project
+# measured everything on before today.
+ram,L,cycles,instrs,ipc,arena_peak,stack_peak,speedup_vs_low_L1,lane_speedup_within_ram,passed
+low,1,189926630,19849529,0.105,21568,3288,1.000,1.000,1
+low,2,191048564,19649971,0.103,21568,3288,0.994,0.994,1
+low,4,191499740,19550191,0.102,21568,3288,0.992,0.992,1
+full,1,143573776,15128488,0.105,86912,5624,1.323,1.000,1
+full,2,107932957,11104030,0.103,86912,5624,1.760,1.330,1
+full,4,89671312,9091800,0.101,86912,5624,2.118,1.601,1
+#
+# THE COUPLING. Under low the lane axis is not merely small, it is negative:
+# 1.000 / 0.994 / 0.992 at L = 1 / 2 / 4, because the extra lanes have nothing to
+# split and still pay for synchronisation. Under full it is 1.000 / 1.330 / 1.601.
+# Instruction counts show why: low sheds 1.5% of its instructions going from one
+# lane to four, full sheds 39.9%.
+#
+# So "how many lanes should a request get" has no answer independent of the
+# memory budget on ML-DSA. It does on ML-KEM, whose k=3 matrix never takes the
+# lazy path.
+#
+# ML-DSA's full/L=4 lane speedup (1.601x) exceeds ML-KEM's (1.485x) because
+# ExpandA is k*l = 30 independent XOF streams against ML-KEM's 9.
+#
+# WHAT THIS MEANS FOR THE ISA CLAIM. Two software choices -- a compile flag and a
+# lane mapping -- take ML-DSA from 189,926,630 to 89,671,312 cycles, 2.118x, with
+# no new instruction. The measured Amdahl bound for a free Keccak on ML-DSA is
+# about 2.67x. An extension measured against the low/L=1 configuration would
+# therefore book most of that 2.118x as its own. The baseline for any ISA claim
+# has to be the best software configuration, not the one that happened to be the
+# default.

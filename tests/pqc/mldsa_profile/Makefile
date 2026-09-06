@@ -49,6 +49,16 @@ HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/mld_prof_counters.h \
         $(VORTEX_HOME)/tests/pqc/pqc_stack.h
 
+# MLDSA_RAM=full drops MLD_CONFIG_REDUCE_RAM: matrix A is materialised instead of
+# re-expanded per use, which restores the library's 4-wide Keccak batching at the
+# cost of a much larger arena. See vortex_mldsa_config.h.
+ifeq ($(MLDSA_RAM),full)
+	VX_CFLAGS += -DPQC_MLDSA_RAM_FULL
+	CXXFLAGS  += -DPQC_MLDSA_RAM_FULL
+else ifneq ($(filter-out low,$(MLDSA_RAM)),)
+$(error MLDSA_RAM must be low or full -- got '$(MLDSA_RAM)')
+endif
+
 KERNEL_LIB := vortex2
 
 include ../common.mk

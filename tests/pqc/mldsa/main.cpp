@@ -42,14 +42,22 @@
 
 int main(int argc, char** argv) {
     const char* kernel_file = "kernel.vxbin";
-    uint32_t requests = 1;
+    uint32_t requests = 1, lanes = 1;
     int c;
-    while ((c = getopt(argc, argv, "k:b:h")) != -1) {
+    while ((c = getopt(argc, argv, "k:b:t:h")) != -1) {
         if (c == 'k') kernel_file = optarg;
         else if (c == 'b') requests = (uint32_t)std::atoi(optarg);
-        else { std::cout << "Usage: [-k kernel] [-b requests] [-h]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
+        else if (c == 't') lanes = (uint32_t)std::atoi(optarg);
+        else { std::cout << "Usage: [-k kernel] [-b requests] [-t lanes] [-h]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
     }
-    if (requests < 1) { std::fprintf(stderr, "FAIL: -b must be >= 1\n"); return -1; }
+    if (requests < 1 || lanes < 1) { std::fprintf(stderr, "FAIL: -b and -t must be >= 1\n"); return -1; }
+#if !defined(PQC_SIMT_KECCAK)
+    if (lanes > 1) {
+        std::fprintf(stderr, "FAIL: -t %u without SIMT_KECCAK=1 is pure redundancy --\n"
+                     "      the extra lanes recompute the same chain and measure nothing.\n", lanes);
+        return -1;
+    }
+#endif
 
     std::cout << "ML-DSA-" << MLD_CONFIG_PARAMETER_SET
               << "  pk=" << MLDSA_PK_BYTES
@@ -84,7 +92,7 @@ int main(int argc, char** argv) {
                           &arg.status_addr, &arg.cycles_addr, &arg.arena_addr };
     for (size_t i = 0; i < sizeof(bufs)/sizeof(bufs[0]); ++i)
         CHECK(vx_buffer_address(bufs[i].h, slots[i]));
-    arg.requests = requests;
+    arg.requests = requests; arg.lanes = lanes;
 
     STEP("module_load");
     vx_module_h mod = nullptr; vx_kernel_h kern = nullptr;
@@ -107,7 +115,7 @@ int main(int argc, char** argv) {
     vx_launch_info_t li{};
     li.struct_size = sizeof(li); li.kernel = kern;
     li.args_host = &arg; li.args_size = sizeof(arg);
-    li.ndim = 1; li.grid_dim[0] = requests; li.block_dim[0] = 1;
+    li.ndim = 1; li.grid_dim[0] = requests; li.block_dim[0] = lanes;
     vx_event_h lev = nullptr;
     CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &lev));
 

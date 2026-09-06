@@ -35,6 +35,7 @@ typedef struct {
   uint64_t cycles_addr;   // out : requests * MLDSA_CY_COUNT * uint64_t
   uint64_t arena_addr;    // out : requests * MLDSA_AR_COUNT * uint32_t
   uint32_t requests;      // in  : independent keypair->sign->verify chains
+  uint32_t lanes;         // in  : lanes cooperating on each request
 } kernel_arg_t;
 
 // arena_addr slots
