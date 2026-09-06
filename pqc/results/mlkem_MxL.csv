@@ -1,0 +1,44 @@
+# Full ML-KEM-768 round trip on the M x L grid.
+#   M = independent requests, one CTA each, each with its own scratch slice
+#   L = lanes cooperating on that request's x4 Keccak batch (tests/pqc/mlkem_width)
+# simx, 1 core / 8 warps / 4 threads, PERF_ENABLE. Every cell verified per request:
+# decapsulation reproduces encapsulation's secret, and pk/sk/ct/ss match the W=1
+# checksums -- so a cell that corrupted a neighbour fails instead of measuring.
+# throughput = M * cycles(M=1,L=1,L2 off) / cycles.
+#
+# THE HEADLINE. genmat_xn, which covers only the independent-XOF-stream stages,
+# put M=8,L=4 with L2 on at 14.679x. The full round trip measures 8.279x -- the
+# upper-bound instrument overpredicts the combined cell by 1.77x. It predicted the
+# M axis to within 0.3% (see batch_baseline.csv) but not this, because the lane
+# axis only accelerates the batchable part of Keccak while the full KEM also
+# carries 31% serial Keccak and 32% non-Keccak. Cheap pre-scans on the M axis are
+# sound; reading an M x L cell off that instrument is not.
+#
+# WHY L2 DECIDES IT. Each hart holds its own 19,232-byte arena, so M x L harts
+# hold M*L*19.2 KB against a 16 KB D-cache: 614 KB at M=8,L=4. The spread column
+# is the direct read on the resulting interference -- 21.8% with L2 off against
+# 2.7% with it on -- and removing that interference is what turns 4.016x into
+# 8.279x. Any statement about how wide a warp should be has to name the cache
+# configuration it was measured under.
+l2,M,L,harts,cycles,instrs,ipc,throughput,efficiency,keccak_x1,slots,spread_pct,passed
+off,1,1,1,36614668,3785360,0.103,1.000,1.000,156,108,,1
+off,1,2,2,28732796,2888800,0.101,1.274,0.637,102,54,,1
+off,1,4,4,24658060,2440519,0.099,1.485,0.371,75,27,,1
+off,2,1,2,36621574,7570720,0.207,2.000,1.000,156,108,0.0,1
+off,2,2,4,28871048,5777600,0.200,2.536,0.634,102,54,0.0,1
+off,2,4,8,31149669,4881038,0.157,2.351,0.294,75,27,0.0,1
+off,4,1,4,37159933,15141440,0.407,3.941,0.985,156,108,0.7,1
+off,4,2,8,33552358,11555200,0.344,4.365,0.546,102,54,1.3,1
+off,4,4,16,39954788,9762076,0.244,3.666,0.229,75,27,6.8,1
+off,8,1,8,43468363,30282880,0.697,6.739,0.842,156,108,3.1,1
+off,8,2,16,45873574,23110400,0.504,6.385,0.399,102,54,18.2,1
+off,8,4,32,72928534,19524152,0.268,4.016,0.126,75,27,21.8,1
+on,1,1,1,36616483,3785360,0.103,1.000,1.000,156,108,,1
+on,1,2,2,28732784,2888800,0.101,1.274,0.637,102,54,,1
+on,1,4,4,24640135,2440519,0.099,1.486,0.371,75,27,,1
+on,4,1,4,37144436,15141440,0.408,3.943,0.986,156,108,0.7,1
+on,4,2,8,30779042,11555200,0.375,4.758,0.595,102,54,0.8,1
+on,4,4,16,28494044,9762076,0.343,5.140,0.321,75,27,3.6,1
+on,8,1,8,40994244,30282880,0.739,7.145,0.893,156,108,3.5,1
+on,8,2,16,36033039,23110400,0.641,8.129,0.508,102,54,2.9,1
+on,8,4,32,35377658,19524152,0.552,8.280,0.259,75,27,2.7,1

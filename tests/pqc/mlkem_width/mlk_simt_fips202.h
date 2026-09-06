@@ -27,7 +27,8 @@ extern void mlkw_permute1(uint64_t *state);
 
 // Warp-wide staging for the four permuted states. One row set per warp, so
 // independent messages running on other warps do not collide here.
-#define MLKW_MAX_WARPS 8
+// MLKW_MAX_WARPS comes from mlk_width_counters.h, which sizes its counter rows
+// the same way -- one bound, so the two cannot drift apart.
 static uint64_t mlkw_xbuf[MLKW_MAX_WARPS][4][25];
 
 // Lanes the launch made active. One shared location, written once by every
@@ -38,7 +39,7 @@ static unsigned mlkw_lanes;
 static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
 {
   (void)state;
-  mlkw_counts[MLKW_KECCAK_X1]++;
+  mlkw_counts[(unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1)][MLKW_KECCAK_X1]++;
   return MLK_NATIVE_FUNC_FALLBACK;
 }
 
@@ -46,12 +47,13 @@ static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
 static MLK_INLINE int mlk_keccak_f1600_x4_native(uint64_t *state)
 {
   const unsigned tid = (unsigned)vx_thread_id();
-  uint64_t (*xb)[25] = mlkw_xbuf[(unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1)];
+  const unsigned wid = (unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1);
+  uint64_t (*xb)[25] = mlkw_xbuf[wid];
   const unsigned W   = mlkw_lanes;
   unsigned s, i;
 
-  mlkw_counts[MLKW_KECCAK_X4]++;
-  mlkw_counts[MLKW_SLOTS] += (4 + W - 1) / W;
+  mlkw_counts[wid][MLKW_KECCAK_X4]++;
+  mlkw_counts[wid][MLKW_SLOTS] += (4 + W - 1) / W;
 
   // Lane t takes sub-states t, t+W, t+2W, ... Every lane runs the same loop,
   // so W >= 4 is one iteration each (one slot) and W = 1 is four iterations

@@ -4,13 +4,18 @@
 #include <stdint.h>
 #include "mlk_width_counters.h"
 
+// Sliced per request: each CTA gets its own scratch, status, cycles and probe.
+// The lanes WITHIN a CTA still share that CTA's slice -- they run the whole KEM
+// redundantly and write identical bytes -- which is what makes this a lane-width
+// instrument. What was wrong before was sharing across CTAs.
 typedef struct {
-  uint64_t scratch_addr;  // in/out : MLKEM working buffers
-  uint64_t counts_addr;   // out    : MLKW_COUNT * uint32_t
-  uint64_t status_addr;   // out    : 3 * int32_t, one per KEM step
-  uint64_t cycles_addr;   // out    : 3 * uint64_t, one per KEM step
-  uint64_t stack_addr;    // out    : 1 * uint32_t, peak stack bytes (lane 0)
-  uint32_t lanes;         // in     : lanes the launch made active
+  uint64_t scratch_addr;  // in/out : requests * P_SCRATCH_LEN
+  uint64_t counts_addr;   // out    : requests * MLKW_COUNT * uint32_t
+  uint64_t status_addr;   // out    : requests * 3 * int32_t
+  uint64_t cycles_addr;   // out    : requests * 3 * uint64_t
+  uint64_t stack_addr;    // out    : requests * 4 * uint32_t
+  uint32_t lanes;         // in     : lanes per request
+  uint32_t requests;      // in     : independent KEM round trips, one per CTA
 } kernel_arg_t;
 
 // Scratch layout for ML-KEM-768, 64-byte aligned sections.

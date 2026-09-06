@@ -18,11 +18,14 @@ enum {
   MLKW_COUNT
 };
 
+// One row per warp. The lanes of a warp are lockstep and all store the same
+// value, so a shared row is +1 per warp -- but two warps running different CTAs
+// are not lockstep with each other, and a single shared row would be a genuine
+// race the moment -b exceeds 1.
+#define MLKW_MAX_WARPS 8
+
 #if defined(__VORTEX__)
-// .bss is one address space shared by every hart, so these are warp-wide.
-// All active lanes execute the same load-add-store on the same address and
-// store the same value, so the net effect of a lockstep increment is +1.
-static uint32_t mlkw_counts[MLKW_COUNT];
+static uint32_t mlkw_counts[MLKW_MAX_WARPS][MLKW_COUNT];
 #endif
 
 #endif

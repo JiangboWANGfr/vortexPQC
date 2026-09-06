@@ -27,20 +27,10 @@ int main(int argc, char** argv) {
         else { std::cout << "Usage: [-k kernel] [-t lanes]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
     }
 
-    // This kernel is redundant SPMD on a single shared scratch region: every
-    // active lane runs the whole KEM over the same buffers, and only the Keccak
-    // batch differs. That is what makes it a clean lane-width instrument, and it
-    // is also why more than one CTA cannot work -- two CTAs would interleave
-    // writes to the same pk/sk/ct. Batching over independent requests belongs in
-    // tests/pqc/mlkem, which gives each request its own workspace.
-    if (blocks != 1) {
-        std::fprintf(stderr,
-            "FAIL: -b %u is not supported. All CTAs share one scratch region, so a\n"
-            "      multi-CTA run computes garbage and reports it as a measurement.\n"
-            "      Use tests/pqc/mlkem for independent-request batching.\n", blocks);
-        return -1;
-    }
-
+    // Lanes within a CTA still share that CTA's scratch -- they run the whole
+    // KEM redundantly and write identical bytes, which is what makes this a lane
+    // width instrument. Each CTA now has its own slice, so independent requests
+    // no longer share a working set the way they did when -b was refused here.
     vx_device_h dev = nullptr;
     CHECK(vx_device_open(0, &dev));
     vx_queue_info_t qi = { sizeof(qi), nullptr, VX_QUEUE_PRIORITY_NORMAL, 0 };
@@ -48,11 +38,16 @@ int main(int argc, char** argv) {
     CHECK(vx_queue_create(dev, &qi, &q));
 
     vx_buffer_h scr = nullptr, cnt = nullptr, st = nullptr, cyc = nullptr, stk = nullptr;
-    CHECK(vx_buffer_create(dev, P_SCRATCH_LEN, VX_MEM_WRITE, &scr));
-    CHECK(vx_buffer_create(dev, MLKW_COUNT * sizeof(uint32_t), VX_MEM_WRITE, &cnt));
-    CHECK(vx_buffer_create(dev, 3 * sizeof(int32_t), VX_MEM_WRITE, &st));
-    CHECK(vx_buffer_create(dev, 3 * sizeof(uint64_t), VX_MEM_WRITE, &cyc));
-    CHECK(vx_buffer_create(dev, 4 * sizeof(uint32_t), VX_MEM_WRITE, &stk));
+    if (blocks > MLKW_MAX_WARPS) {
+        std::fprintf(stderr, "FAIL: -b %u exceeds MLKW_MAX_WARPS (%u): the per-warp\n"
+                     "      counter rows would alias.\n", blocks, (unsigned)MLKW_MAX_WARPS);
+        return -1;
+    }
+    CHECK(vx_buffer_create(dev, (uint64_t)blocks * P_SCRATCH_LEN, VX_MEM_WRITE, &scr));
+    CHECK(vx_buffer_create(dev, (uint64_t)blocks * MLKW_COUNT * sizeof(uint32_t), VX_MEM_WRITE, &cnt));
+    CHECK(vx_buffer_create(dev, (uint64_t)blocks * 3 * sizeof(int32_t), VX_MEM_WRITE, &st));
+    CHECK(vx_buffer_create(dev, (uint64_t)blocks * 3 * sizeof(uint64_t), VX_MEM_WRITE, &cyc));
+    CHECK(vx_buffer_create(dev, (uint64_t)blocks * 4 * sizeof(uint32_t), VX_MEM_WRITE, &stk));
 
     kernel_arg_t arg{};
     CHECK(vx_buffer_address(scr, &arg.scratch_addr));
@@ -60,7 +55,7 @@ int main(int argc, char** argv) {
     CHECK(vx_buffer_address(st,  &arg.status_addr));
     CHECK(vx_buffer_address(cyc, &arg.cycles_addr));
     CHECK(vx_buffer_address(stk, &arg.stack_addr));
-    arg.lanes = lanes;
+    arg.lanes = lanes; arg.requests = blocks;
 
     vx_module_h mod = nullptr; vx_kernel_h kern = nullptr;
     CHECK(vx_module_load_file(dev, kernel_file, &mod));
@@ -68,8 +63,9 @@ int main(int argc, char** argv) {
 
     // Same fixed coins as the profile test, so the Keccak counts are the same
     // counts and the arms are comparable byte for byte.
-    std::vector<uint8_t> h_scr(P_SCRATCH_LEN, 0);
-    for (int i = 0; i < 96; ++i) h_scr[i] = static_cast<uint8_t>(i);
+    std::vector<uint8_t> h_scr((size_t)blocks * P_SCRATCH_LEN, 0);
+    for (uint32_t b = 0; b < blocks; ++b)
+        for (int i = 0; i < 96; ++i) h_scr[(size_t)b * P_SCRATCH_LEN + i] = static_cast<uint8_t>(i);
     CHECK(vx_enqueue_write(q, scr, 0, h_scr.data(), h_scr.size(), 0, nullptr, nullptr));
 
     vx_launch_info_t li{};
@@ -79,10 +75,10 @@ int main(int argc, char** argv) {
     vx_event_h lev = nullptr, e = nullptr;
     CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &lev));
 
-    std::vector<uint32_t> h_cnt(MLKW_COUNT, 0);
-    std::vector<int32_t>  h_st(3, -1);
-    std::vector<uint64_t> h_cyc(3, 0);
-    std::vector<uint32_t> h_stk(4, 0);
+    std::vector<uint32_t> h_cnt((size_t)blocks * MLKW_COUNT, 0);
+    std::vector<int32_t>  h_st((size_t)blocks * 3, -1);
+    std::vector<uint64_t> h_cyc((size_t)blocks * 3, 0);
+    std::vector<uint32_t> h_stk((size_t)blocks * 4, 0);
     CHECK(vx_enqueue_read(q, h_cnt.data(), cnt, 0, h_cnt.size()*sizeof(uint32_t), 1, &lev, &e));
     CHECK(vx_event_wait_value(e, 1, VX_TIMEOUT_INFINITE)); vx_event_release(e); e = nullptr;
     CHECK(vx_enqueue_read(q, h_st.data(), st, 0, h_st.size()*sizeof(int32_t), 1, &lev, &e));
@@ -95,52 +91,60 @@ int main(int argc, char** argv) {
     // Read the whole scratch back: the return codes say the library did not
     // error, not that it computed the right thing. Checking only them is how a
     // wide arm that silently corrupts a shared Keccak state still reports PASSED.
-    std::vector<uint8_t> h_out(P_SCRATCH_LEN, 0);
+    std::vector<uint8_t> h_out((size_t)blocks * P_SCRATCH_LEN, 0);
     CHECK(vx_enqueue_read(q, h_out.data(), scr, 0, h_out.size(), 1, &lev, &e));
     CHECK(vx_event_wait_value(e, 1, VX_TIMEOUT_INFINITE)); vx_event_release(e); e = nullptr;
 
     int errors = 0;
-    for (int i = 0; i < 3; ++i)
-        if (h_st[i] != 0) { std::printf("*** KEM step %d returned %d\n", i, h_st[i]); ++errors; }
-
-    // The cryptographic round trip. Independent of the width, and the one check
-    // that actually exercises decapsulation against encapsulation.
-    if (std::memcmp(&h_out[P_OFF_SS_ENC], &h_out[P_OFF_SS_DEC], 32) != 0) {
-        std::printf("*** shared secrets differ\n    enc:");
-        for (int i = 0; i < 8; ++i) std::printf(" %02x", h_out[P_OFF_SS_ENC + i]);
-        std::printf("\n    dec:");
-        for (int i = 0; i < 8; ++i) std::printf(" %02x", h_out[P_OFF_SS_DEC + i]);
-        std::printf("\n");
-        ++errors;
-    }
-
-    // Width invariance: the same coins must give the same key material at every
-    // lane count. Constants captured at W=1; a mismatch means a wide arm
-    // computed something else, which is exactly what this test must not miss.
+    // Every request runs the same coins, so every request must land on the same
+    // key material. Checking only request 0 is how a batch that corrupted its
+    // neighbours would still report a clean measurement.
     auto fnv = [](const uint8_t* p, size_t n) {
         uint32_t h = 2166136261u;
         for (size_t i = 0; i < n; ++i) { h ^= p[i]; h *= 16777619u; }
         return h;
     };
-    struct { const char* name; uint32_t off, len, want; } chk[] = {
-        { "pk", P_OFF_PK,     1184, MLKW_SUM_PK },
-        { "sk", P_OFF_SK,     2400, MLKW_SUM_SK },
-        { "ct", P_OFF_CT,     1088, MLKW_SUM_CT },
-        { "ss", P_OFF_SS_ENC,   32, MLKW_SUM_SS },
-    };
-    for (auto& k : chk) {
-        uint32_t got = fnv(&h_out[k.off], k.len);
-        if (got != k.want) {
-            std::printf("*** %s checksum %08x, expected %08x (width invariance broken)\n",
-                        k.name, got, k.want);
+    for (uint32_t b = 0; b < blocks; ++b) {
+        const uint8_t* o = &h_out[(size_t)b * P_SCRATCH_LEN];
+        const int32_t* st_b = &h_st[(size_t)b * 3];
+        for (int i = 0; i < 3; ++i)
+            if (st_b[i] != 0) {
+                std::printf("*** request %u: KEM step %d returned %d%s\n", b, i, st_b[i],
+                            st_b[i] == -1 ? "  (kernel never ran)" : "");
+                ++errors;
+            }
+        if (std::memcmp(o + P_OFF_SS_ENC, o + P_OFF_SS_DEC, 32) != 0) {
+            std::printf("*** request %u: shared secrets differ\n", b);
             ++errors;
         }
+        struct { const char* n; uint32_t off, len, want; } chk[] = {
+            { "pk", P_OFF_PK,   1184, MLKW_SUM_PK }, { "sk", P_OFF_SK,   2400, MLKW_SUM_SK },
+            { "ct", P_OFF_CT,   1088, MLKW_SUM_CT }, { "ss", P_OFF_SS_ENC, 32, MLKW_SUM_SS },
+        };
+        for (auto& k : chk) {
+            uint32_t got = fnv(o + k.off, k.len);
+            if (got != k.want) {
+                std::printf("*** request %u: %s checksum %08x, expected %08x\n",
+                            b, k.n, got, k.want);
+                ++errors;
+            }
+        }
+    }
+    uint64_t cmin = ~0ull, cmax = 0;
+    for (uint32_t b = 0; b < blocks; ++b) {
+        const uint64_t t = h_cyc[(size_t)b*3] + h_cyc[(size_t)b*3+1] + h_cyc[(size_t)b*3+2];
+        if (t < cmin) cmin = t;
+        if (t > cmax) cmax = t;
     }
 
     const uint64_t total = h_cyc[0] + h_cyc[1] + h_cyc[2];
     std::printf("BLOCKS %u WIDTH %u  keccak_x1=%u keccak_x4=%u slots=%u  stack_peak=%u/%u  arena_peak=%u fail=%u\n",
                 blocks, lanes, h_cnt[MLKW_KECCAK_X1], h_cnt[MLKW_KECCAK_X4],
                 h_cnt[MLKW_SLOTS], h_stk[0], h_stk[1], h_stk[2], h_stk[3]);
+    if (blocks > 1)
+        std::printf("REQUESTS: n=%u  per-request total min=%llu max=%llu  spread=%.1f%%\n",
+                    blocks, (unsigned long long)cmin, (unsigned long long)cmax,
+                    100.0 * (double)(cmax - cmin) / (double)cmin);
     std::printf("PHASE x1: kp=%u enc=%u dec=%u   x4: kp=%u enc=%u dec=%u\n",
                 h_cnt[MLKW_X1_KP], h_cnt[MLKW_X1_ENC]-h_cnt[MLKW_X1_KP],
                 h_cnt[MLKW_X1_DEC]-h_cnt[MLKW_X1_ENC],
