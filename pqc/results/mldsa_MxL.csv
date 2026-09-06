@@ -1,0 +1,52 @@
+# ML-DSA-65 M x L grid. tests/pqc/mldsa, simx, 1 core, VX_CFG_NUM_WARPS=8,
+# NUM_THREADS=4, MLDSA_RAM=full, SIMT_KECCAK=1. M = independent requests (one CTA
+# each, own workspace), L = lanes cooperating on that request's Keccak batch.
+# Every cell verified: verify_internal succeeds and every request's pk/sk/sig is
+# byte-identical to request 0. throughput = M * cycles(M=1,L=1,L2 off) / cycles.
+#
+# NUM_WARPS=8 IS PART OF THE CONFIGURATION, NOT A DETAIL. A first run of this
+# grid used the default four warps, so M=8 ran two waves on four slots: exactly
+# 2.0000x the instructions and 2.0007x the cycles of M=4 with IPC unchanged at
+# 0.418, which reads as a memory wall at M=4 and is not one. Enabling L2 changed
+# that cell by 0.02%, which is what finally gave it away -- a capacity wall
+# responds to L2, a wave does not. The tell in the data was IPC: a wall depresses
+# it, a second wave leaves it exactly where it was.
+l2,M,L,harts,cycles,instrs,ipc,throughput,efficiency,spread_pct,passed
+off,1,1,1,145691925,15128490,0.104,1.000,1.000,,1
+off,1,2,2,109847355,11104032,0.101,1.326,0.663,,1
+off,1,4,4,91441977,9091802,0.099,1.593,0.398,,1
+off,2,1,2,145710704,30257143,0.208,2.000,1.000,0.0,1
+off,2,2,4,110362519,22208227,0.201,2.640,0.660,0.0,1
+off,2,4,8,112512650,18183767,0.162,2.590,0.324,0.0,1
+off,4,1,4,147743093,60514415,0.410,3.944,0.986,0.8,1
+off,4,2,8,124583685,44416583,0.357,4.678,0.585,1.6,1
+off,4,4,16,132570356,36367663,0.274,4.396,0.275,6.1,1
+off,8,1,8,171907815,121028830,0.704,6.780,0.848,2.8,1
+off,8,2,16,171318753,88833166,0.519,6.803,0.425,4.8,1
+off,8,4,32,224058132,72735326,0.325,5.202,0.163,24.6,1
+on,1,1,1,145683356,15128490,0.104,1.000,1.000,,1
+on,1,2,2,109830183,11104032,0.101,1.327,0.663,,1
+on,1,4,4,91161890,9091802,0.100,1.598,0.400,,1
+on,2,1,2,145696257,30257143,0.208,2.000,1.000,0.0,1
+on,2,2,4,110123002,22208227,0.202,2.646,0.661,0.0,1
+on,2,4,8,100284477,18183767,0.181,2.906,0.363,0.0,1
+on,4,1,4,147717642,60514415,0.410,3.945,0.986,0.8,1
+on,4,2,8,116557850,44416583,0.381,5.000,0.625,0.9,1
+on,4,4,16,102499369,36367663,0.355,5.686,0.355,3.8,1
+on,8,1,8,163268709,121028830,0.741,7.139,0.892,3.6,1
+on,8,2,16,135423956,88833166,0.656,8.607,0.538,3.4,1
+on,8,4,32,125231665,72735326,0.581,9.307,0.291,4.1,1
+#
+# BOTH SCHEMES WANT THE SAME SHAPE, and ML-DSA gets more out of it. Best cell is
+# L2 on, M=8, L=4: 9.306x here against ML-KEM's 8.280x in the same cell
+# (mlkem_MxL.csv). ML-DSA's lane axis pays better -- 1.593x at M=1, L=4 against
+# ML-KEM's 1.485x -- because ExpandA is k*l = 30 independent XOF streams against
+# ML-KEM's 9.
+#
+# L2 MATTERS MORE HERE THAN ON ML-KEM. The arena is 86,912 B per hart against
+# ML-KEM's 19,232, so 32 harts hold 2.78 MB rather than 615 KB. M=8, L=4 goes
+# from 5.202x to 9.306x, +79%, and the per-request spread from 24.6% to 4.1%.
+# Without L2 that cell is a regression against M=8, L=1; with it, it is the best
+# cell in the table. The same conclusion as on ML-KEM, arrived at with 4.5x the
+# memory pressure: how wide a warp should be is not answerable without naming
+# the cache configuration.

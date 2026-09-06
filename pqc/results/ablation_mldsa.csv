@@ -1,0 +1,37 @@
+# Amdahl bounds for ML-DSA-65. tests/pqc/mldsa_profile, simx, 1 core / 4 warps /
+# 4 threads, one lane, L2-L3 off.
+#
+# ONLY KEYPAIR CAN BE ABLATED, and this is structural rather than a shortcut.
+# Signing is a Fiat-Shamir rejection loop: with a primitive stubbed the candidate
+# never passes its norm check, so it runs to MLD_MAX_SIGNING_ATTEMPTS and the
+# ablated build does MORE work than the baseline. Verification cannot be ablated
+# either -- SampleInBall carries its own rejection loop (do { j = buf[pos++] }
+# while (j > i)) which spins on the constant bytes a stubbed squeeze returns.
+# So the keypair bound is measured and the round-trip bound is an extrapolation,
+# labelled as one.
+#
+# Both budgets run 190 permutations in keypair and the measured Keccak deltas
+# agree to 0.4% -- the same work costing the same amount, which is the
+# consistency check the method needs.
+scope,ram,baseline_cycles,ablated_cycles,delta,fraction,amdahl,basis
+keypair,low,42022206,12790540,29231666,0.6956,3.285,measured (ablation)
+keypair,low,42022206,39024818,2997388,0.0713,1.077,"measured (ablation, NTT)"
+roundtrip,low,189935043,,120311383,0.6334,2.728,"extrapolated: 782 perms x 153851 cyc, per-perm cost from the keypair ablation"
+roundtrip,low,189935043,,28066451,0.1478,1.173,"extrapolated: 103 transforms x 272490 cyc, NTT"
+keypair,full,39121351,10001356,29119995,0.7444,3.912,measured (ablation)
+keypair,full,39121351,36139656,2981695,0.0762,1.083,"measured (ablation, NTT)"
+roundtrip,full,142119160,,89199142,0.6276,2.686,"extrapolated: 582 perms x 153263 cyc, per-perm cost from the keypair ablation"
+roundtrip,full,142119160,,25751002,0.1812,1.221,"extrapolated: 95 transforms x 271063 cyc, NTT"
+#
+# CALIBRATION, and the fourth independent instance of the same bias. The
+# ablation puts one permutation at 153851 cycles (low) and 153263 (full);
+# the microbenchmark reports 151,873. The ablation is 1.3% higher, and the three
+# earlier comparisons were 1.4%, 1.3% and 1.30% in the same direction. A
+# microbenchmark of a primitive cannot see the call overhead around it, so
+# count x microbenchmark-cost systematically understates -- explainable, not noise.
+#
+# THE MEMORY BUDGET CHANGES THE COMPOSITION, NOT JUST THE TOTAL. Going from low
+# to full, NTT's share of the round trip rises from 14.8% to 18.1% while Keccak's
+# barely moves. Optimising the software moved which primitive is worth
+# accelerating -- the bottleneck migration OpenTitan reports after their hash
+# acceleration, arriving here from a compile flag instead.
