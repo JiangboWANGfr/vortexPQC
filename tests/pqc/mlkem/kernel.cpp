@@ -1,6 +1,7 @@
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
 #include "common.h"
+#include "pqc_stack.h"
 
 // ML-KEM-768 round trip, one thread.
 //
@@ -23,6 +24,10 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto ss_dec    = reinterpret_cast<uint8_t*>(arg->ss_dec_addr);
   auto status    = reinterpret_cast<int32_t*>(arg->status_addr);
   auto cycles    = reinterpret_cast<uint64_t*>(arg->cycles_addr);
+  auto probe     = reinterpret_cast<uint32_t*>(arg->probe_addr);
+
+  uint32_t sp0;
+  const uint32_t span = pqc_stack_paint(&sp0);
 
   uint64_t t0 = vx_rdcycle();
   status[MLKEM_ST_KEYPAIR] = mlkem_keypair_derand(pk, sk, coins_kp);
@@ -35,4 +40,9 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[MLKEM_CY_KEYPAIR] = t1 - t0;
   cycles[MLKEM_CY_ENCAPS]  = t2 - t1;
   cycles[MLKEM_CY_DECAPS]  = t3 - t2;
+
+  probe[MLKEM_PR_STACK_PEAK] = pqc_stack_watermark(sp0);
+  probe[MLKEM_PR_STACK_SPAN] = span;
+  probe[MLKEM_PR_ARENA_PEAK] = 0;
+  probe[MLKEM_PR_ARENA_FAIL] = 0;
 }

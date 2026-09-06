@@ -16,13 +16,19 @@ VX_SRCS := $(SRC_DIR)/kernel.cpp $(SRC_DIR)/mlkem_native_tu.cpp
 # The library is reached through its own config hook, so the submodule tree is
 # read-only to this test. Both the device and the host side need it: common.h
 # takes the key and ciphertext sizes from mlkem_native.h.
-MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(SRC_DIR) -DMLK_CONFIG_FILE='"vortex_mlkem_config.h"'
+MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
+               -DMLK_CONFIG_FILE='"vortex_mlkem_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
 
 # The known-answer vectors are host-side only: the device has no use for 4.7 KB
 # of expected output, and the file carries all three parameter sets.
 CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
+
+# VX_HDRS must be set before ../common.mk: it uses ?= and filters these out of
+# the compiler inputs, so they act as prerequisites only.
+VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_mlkem_config.h \
+           $(VORTEX_HOME)/tests/pqc/pqc_stack.h
 
 KERNEL_LIB := vortex2
 

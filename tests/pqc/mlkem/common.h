@@ -28,6 +28,14 @@
 #define MLKEM_CY_DECAPS  2
 #define MLKEM_CY_COUNT   3
 
+// Stack and arena watermarks, read back so an overflow fails the test instead
+// of scribbling on an idle neighbour's slab. See tests/pqc/pqc_stack.h.
+#define MLKEM_PR_STACK_PEAK 0
+#define MLKEM_PR_STACK_SPAN 1
+#define MLKEM_PR_ARENA_PEAK 2
+#define MLKEM_PR_ARENA_FAIL 3
+#define MLKEM_PR_COUNT      4
+
 // Every buffer lives in device memory. The key and ciphertext material alone
 // is ~4.7 KB against an 8 KB per-thread stack (VX_MEM_STACK_LOG2_SIZE = 13),
 // which the library's own working set then has to fit inside -- so none of it
@@ -42,6 +50,7 @@ typedef struct {
   uint64_t ss_dec_addr;     // out : MLKEM_SS_BYTES
   uint64_t status_addr;     // out : MLKEM_ST_COUNT * int32_t
   uint64_t cycles_addr;     // out : MLKEM_CY_COUNT * uint64_t
+  uint64_t probe_addr;      // out : MLKEM_PR_COUNT * uint32_t
 } kernel_arg_t;
 
 #endif
