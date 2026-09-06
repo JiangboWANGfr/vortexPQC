@@ -97,12 +97,67 @@ What a larger instruction set would have bought, and why none of it is taken:
 
 | candidate | why not |
 |---|---|
-| state move-in / move-out (`KWR`/`KRD` style) | only needed if the PE cannot address memory. It can (§2.4), so they vanish. The earlier experiment paid **101 instructions per permutation** for them — 50 writes, one permute, 50 reads — and that is the §7 anti-pattern by name |
+| state move-in / move-out (`KWR`/`KRD` style) | needs 6.4 KB of new architectural state per core — see §2.0.1, which prices it properly |
 | sponge-level absorb/squeeze | lets the state stay resident, worth ~1%; costs an ownership protocol and has to hook *above* the library API, which breaks equal permutation counts across arms (§3.1) |
 | a separate x4 instruction | x4 is four independent states; `KECCAKF_L` with four lanes covers it, and the library's C fallback already decomposes x4 into four x1 calls, so even x1 alone is sufficient |
 | async launch + wait | must live inside synchronous straight-line library code, so the handle has nowhere to survive and becomes pure cost (§3.2) |
 | a round-level instruction | 24 issues per permutation and the state back in the register file — worse on both counts |
 | a configuration instruction or DCR | there is nothing to configure; rate, padding and domain separation are all library-side |
+
+### 2.0.1 Write-in / execute / read-back, priced
+
+The obvious alternative is the classic triple: move the state into the PE, run
+it, move it out. It is rejected here, but **not for the reason one would
+expect**, and the wrong reason is worth stating so nobody re-derives it.
+
+**The instruction count does not decide this.** Per permutation, against the
+measured non-Keccak remainder of 11,443,248 cycles, the measured baseline of
+35,447,271 (`pqc/results/ablation_mlkem.csv`), 156 permutations, and the
+measured CPI of 9.537 (`pqc/results/keccak_baseline_columns.csv`):
+
+| design | per permutation | 156 permutations | end to end |
+|---|---|---|---|
+| **A.** one instruction, PE addresses memory | ~64 cy (24 rounds + 400 B) | 9,984 | **3.095x** |
+| **B.** `KLD`/`KST` shuttle, 25 + 1 + 25 = 51 instructions, no GPR round trip | 51 x 9.537 + 64 ~= 550 | 85,800 | **3.075x** |
+| **C.** full GPR shuttle, 50 `lw` + 50 `KWR` + 1 + 50 `KRD` + 50 `sw` = 201 | 201 x 9.537 + 64 ~= 1,981 | 309,036 | **3.016x** |
+
+The shuttle is worth **0.66% (B) to 2.55% (C)**. On a machine at CPI 9.5 where
+one permutation costs 151,872 cycles, two hundred instructions are noise. Any
+argument of the form "the shuttle is too slow" is wrong here, and B is the
+honest strongest form of the opposing case — it should be beaten on its merits,
+not on a number that does not hold.
+
+**What decides it is architectural state.** A shuttle is needed only when the
+PE holds state the core can reach exclusively through instruction operands.
+That state is architecturally visible: it goes in the ISA manual, it is saved
+and restored across a context switch, and in a SIMT core it is replicated per
+hart. At this paper's best configuration (M=8 requests x L=4 lanes, so 8 warps
+x 4 threads = 32 harts per core):
+
+| | bytes per core |
+|---|---|
+| Keccak state file, 200 B x 32 harts | **6,400** |
+| the entire integer register file, 32 x 4 B x 32 harts | 4,096 |
+| integer + floating-point register files | 8,192 |
+
+**One algorithm would add 1.56x the integer register file in new architectural
+state.** That is what §7's "per-slot special-register marshalling" anti-pattern
+is actually about. Design A's 200-byte staging buffer is microarchitectural
+instead: the instruction blocks, the buffer is dead at every instruction
+boundary, so it is never saved, never restored, invisible to software, and one
+copy serves the whole core.
+
+Two consequences follow:
+
+- **`KECCAKF_L` multiplies the shuttle's cost by L.** Per-lane permutation needs
+  a private state file per lane — four copies. Design A needs four pointers.
+- **The encoding does not fit.** `KWR`/`KRD` need a slot index (0-24, plus a
+  high/low half) = 6 bits of immediate. R-type has no room, since funct7 already
+  selects the group, so they would have to be I-type: more encoding space, and
+  against §2.5's preference for R-type.
+
+The one-line version: the shuttle is not slow, it asks to put 6.4 KB of new
+architectural state into the ISA manual.
 
 This is not a one-instruction doctrine. NTT has real degrees of freedom —
 forward versus inverse, possibly a twiddle pointer, possibly a layer index — and
