@@ -43,4 +43,17 @@
 #endif
 #endif
 
+// KECCAK=asm swaps the reference-C permutation for PQRV's hand-written RV32
+// assembly, giving the paper an "optimized software" baseline column beside the
+// reference-C one. Off by default: the default build is the one every other
+// measurement in this tree was taken against.
+#if defined(PQC_KECCAK_ASM)
+#if defined(MLK_CONFIG_FIPS202_BACKEND_FILE)
+#error "PQC_KECCAK_ASM conflicts with a FIPS-202 backend already selected -- \
+the profile and width tests install their own and must not set KECCAK=asm"
+#endif
+#define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
+#define MLK_CONFIG_FIPS202_BACKEND_FILE "vortex_keccak_pqrv.h"
+#endif
+
 #endif // VORTEX_MLKEM_CONFIG_H

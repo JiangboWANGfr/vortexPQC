@@ -1,0 +1,44 @@
+# The two software Keccak baselines, one flag apart, same source tree.
+#   default      : mlkem-native reference C, -march=rv32imaf
+#   KECCAK=asm   : PQRV's hand-written RV32 assembly (pqc/third_party/pqrv),
+#                  dropped in through mlkem-native's own x1 native hook so the
+#                  submodule stays pristine and the permutation count is identical
+# simx, 1 core / 4 warps / 4 threads, one lane, L2-L3 off, PERF_ENABLE.
+#
+# WHY TWO COLUMNS. Keccak is 67.7% of ML-KEM-768 here, so the permutation cost is
+# effectively the denominator of every speedup the PQC extension will claim, and
+# the literature shows baseline choice is a 2.5x-5.8x lever (Zhang et al. TCHES
+# 2025(1); Bolat et al. arXiv:2508.20653 report 8.02x and 46.31x for one
+# instruction against two different baselines). Reporting both settles the
+# question by measurement instead of argument.
+metric,reference_c,pqrv_asm,ratio,note
+keccakf1600_permute_cycles_per_call,151872.1,134320.2,1.1307,microbenchmark
+poly_ntt_cycles_per_call,160270.4,160269.9,1.0000,control -- untouched by the swap
+poly_invntt_cycles_per_call,249632.8,249634.1,1.0000,control -- untouched by the swap
+poly_rej_uniform_cycles_per_call,566344.5,512752.0,1.1045,contains XOF squeezes
+mlkem768_device_cycles,33066490,30615811,1.0800,full KeyGen+Encaps+Decaps
+mlkem768_instructions,3467083,3248627,1.0672,-6.30%
+mlkem768_cpi,9.537,9.424,1.0120,-1.19%
+mlkem768_stack_peak_bytes,3944,3776,1.0445,assembly has the smaller frame
+#
+# THE RESULT THAT MATTERS IS NOT THE 1.08x.
+# A 6.30% instruction reduction bought an 8.00% cycle reduction and moved CPI by
+# 1.19%. Swapping in the fastest published RV32 Keccak assembly leaves the machine
+# just as latency-bound as it was. Decomposing the gap to a "good" baseline:
+#   cycles/instruction here          = 9.54
+#   Zhang et al. C908, reference C   = 0.64
+#   Zhang et al. C908, hand asm      = 0.52-0.69
+# so the distance splits into ~1.3x of instruction count (code quality) and ~13x
+# of CPI (machine utilisation) -- roughly 10% code, 90% machine. The corroborating
+# measurement is on the other axis: at M=8 requests the same unmodified code
+# reaches 6.654x throughput and IPC 0.687 (pqc/results/batch_baseline.csv).
+#
+# Consequence for the paper: report the single-warp Amdahl bound and the
+# multi-warp recovered throughput as two separate results with two separate
+# mechanisms, never multiplied into one number, and hold warps/threads/cores/M
+# identical across every arm being compared.
+#
+# Amdahl cross-check: Keccak is 67.72% (ablation, pqc/results/ablation_mlkem.csv),
+# so 1/(0.3228 + 0.6772/1.1307) predicts 1.0849 end to end; measured 1.0800, 0.45%
+# apart. With the assembly as the baseline the bound falls from 3.098x to about
+# 2.86x -- DERIVED, not measured; it needs its own ablation run on the asm build.
