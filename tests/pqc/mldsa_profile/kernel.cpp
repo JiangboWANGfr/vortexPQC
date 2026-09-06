@@ -11,6 +11,7 @@ extern "C" {
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
 #include "common.h"
+#include "pqc_stack.h"
 #include "mld_prof_counters.h"
 #include "mld_vortex_alloc.h"
 
@@ -30,6 +31,9 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto status = reinterpret_cast<int32_t*>(arg->status_addr);
   auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
   auto arena  = reinterpret_cast<uint32_t*>(arg->arena_addr);
+
+  uint32_t sp0;
+  const uint32_t span = pqc_stack_paint(&sp0);
 
   // The arena is not freed in LIFO order, so it is reset between operations
   // rather than unwound; the peak across all three is what gets reported.
@@ -68,8 +72,11 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[MLDSA_CY_SIGN]    = t2 - t1;
   cycles[MLDSA_CY_VERIFY]  = t3 - t2;
 
-  arena[0] = mld_arena_peak;
-  arena[1] = mld_arena_fail;
+  const uint32_t h = (uint32_t)vx_hart_id();
+  arena[0] = mld_arena_peak[h];
+  arena[1] = mld_arena_fail[h];
+  arena[2] = pqc_stack_watermark(sp0);
+  arena[3] = span;
 
   auto counts = reinterpret_cast<uint32_t*>(arg->counts_addr);
   for (int i = 0; i < MLD_PROF_COUNT; ++i)

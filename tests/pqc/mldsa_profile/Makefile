@@ -14,6 +14,7 @@ VX_SRCS := $(SRC_DIR)/kernel.cpp
 # vortex_mldsa_prof_config.h includes the mldsa test's config, so -I reaches
 # both directories; mld_vortex_alloc.h lives with the baseline too.
 MLDSA_FLAGS := -I$(MLDSA_DIR)/mldsa -I$(VORTEX_HOME)/tests/pqc/mldsa -I$(SRC_DIR) \
+               -I$(VORTEX_HOME)/tests/pqc \
                -DMLD_CONFIG_FILE='"vortex_mldsa_prof_config.h"'
 VX_CFLAGS += $(MLDSA_FLAGS)
 CXXFLAGS  += $(MLDSA_FLAGS)

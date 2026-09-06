@@ -15,6 +15,8 @@
 
 #include <vortex2.h>
 #include "common.h"
+#include "pqc_stack.h"
+#include "mld_vortex_alloc.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -65,7 +67,7 @@ int main(int argc, char** argv) {
         { nullptr, MLDSA_SIG_BYTES,                    1 },
         { nullptr, MLDSA_ST_COUNT * sizeof(int32_t),   1 },
         { nullptr, MLDSA_CY_COUNT * sizeof(uint64_t),  1 },
-        { nullptr, 2 * sizeof(uint32_t),               1 },  // arena peak, fail
+        { nullptr, 4 * sizeof(uint32_t),               1 },  // arena peak/fail, stack peak/span
         { nullptr, MLD_PROF_COUNT * sizeof(uint32_t),  1 },  // call counts
     };
     for (auto& b : bufs)
@@ -106,7 +108,7 @@ int main(int argc, char** argv) {
 
     STEP("readback");
     std::vector<uint64_t> h_cy(MLDSA_CY_COUNT, 0);
-    std::vector<uint32_t> h_ar(2, 0);
+    std::vector<uint32_t> h_ar(4, 0);
     std::vector<uint32_t> h_cnt(MLD_PROF_COUNT, 0);
     vx_event_h e1=nullptr, e2=nullptr, e3=nullptr, e4=nullptr;
     CHECK(vx_enqueue_read(q, h_st.data(), bufs[6].h, 0, h_st.size()*sizeof(int32_t), 1, &lev, &e1));
@@ -158,7 +160,17 @@ int main(int argc, char** argv) {
         if (h_cy[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
 #endif
 
-    std::printf("ARENA: peak=%u bytes of %u\n", h_ar[0], (unsigned)(128*1024));
+    if (h_ar[2] == 0) {
+        std::printf("*** stack watermark is zero -- the probe never ran\n");
+        ++errors;
+    } else if (h_ar[2] >= h_ar[3]) {
+        std::printf("*** stack peak %u B filled its whole %u B paintable slab"
+                    " -- it overflowed into the next hart\n", h_ar[2], h_ar[3]);
+        ++errors;
+    }
+    std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u\n",
+                h_ar[2], h_ar[3], (unsigned)PQC_SLAB_BYTES,
+                h_ar[0], (unsigned)MLD_ARENA_BYTES, h_ar[1]);
     static const char* pname[MLD_PROF_COUNT] = {
         "keccak_f1600_x1", "keccak_f1600_x4", "poly_ntt", "poly_invntt", "rej_uniform"
     };

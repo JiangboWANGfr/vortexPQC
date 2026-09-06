@@ -9,9 +9,9 @@ MLKEM_DIR := $(VORTEX_HOME)/pqc/third_party/mlkem-native
 
 SRCS := $(SRC_DIR)/main.cpp
 
-# mlkem_native_tu.cpp is the shim that pulls the library's single translation
-# unit in; the library itself is never listed, copied or patched.
-VX_SRCS := $(SRC_DIR)/kernel.cpp $(SRC_DIR)/mlkem_native_tu.cpp
+# One translation unit: kernel.cpp includes the library's single-TU amalgam
+# directly. Splitting it would duplicate the file-scope arena.
+VX_SRCS := $(SRC_DIR)/kernel.cpp
 
 # The library is reached through its own config hook, so the submodule tree is
 # read-only to this test. Both the device and the host side need it: common.h
@@ -28,7 +28,7 @@ CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
 # VX_HDRS must be set before ../common.mk: it uses ?= and filters these out of
 # the compiler inputs, so they act as prerequisites only.
 VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_mlkem_config.h \
-           $(VORTEX_HOME)/tests/pqc/pqc_stack.h
+           $(SRC_DIR)/mlk_vortex_alloc.h $(VORTEX_HOME)/tests/pqc/pqc_stack.h
 
 KERNEL_LIB := vortex2
 

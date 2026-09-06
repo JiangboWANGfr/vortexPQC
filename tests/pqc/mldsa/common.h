@@ -28,7 +28,8 @@ typedef struct {
   uint64_t sig_addr;      // out : MLDSA_SIG_BYTES
   uint64_t status_addr;   // out : MLDSA_ST_COUNT * int32_t
   uint64_t cycles_addr;   // out : MLDSA_CY_COUNT * uint64_t
-  uint64_t arena_addr;    // out : 2 * uint32_t -- peak bytes, failure count
+  uint64_t arena_addr;    // out : 4 * uint32_t -- arena peak, arena fail,
+                          //       stack peak, paintable span
 } kernel_arg_t;
 
 #endif

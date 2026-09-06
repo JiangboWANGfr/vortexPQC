@@ -1,3 +1,12 @@
+// The library is a single translation unit and is pulled in here rather than
+// from a second .cpp: a file-scope arena in a header reaching two TUs would
+// give two arenas, the library allocating from one and the kernel reporting the
+// other -- peak reads zero and the KAT still passes. That failure has already
+// happened once in this test suite.
+extern "C" {
+#include "mlkem_native.c"
+}
+
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
 #include "common.h"
@@ -30,10 +39,13 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   const uint32_t span = pqc_stack_paint(&sp0);
 
   uint64_t t0 = vx_rdcycle();
+  mlk_arena_reset();
   status[MLKEM_ST_KEYPAIR] = mlkem_keypair_derand(pk, sk, coins_kp);
   uint64_t t1 = vx_rdcycle();
+  mlk_arena_reset();
   status[MLKEM_ST_ENCAPS]  = mlkem_enc_derand(ct, ss_enc, pk, coins_enc);
   uint64_t t2 = vx_rdcycle();
+  mlk_arena_reset();
   status[MLKEM_ST_DECAPS]  = mlkem_dec(ss_dec, ct, sk);
   uint64_t t3 = vx_rdcycle();
 
@@ -43,6 +55,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
 
   probe[MLKEM_PR_STACK_PEAK] = pqc_stack_watermark(sp0);
   probe[MLKEM_PR_STACK_SPAN] = span;
-  probe[MLKEM_PR_ARENA_PEAK] = 0;
-  probe[MLKEM_PR_ARENA_FAIL] = 0;
+  const uint32_t h = (uint32_t)vx_hart_id();
+  probe[MLKEM_PR_ARENA_PEAK] = mlk_arena_peak[h];
+  probe[MLKEM_PR_ARENA_FAIL] = mlk_arena_fail[h];
 }

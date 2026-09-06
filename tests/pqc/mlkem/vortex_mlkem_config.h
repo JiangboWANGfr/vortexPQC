@@ -28,4 +28,19 @@
 // with the next one.
 #define MLK_CONFIG_NO_RANDOMIZED_API
 
+// Move the library's large locals off the stack. Not an optimization: one
+// mlkem_indcpa_enc frame is 13,184 bytes against an 8,192-byte per-hart slab,
+// so without this the single-lane run silently overflows into hart 1 and no
+// second lane can run at all. See mlk_vortex_alloc.h.
+//
+// Guarded on __VORTEX__ because the host compiles this header too (common.h
+// pulls in mlkem_native.h), and MLK_CONFIG_CUSTOM_ALLOC_FREE without
+// MLK_CUSTOM_ALLOC is a hard #error in the library.
+#if defined(__VORTEX__)
+#define MLK_CONFIG_CUSTOM_ALLOC_FREE
+#if !defined(__ASSEMBLER__)
+#include "mlk_vortex_alloc.h"
+#endif
+#endif
+
 #endif // VORTEX_MLKEM_CONFIG_H

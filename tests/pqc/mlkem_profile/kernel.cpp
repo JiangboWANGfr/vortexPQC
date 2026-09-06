@@ -46,12 +46,17 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
 
   auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
 
+  // The arena is a bump allocator whose frees are no-ops, so it has to be reset
+  // between operations or the three phases accumulate and the third runs out.
   uint64_t t0 = vx_rdcycle();
+  mlk_arena_reset();
   status[0] = mlkem_keypair_derand(s + P_OFF_PK, s + P_OFF_SK, s + P_OFF_COINS_KP);
   uint64_t t1 = vx_rdcycle();
+  mlk_arena_reset();
   status[1] = mlkem_enc_derand(s + P_OFF_CT, s + P_OFF_SS_ENC, s + P_OFF_PK,
                                s + P_OFF_COINS_ENC);
   uint64_t t2 = vx_rdcycle();
+  mlk_arena_reset();
   status[2] = mlkem_dec(s + P_OFF_SS_DEC, s + P_OFF_CT, s + P_OFF_SK);
   uint64_t t3 = vx_rdcycle();
 

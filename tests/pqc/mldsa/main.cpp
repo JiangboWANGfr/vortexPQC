@@ -18,6 +18,8 @@
 
 #include <vortex2.h>
 #include "common.h"
+#include "pqc_stack.h"
+#include "mld_vortex_alloc.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -68,7 +70,7 @@ int main(int argc, char** argv) {
         { nullptr, MLDSA_SIG_BYTES,                    1 },
         { nullptr, MLDSA_ST_COUNT * sizeof(int32_t),   1 },
         { nullptr, MLDSA_CY_COUNT * sizeof(uint64_t),  1 },
-        { nullptr, 2 * sizeof(uint32_t),               1 },  // arena peak, fail
+        { nullptr, 4 * sizeof(uint32_t),               1 },  // arena peak/fail, stack peak/span
     };
     for (auto& b : bufs)
         CHECK(vx_buffer_create(dev, b.bytes, b.write ? VX_MEM_WRITE : VX_MEM_READ, &b.h));
@@ -107,7 +109,7 @@ int main(int argc, char** argv) {
 
     STEP("readback");
     std::vector<uint64_t> h_cy(MLDSA_CY_COUNT, 0);
-    std::vector<uint32_t> h_ar(2, 0);
+    std::vector<uint32_t> h_ar(4, 0);
     vx_event_h e1=nullptr, e2=nullptr, e3=nullptr;
     CHECK(vx_enqueue_read(q, h_st.data(), bufs[6].h, 0, h_st.size()*sizeof(int32_t), 1, &lev, &e1));
     CHECK(vx_enqueue_read(q, h_cy.data(), bufs[7].h, 0, h_cy.size()*sizeof(uint64_t), 1, &lev, &e2));
@@ -147,7 +149,21 @@ int main(int argc, char** argv) {
     for (int i = 0; i < MLDSA_CY_COUNT; ++i)
         if (h_cy[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
 
-    std::printf("ARENA: peak=%u bytes of %u\n", h_ar[0], (unsigned)(128*1024));
+    // The simulator cannot catch a stack overflow: RAM has no ACL and pages in
+    // on demand, so a hart running past its slab just scribbles on an idle
+    // neighbour and every check above still passes. See tests/pqc/pqc_stack.h.
+    if (h_ar[2] == 0) {
+        std::printf("*** stack watermark is zero -- the probe never ran\n");
+        ++errors;
+    } else if (h_ar[2] >= h_ar[3]) {
+        std::printf("*** stack peak %u B filled its whole %u B paintable slab"
+                    " -- it overflowed into the next hart\n", h_ar[2], h_ar[3]);
+        ++errors;
+    }
+
+    std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u\n",
+                h_ar[2], h_ar[3], (unsigned)PQC_SLAB_BYTES,
+                h_ar[0], (unsigned)MLD_ARENA_BYTES, h_ar[1]);
     const uint64_t total = h_cy[0] + h_cy[1] + h_cy[2];
     std::printf("CYCLES: keypair=%llu sign=%llu verify=%llu total=%llu\n",
                 (unsigned long long)h_cy[0], (unsigned long long)h_cy[1],
