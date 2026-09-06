@@ -1,0 +1,51 @@
+# S1, second half: a cooperative software NTT, so an NTT ISA extension has
+# something fair to be measured against.
+#
+# tests/pqc/ntt_xn, simx, one ML-KEM-768 forward NTT, L lanes of one warp.
+# The library's translation unit is included textually, so the cooperative arm
+# uses the library's own mlk_fqmul and mlk_zetas -- not a copy that could drift.
+# Both arms hold their polynomial in .bss, so the only difference between them is
+# which lane does which butterfly. Every row verified coefficient by coefficient
+# against mlk_poly_ntt_c on the same input; mismatch != 0 fails the test.
+#
+# Mapping: 7 layers, len = 256 >> layer, 128 independent butterflies per layer in
+# 256/(2*len) blocks. The (block, j) pair is flattened to one index 0..127 and
+# lane t takes t, t+L, t+2L. Cross-lane means reading another part of a shared
+# array, not a shuffle: the polynomial is 512 B and cannot live in a 128 B
+# register file. Lanes of a warp are lockstep so no barrier is needed, only a
+# vx_fence between layers for visibility.
+L,coop_cycles,ref_cycles,vs_reference,vs_coop_L1,lane_efficiency,mismatch
+1,211506,133526,0.631,1.000,1.000,0
+2,106297,133526,1.256,1.990,0.995,0
+4,53682,133526,2.487,3.940,0.985,0
+#
+# TWO DENOMINATORS, BOTH REAL.
+# vs_reference divides the library's own single-lane C (133,526) by the
+# cooperative arm: it is what you would actually gain, because at one lane you
+# would run the library's code, not this. 2.487x at four lanes.
+# vs_coop_L1 divides the cooperative arm's own single-lane time: it is the pure
+# scaling of the mapping, 3.940x at four lanes, 98.5% efficient.
+# The cooperative arm is 1.58x slower than the reference at L=1 -- stride-by-L
+# indexing and seven fences against a tight nested loop -- which is why the two
+# numbers differ and why both belong in the table.
+#
+# NTT PARALLELISES FAR BETTER THAN KECCAK. 3.940x at four lanes against Keccak's
+# 1.485x on the full ML-KEM round trip, because every layer offers 128
+# independent butterflies while the x4 Keccak API caps the batch at four and 31%
+# of ML-KEM's permutations are a strictly serial sponge chain. But NTT is only
+# 11.97% of the round trip (ablation), bound 1.136x, against Keccak's 67.72% and
+# 3.098x -- so the axis that parallelises best is attached to the smaller term.
+#
+# A NEGATIVE RESULT WORTH KEEPING. A two-regime mapping -- split the inner loop
+# when len >= L, whole blocks when len < L -- keeps zeta loop-invariant and is
+# faster at one lane (190,360 against 211,510) but slower at four (57,830
+# against 53,682). The obvious optimisation is the wrong one at the operating
+# point.
+#
+# METHODOLOGY NOTE. The first version of this kernel declared the working
+# polynomial on the stack, where vx_start.S gives every hart its own slab: each
+# lane then did 1/L of the butterflies on its own private copy, which is not a
+# cooperative NTT but L partial ones. It reported 1.249x and 2.471x -- doing 1/L
+# of the work is L times faster -- and the coefficient check caught it, 128 of
+# 256 wrong at L=2 and 256 of 256 at L=4. A cycle count with no correctness
+# check attached would have gone into the paper.
