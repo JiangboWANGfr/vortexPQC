@@ -22,6 +22,10 @@ MLDSA_FLAGS := -I$(MLDSA_DIR)/mldsa -I$(VORTEX_HOME)/tests/pqc/mldsa -I$(SRC_DIR
 VX_CFLAGS += $(MLDSA_FLAGS)
 CXXFLAGS  += $(MLDSA_FLAGS)
 
+# The host binary reads kernel_arg_t out of these; without them a layout
+# change rebuilds the kernel and leaves the host on the old struct.
+HDRS := $(SRC_DIR)/common.h
+
 KERNEL_LIB := vortex2
 
 include ../common.mk

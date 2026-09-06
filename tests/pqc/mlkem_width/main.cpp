@@ -27,6 +27,20 @@ int main(int argc, char** argv) {
         else { std::cout << "Usage: [-k kernel] [-t lanes]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
     }
 
+    // This kernel is redundant SPMD on a single shared scratch region: every
+    // active lane runs the whole KEM over the same buffers, and only the Keccak
+    // batch differs. That is what makes it a clean lane-width instrument, and it
+    // is also why more than one CTA cannot work -- two CTAs would interleave
+    // writes to the same pk/sk/ct. Batching over independent requests belongs in
+    // tests/pqc/mlkem, which gives each request its own workspace.
+    if (blocks != 1) {
+        std::fprintf(stderr,
+            "FAIL: -b %u is not supported. All CTAs share one scratch region, so a\n"
+            "      multi-CTA run computes garbage and reports it as a measurement.\n"
+            "      Use tests/pqc/mlkem for independent-request batching.\n", blocks);
+        return -1;
+    }
+
     vx_device_h dev = nullptr;
     CHECK(vx_device_open(0, &dev));
     vx_queue_info_t qi = { sizeof(qi), nullptr, VX_QUEUE_PRIORITY_NORMAL, 0 };
@@ -78,9 +92,50 @@ int main(int argc, char** argv) {
     CHECK(vx_enqueue_read(q, h_stk.data(), stk, 0, h_stk.size()*sizeof(uint32_t), 1, &lev, &e));
     CHECK(vx_event_wait_value(e, 1, VX_TIMEOUT_INFINITE)); vx_event_release(e); e = nullptr;
 
+    // Read the whole scratch back: the return codes say the library did not
+    // error, not that it computed the right thing. Checking only them is how a
+    // wide arm that silently corrupts a shared Keccak state still reports PASSED.
+    std::vector<uint8_t> h_out(P_SCRATCH_LEN, 0);
+    CHECK(vx_enqueue_read(q, h_out.data(), scr, 0, h_out.size(), 1, &lev, &e));
+    CHECK(vx_event_wait_value(e, 1, VX_TIMEOUT_INFINITE)); vx_event_release(e); e = nullptr;
+
     int errors = 0;
     for (int i = 0; i < 3; ++i)
         if (h_st[i] != 0) { std::printf("*** KEM step %d returned %d\n", i, h_st[i]); ++errors; }
+
+    // The cryptographic round trip. Independent of the width, and the one check
+    // that actually exercises decapsulation against encapsulation.
+    if (std::memcmp(&h_out[P_OFF_SS_ENC], &h_out[P_OFF_SS_DEC], 32) != 0) {
+        std::printf("*** shared secrets differ\n    enc:");
+        for (int i = 0; i < 8; ++i) std::printf(" %02x", h_out[P_OFF_SS_ENC + i]);
+        std::printf("\n    dec:");
+        for (int i = 0; i < 8; ++i) std::printf(" %02x", h_out[P_OFF_SS_DEC + i]);
+        std::printf("\n");
+        ++errors;
+    }
+
+    // Width invariance: the same coins must give the same key material at every
+    // lane count. Constants captured at W=1; a mismatch means a wide arm
+    // computed something else, which is exactly what this test must not miss.
+    auto fnv = [](const uint8_t* p, size_t n) {
+        uint32_t h = 2166136261u;
+        for (size_t i = 0; i < n; ++i) { h ^= p[i]; h *= 16777619u; }
+        return h;
+    };
+    struct { const char* name; uint32_t off, len, want; } chk[] = {
+        { "pk", P_OFF_PK,     1184, MLKW_SUM_PK },
+        { "sk", P_OFF_SK,     2400, MLKW_SUM_SK },
+        { "ct", P_OFF_CT,     1088, MLKW_SUM_CT },
+        { "ss", P_OFF_SS_ENC,   32, MLKW_SUM_SS },
+    };
+    for (auto& k : chk) {
+        uint32_t got = fnv(&h_out[k.off], k.len);
+        if (got != k.want) {
+            std::printf("*** %s checksum %08x, expected %08x (width invariance broken)\n",
+                        k.name, got, k.want);
+            ++errors;
+        }
+    }
 
     const uint64_t total = h_cyc[0] + h_cyc[1] + h_cyc[2];
     std::printf("BLOCKS %u WIDTH %u  keccak_x1=%u keccak_x4=%u slots=%u  stack_peak=%u/%u  arena_peak=%u fail=%u\n",

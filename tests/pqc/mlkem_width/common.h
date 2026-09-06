@@ -23,6 +23,20 @@ typedef struct {
 #define P_OFF_SS_DEC    4928   // 32
 #define P_SCRATCH_LEN   4992
 
+// FNV-1a of the key material at W=1. The coins are fixed and match
+// tests/pqc/mlkem_profile, so these do not depend on the lane count -- asserting
+// them is what makes the wide arms comparable rather than merely non-erroring.
+//
+// These are an INVARIANCE anchor, captured from a run, not a KAT: the coins here
+// are h_scr[i] = i rather than the FIPS 203 vectors, so there is no published
+// answer to compare against. The CORRECTNESS anchor is the separate check that
+// decapsulation reproduces encapsulation's shared secret, which no amount of
+// consistent-but-wrong arithmetic satisfies.
+#define MLKW_SUM_PK 0xb4ce96bcu
+#define MLKW_SUM_SK 0xfd91150du
+#define MLKW_SUM_CT 0xeef3c43eu
+#define MLKW_SUM_SS 0xfe82d471u
+
 #define MLKW_PAINT 0xa5a5a5a5u
 
 #endif
