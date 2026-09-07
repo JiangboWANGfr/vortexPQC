@@ -20,7 +20,9 @@ pqc_pe,1,1,post_synth,3437,3437,0,0,1607,0,0,,
 pqc_pe,1,1,post_impl,3223,3223,0,0,1607,0,0,0.619,368.4
 pqc_pe,2,1,post_impl,7011,7011,0,0,1715,0,0,0.005,300.5
 pqc_pe,1,4,post_impl,13045,13045,0,0,6428,0,0,0.622,368.8
-VX_core_top,-,-,post_impl,33970,31996,1458,516,32115,12,20,0.343,334.4
+pqc_pe,1,16,post_impl,53645,53645,0,0,25712,0,0,0.004,300.4
+VX_core_top_4w4t,-,-,post_impl,33970,31996,1458,516,32115,12,20,0.343,334.4
+VX_core_top_4w16t,-,-,post_impl,128939,122633,4270,2036,120295,28,80,0.068,306.3
 #
 # RESULT 1 -- IT CLOSES 300 MHz WITH ROOM. WNS = +0.619 ns against a 3.333 ns
 # period, so fmax = 1000/(3.333-0.619) = 368.4 MHz for the isolated PE. The V80
@@ -34,10 +36,12 @@ VX_core_top,-,-,post_impl,33970,31996,1458,516,32115,12,20,0.343,334.4
 # SRL, zero BRAM, zero URAM, zero DSP. The state lives in fabric flops, which is
 # what makes the per-lane replication argument purely about LUT/FF budget with no
 # hard-block contention against the rest of the core.
-# Replication is now measured on the V80 too and it matches Nangate: four lanes
-# are 13,045 LUTs against 4 x 3,223 = 12,892, so 4.047x -- 1.2% of wrapper -- and
-# 6,428 FFs against 4 x 1,607, which is 4.000x exactly. The four engines come out
-# at 3,263 / 3,267 / 3,246 / 3,267 LUTs and 1,607 FFs each.
+# REPLICATION IS LINEAR IN FLOPS AND ONLY ROUGHLY SO IN LUTs.
+#   4 lanes   13,045 LUTs = 4.047x    6,428 FFs = 4.000x
+#  16 lanes   53,645 LUTs = 16.644x  25,712 FFs = 16.000x
+# The flops are exact at every width; the LUT overhead grows from 1.2% to 4.0%,
+# which is routing and the wrapper, not logic. At four lanes the engines land
+# within 21 LUTs of each other (3,263 / 3,267 / 3,246 / 3,267).
 #
 # RESULT 3 -- THE CRITICAL PATH IS ROUTING, NOT LOGIC, AND THAT MATTERS.
 #   source      pqc_unit/g_pqc_lanes[0].pqc_pe/busy_reg/C
@@ -67,18 +71,40 @@ VX_core_top,-,-,post_impl,33970,31996,1458,516,32115,12,20,0.343,334.4
 #   per-core PE (1 engine)  3,223 / 33,970 =  9.49% of the core's LUTs, 5.00% of FFs
 #   per-lane PE (4 engines) 13,045 / 33,970 = 38.4%
 # **And the core is slower than the PE.** 334.4 MHz against the isolated PE's
-# 368.4, so the PE is not what would stop this design closing 300 MHz -- the core
-# already is the critical path. Replication does not change that either: four
-# lanes come in at +0.622 ns against one lane's +0.619, because the engines share
-# no logic and cannot interact in timing.
+# 368.4, so a single PE is not what would stop this design closing 300 MHz -- the
+# core already is the critical path.
 #
-# CAREFUL WITH THE W=16 EXTRAPOLATION, AND THIS FILE WILL NOT MAKE IT.
-# The project has chosen W = 16, and the PE side scales exactly 16x -- but so does
-# much of the core, and the core above is W = 4. Multiplying a W=16 PE count into
-# a W=4 core denominator would produce "a per-lane PE is 152% of its core", which
-# is arithmetic, not a measurement. The matched W=16 pair (16 engines, and
-# VX_core_top at NUM_THREADS=16) is running; until it lands the only honest
-# statement is the matched W=4 one above.
+# RESULT 5 -- THE MATCHED W=16 PAIR, AND A CORRECTION.
+# VX_core_top at NUM_THREADS=16 (still 4 warps): 128,939 LUTs (5.01%), 120,295 FFs,
+# 28 RAMB36, 20 RAMB18, 80 DSP, WNS +0.068 ns -> 306.3 MHz. The core grew 3.80x in
+# LUTs and 3.75x in flops for 4x the threads, so the config did take effect
+# (VX_config.vh guards its defaults with `ifndef`).
+#
+#   matched W=4    per-core PE  9.49% of the core's LUTs   per-lane PE  38.4%
+#   matched W=16   per-core PE  2.50%                      per-lane PE  41.6%
+#
+# The per-lane fraction is roughly flat with width; the per-core fraction FALLS,
+# because the core grows and one engine does not. At the project's chosen W=16 the
+# two options differ by 16.6x in area cost, and that is the number the per-core
+# versus per-lane argument should be made on.
+#
+# **CORRECTION.** An earlier version of this file said replication "does not
+# change" timing, on the evidence of one lane at +0.619 ns and four at +0.622.
+# That does not hold at scale: **sixteen lanes close with +0.004 ns**, i.e. 300.4
+# MHz, barely. Its critical path is 91.5% routing (2.567 ns of 2.804) with only
+# 0.237 ns of logic, so what fails is reaching 25,712 flops spread across the
+# fabric, not the round function. Replication is timing-neutral up to four engines
+# and is not beyond that.
+#
+# THE WARP AXIS IS UNTOUCHED, AND THE DENOMINATOR'S CONFIG IS NOT DECIDED.
+# Both core runs are at 4 warps, which is the flow's default and was not a choice
+# -- CONFIGS was empty for the first and carried only NUM_THREADS for the second.
+# The software results in this directory span 2, 4, 8 and 16 warps: the ablation
+# that produces the 2.911x bound is 4 warps x 4 threads, the M x L sweeps that
+# produce 8.280x are 8 warps x 4 threads, and W=16 was chosen only this session.
+# **Whatever the paper's headline hardware configuration turns out to be, the
+# denominator has to be re-run at it.** Nothing above should be quoted against a
+# configuration it was not measured at.
 #
 # STILL NOT MEASURED: the PE integrated into VX_core rather than beside it. Every
 # number here is an isolated flat-ported module, which is the best case for
