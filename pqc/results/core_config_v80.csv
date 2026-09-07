@@ -1,0 +1,65 @@
+# VX_core_top across the warp x thread grid on the paper's target part.
+# xcv80-lsva4737-2MHP-e-S, Vivado 2025.1, post-route with phys_opt, constrained
+# at 300 MHz. Baseline core only -- no PQC extension in any of these.
+#
+# Reproduce:
+#   source /data/Xilinx/2025.1/Vivado/settings64.sh
+#   cd build32/hw/syn/xilinx/dut
+#   SV2V_PATH=/home/jiangbowang/tools/sv2v DEVICE=xcv80-lsva4737-2MHP-e-S \
+#     CLK_FREQ_MHZ=300 make core PREFIX=<tag> \
+#     CONFIGS="-DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=16"
+#
+# This exists because the PE's "% of a core" figure was being quoted against
+# whatever core the flow happened to default to. It now has a grid to be quoted
+# against, and the paper's configuration has to name a cell in it.
+warps,threads,total_luts,logic_luts,lutrams,srls,ffs,dsp,wns_ns,fmax_mhz,build_time
+4,4,33970,31996,1458,516,32115,20,0.343,334.4,10m06s
+4,16,128939,122633,4270,2036,120295,80,0.068,306.3,19m56s
+8,4,42553,40315,1722,516,39283,20,0.004,300.4,12m00s
+8,16,148827,142273,4518,2036,134982,80,0.018,301.6,23m00s
+#
+# RESULT 1 -- THE TWO AXES COST VERY DIFFERENT AMOUNTS.
+#   thread axis (4x threads):  3.796x LUTs at 4 warps, 3.497x at 8
+#   warp axis   (2x warps):    1.253x LUTs at 4 threads, 1.154x at 16
+# Almost all of a Vortex core is per-thread. Doubling the warps -- which is the M
+# axis, the one the M x L sweeps show delivering 0.893 efficiency at M=8 -- costs
+# 15-25% of area. Quadrupling the threads, which mlkem_width shows delivering
+# NOTHING past four lanes because the library's x4 API caps it, costs 3.5-3.8x.
+# **The axis that works is the cheap one and the axis that does not is the
+# expensive one.**
+#
+# RESULT 2 -- EVERYTHING EXCEPT THE SMALLEST CONFIG SITS ON THE 300 MHz EDGE.
+#   4w x 4t   +0.343 ns   comfortable
+#   4w x 16t  +0.068 ns
+#   8w x 16t  +0.018 ns
+#   8w x 4t   +0.004 ns
+# The last three are 68, 18 and 4 picoseconds. **Do not read a trend into the
+# ordering of those three** -- 8w x 4t coming out worse than 8w x 16t is placement
+# luck, not a property of the configuration. What is real is that the baseline
+# core barely closes 300 MHz at any useful size, which corroborates the only other
+# V80 datapoint in this repo: commit 5def82517's tinyGPU is 2 warps x 2 threads
+# with all caches off and still needed post-route phys_opt to reach 300.000 MHz
+# from WNS -0.034.
+#
+# RESULT 3 -- THIS CHANGES THE INTEGRATION PLAN, AND IT IS THE POINT OF THE FILE.
+# keccak_pe_v80.csv concluded that the isolated PE at 368.4 MHz is not what would
+# stop the design closing, because the 4w x 4t core at 334.4 MHz was already
+# slower. That conclusion does not survive this grid. At the configuration the
+# measurements actually argue for, the core has **18 picoseconds** of margin, so
+# **adding anything to it is a timing risk, not merely an area question.** In-core
+# integration now has to be planned around timing from the start -- pipelining the
+# PE's request path, or accepting a lower target -- rather than treated as a
+# placement detail to be checked afterwards.
+#
+# THE PE AGAINST THE RECOMMENDED CELL (8 warps x 16 threads, 148,827 LUTs):
+#   per-core PE, one engine      3,223 LUTs =  2.17%
+#   per-lane PE, sixteen engines 53,645     = 36.0%
+# The 16.6x between them is the area half of the placement argument, now stated
+# against the configuration it will be argued in.
+#
+# CAVEAT ON THE RECOMMENDED CELL ITSELF. 8 warps is what the M x L sweeps support
+# (0.893 efficiency at M=8). 16 threads is NOT supported by throughput --
+# lane_axis_to_16.csv shows the full KEM is 2.75x slower at a 16-lane launch than
+# at 4, and the library caps Keccak's lane axis at 4 regardless. 16 threads is
+# there only so SG5 can exist, at a cost this grid now prices: 3.5x the core area
+# and essentially all of the timing margin.
