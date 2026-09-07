@@ -1404,9 +1404,33 @@ One CSV of post-implementation LUT/FF/BRAM/DSP/Fmax for 9 Vivado cells — {isol
 
 ---
 
-### 0. VERIFIED ENVIRONMENT FACTS (checked on this box)
-- `XILINX_VIVADO` is **unset**; no `/opt/xilinx`, no `/tools/Xilinx`, no `~/dev/xilinx_setup.sh`. **The Vivado legs cannot run here.** Do them on the Vivado machine.
-- TOOLDIR = `/home/jiangbowang/aphdcode/vortex_v80/toolchains` → holds only `libc32 libcrt32 llvm-vortex riscv32-gnu-toolchain verilator`. **No yosys, no sta, no sv2v.** `~/tools` holds `sv2v` only (no yosys, no sta).
+### 0. VERIFIED ENVIRONMENT FACTS (re-checked 2026-09-07 — the previous entry was wrong)
+
+**CORRECTION. The earlier version of this section said "the Vivado legs cannot run
+here." That was wrong, and it was wrong because the check looked only in the
+standard locations.** Vivado is installed under `/data`, alongside Quartus. Both
+the Vivado and the yosys legs run on this box; only OpenSTA is genuinely missing.
+
+- **Vivado 2025.1 at `/data/Xilinx/2025.1/Vivado`.** `XILINX_VIVADO` is unset in a
+  fresh shell — `source /data/Xilinx/2025.1/Vivado/settings64.sh` first. The
+  target part **`xcv80-lsva4737-2MHP-e-S` is present** (checked with `get_parts`;
+  751 parts installed). `/data/v80_setup/` holds `check_xcv80.tcl` and the
+  licensing bits.
+- **`DEVICE` defaults to `xcu55c-fsvh2892-2L-e`** (`hw/syn/xilinx/dut/common.mk:8`).
+  A V80 run must pass `DEVICE=xcv80-lsva4737-2MHP-e-S`, and `CLK_FREQ_MHZ`
+  sets the constraint (`project.tcl:166-172` turns it into `create_clock` on the
+  port named `clk`).
+- **yosys 0.33 at `/usr/bin/yosys`** — the earlier "no yosys" is also out of date.
+  Its Verilog frontend is old: it rejects `++i`, packed 2D wire declarations and
+  packed 2D ports, all three of which `hw/rtl/pqc/` works around in-source.
+- **verilator 5.046 at `$TOOLDIR/verilator/bin`**, not on `PATH` by default.
+- **sv2v at `~/tools/sv2v/bin/sv2v`, NOT at `$TOOLDIR/sv2v`** where
+  `hw/syn/common.mk:25` looks. Override on the command line with
+  `SV2V_PATH=/home/jiangbowang/tools/sv2v` rather than touching the toolchain dir.
+- **OpenSTA (`sta`) is absent.** This is the one real gap: the yosys `timing`
+  target cannot run, so use `TARGET=techmap`, which maps and reports area without
+  STA. For a critical-path proxy, `ltp -noff` on the generic-mapped netlist gives
+  gate levels (see `pqc/results/keccak_pe_area.csv`).
 - **The synthesis flows only work from a configured build tree.** `hw/syn/xilinx/dut/Makefile:1-2`, `hw/syn/yosys/dut/Makefile:24-25` and `hw/syn/xilinx/aved/Makefile:1-2` all do `include $(ROOT_DIR)/config.mk`; the source tree has only `config.mk.in`. `make -C hw/syn/xilinx/dut list` **fails**. `make -C build32/hw/syn/xilinx/dut list` works.
 - `configure` **copies** `Makefile`/`*.mk` from `hw*` into `build32/` (mtime-guarded, configure:88-93/101-130). RTL is **not** copied — `RTL_DIR`/`UNITTEST_DIR` = `$(VORTEX_HOME)` = the source tree. So `.sv` edits are live; `.mk`/`.toml` edits are **not** until you re-configure.
 

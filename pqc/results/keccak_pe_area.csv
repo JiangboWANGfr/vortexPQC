@@ -9,8 +9,9 @@
 #
 # SCOPE, stated before the numbers because it bounds every conclusion:
 #  * This is NANGATE 45nm ASIC, not the V80 FPGA the paper targets. Use it for the
-#    RELATIVE comparisons below. V80 LUT/FF/BRAM/fmax needs Vivado, and there is
-#    none on this box.
+#    RELATIVE comparisons below. The V80 numbers are in keccak_pe_v80.csv beside
+#    this file -- an earlier version of this line said there was no Vivado on this
+#    box, which was wrong: it is at /data/Xilinx/2025.1, not the standard paths.
 #  * `logic_depth` is `ltp -noff` on the generic-mapped netlist -- gate levels on
 #    the longest register-to-register path. It is a PROXY for the critical path,
 #    ignoring wire delay and gate sizing. It is not fmax. OpenSTA is not installed
