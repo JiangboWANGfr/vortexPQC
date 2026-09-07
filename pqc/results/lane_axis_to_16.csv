@@ -1,0 +1,66 @@
+# How far the lane axis actually goes. Every previous sweep in this directory was
+# taken on a 4-thread build, so L was capped at 4 by the machine and "L=4 is the
+# best" was never tested -- it was the edge of the box. This settles it.
+#
+# simx, NUM_THREADS=16 build, 1 core / 4 warps, L2-L3 off, M=1.
+# ALL ROWS ARE ONE BUILD, varying only the launch's block_dim: keccak_sg5.csv
+# established that cross-build comparison carries a ~10% confound.
+#
+# The two axes are measured separately because the library treats them
+# differently, and they turn out to point in opposite directions.
+axis,L,cycles,instrs,self_scaling,efficiency,vs_reference,note
+ntt_coop,1,211506,,1.000,1.000,0.632,tests/pqc/mlkem_ntt_xn
+ntt_coop,2,106297,,1.990,0.995,1.257,
+ntt_coop,4,53683,,3.940,0.985,2.489,
+ntt_coop,8,27378,,7.725,0.966,4.881,first measurement past L=4
+ntt_coop,16,14240,,14.853,0.928,9.385,first measurement past L=4
+full_kem,1,36476476,3785360,1.000,1.000,,tests/pqc/mlkem_width
+full_kem,2,28545054,2888800,1.278,0.639,,
+full_kem,4,25386672,2440519,1.437,0.359,,best
+full_kem,8,35950505,2442539,1.015,0.127,,WORSE than L=4
+full_kem,16,69712820,2442539,0.523,0.033,,WORSE than one lane
+#
+# RESULT 1 -- KECCAK'S LANE AXIS IS CAPPED AT 4 BY THE LIBRARY API, NOT BY US.
+# mlk_keccak_f1600_x4_native permutes exactly four sub-states; mlkem-native has no
+# x8 or x16. tests/pqc/mlkem_width/mlk_simt_fips202.h:61 is `for (s = tid; s < 4;
+# s += W)`, and its buffer is dimensioned [4]. At W >= 4 every lane does at most
+# one sub-state and lanes 4..W-1 do nothing.
+# The instruction counts prove it: **2,440,519 at L=4, 2,442,539 at L=8 and
+# 2,442,539 at L=16** -- identical to within one loop setup. Widening the launch
+# adds no work because there is no more work to hand out.
+#
+# RESULT 2 -- AND THE IDLE LANES ARE NOT FREE. THEY ARE EXPENSIVE.
+# Same instructions, cycles go 25,386,672 -> 35,950,505 -> 69,712,820.
+# **L=16 is 2.75x SLOWER than L=4, and 1.91x slower than a single lane.** IPC
+# collapses 0.096 -> 0.068 -> 0.035. The mechanism is the one keccak_sg5.csv
+# measured on SG1: an idle lane still occupies its issue slot, and every lane's
+# state is a stack automatic on a slab vx_start.S:95 spaces 8 KB from its
+# neighbour, so a wider warp means more divergent cache lines per access and the
+# LSU serialises them.
+#
+# RESULT 3 -- THE NTT AXIS IS REAL AND KEEPS GOING, BUT IT IS ATTACHED TO THE
+# SMALL TERM. The cooperative NTT scales to 14.853x at sixteen lanes, 92.8%
+# efficient, and nobody had measured past four. But NTT is 12.67% of the round
+# trip (ablation_mlkem.csv), so:
+#   L=4   3.940x  -> 1.1044x end to end
+#   L=8   7.725x  -> 1.1240x
+#   L=16 14.853x  -> 1.1340x   (the infinite-NTT bound is 1.1451x)
+# Going from four lanes to sixteen buys 2.7% end to end on ML-KEM, against a
+# 2.75x penalty on everything else at that launch width.
+#
+# RESULT 4 -- BUILDING WIDE IS CHEAP; LAUNCHING WIDE IS NOT.
+# At L=4 the W=16 build costs 25,386,672 against the W=4 build's 24,658,060 --
+# **+3.0%**. So "build at 16, launch at 4" is available, and it is the only way
+# W=16 can be justified for anything other than school D.
+#
+# WHAT THIS MEANS FOR THE CONFIGURATION DECISION.
+# The launch width for ML-KEM is 4 and that is now measured rather than assumed.
+# The build width is a separate question with a 3% price, and the case for 16 is
+# not throughput -- it is that SG5 (cooperative_ise_proposal.md) needs five lanes
+# per state, and that the cooperative NTT's 14.853x exists at all. Against that,
+# a 16-thread core is 128,939 LUTs to a 4-thread core's 33,970 (3.80x) and drops
+# fmax from 334.4 to 306.3 MHz (keccak_pe_v80.csv).
+#
+# NOT ANSWERED HERE: the warp axis. Every row above is M=1. The M x L sweeps put
+# M=8 at 0.893 efficiency, which is the axis that actually delivers, and nothing
+# in this file touches it.
