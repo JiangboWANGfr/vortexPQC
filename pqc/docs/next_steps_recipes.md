@@ -1427,6 +1427,10 @@ the Vivado and the yosys legs run on this box; only OpenSTA is genuinely missing
 - **sv2v at `~/tools/sv2v/bin/sv2v`, NOT at `$TOOLDIR/sv2v`** where
   `hw/syn/common.mk:25` looks. Override on the command line with
   `SV2V_PATH=/home/jiangbowang/tools/sv2v` rather than touching the toolchain dir.
+- **yosys likewise: it is at `/usr/bin/yosys`, not `$TOOLDIR/yosys/bin/yosys`**
+  (`hw/syn/common.mk:26,33`). The yosys DUT flow fails with `No such file or
+  directory` at `run_synth.sh:258` until you add `YOSYS=/usr/bin/yosys` beside
+  `SV2V_PATH`. Both overrides are needed together for that flow.
 - **OpenSTA (`sta`) is absent.** This is the one real gap: the yosys `timing`
   target cannot run, so use `TARGET=techmap`, which maps and reports area without
   STA. For a critical-path proxy, `ltp -noff` on the generic-mapped netlist gives
