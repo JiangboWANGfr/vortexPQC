@@ -1,0 +1,83 @@
+# Plain-ISA SG5 against SG1: the first measured cooperative Keccak on this machine.
+#
+# tests/pqc/keccak_sg5, simx, 1 cluster / 1 core / 4 warps, L2-L3 off, one warp.
+# SG1 = one lane holds a whole state and calls the library's own
+# mlk_keccakf1600_permute (reference C, -march=rv32imaf). SG5 = five lanes hold one
+# state, lane x holding column A[x][0..4], all cross-lane movement through
+# vx_shfl_idx with mask = 0. Both arms seed from the same function of the state
+# index and are verified word by word on the host against the library after the
+# same number of chained permutations; the host reference is itself checked against
+# the FIPS 202 all-zero KAT (A[0][0] = f1258f7940e1dde7) before it is trusted.
+# Every row below passed with bad=0.
+#
+# This is step 9 of pqc/docs/proposals/cooperative_ise_proposal.md. It needed no new
+# hardware: SHFL_IDX with mask = 0 already expresses the whole school-D data
+# movement (VX_alu_int.sv:179-221).
+#
+# METHOD: all derived figures are MARGINAL, (p=8 minus p=4) / 4 chained
+# permutations, so kernel entry, seeding and write-back cancel out. Raw rows first.
+arm,W,states,perms,fences,cycles,instrs,passed
+sg1,4,4,2,2,315998,65902,1
+sg1,4,4,4,2,630184,98808,1
+sg1,4,4,8,2,1258556,164620,1
+sg1,8,8,4,2,1275105,98808,1
+sg1,8,8,8,2,2548184,164620,1
+sg1,16,16,4,2,2958384,98808,1
+sg1,16,16,8,2,5913612,164620,1
+sg5,16,3,2,2,162615,44890,1
+sg5,16,3,4,2,322485,56338,1
+sg5,16,3,8,2,642225,79234,1
+sg5,16,3,4,1,322525,56146,1
+sg5,16,3,4,0,321661,56050,1
+#
+# MARGINAL, per chained permutation and per round:
+# arm      W   instr/perm  instr/round  cycles/perm(latency)  CPI    cycles/perm(throughput)
+# sg1      4      16453        685.5           157,093        9.55          39,273
+# sg1      8      16453        685.5           318,270       19.34          39,784
+# sg1     16      16453        685.5           738,807       44.90          46,175
+# sg5     16       5724        238.5            79,935       13.96          26,645
+#
+# CALIBRATION. SG1 at W=4 gives CPI 9.55 against the 9.537 recorded in
+# keccak_baseline_columns.csv -- 0.14% apart, on a different test and a different
+# code path. The instrument agrees with the existing baseline.
+#
+# RESULT 1 -- SG5 WINS BOTH AXES AT W=16, AND THE PREDICTION WAS INVERTED.
+#   latency     738,807 -> 79,935   =  9.24x   (cooperative_ise_proposal.md S4 predicted 3.49x)
+#   throughput   46,175 -> 26,645   =  1.73x   (S4 predicted SG5 LOSES at 0.66x)
+# Against SG1's best configuration (W=4, 39,273) SG5 still wins throughput 1.47x.
+# The prediction was inverted because it counted instructions. The measured
+# instruction ratio is 2.87x in SG5's favour (685.5 vs 238.5 per round) -- close to
+# the derived 3.49x -- but the derivation then divided SG1's by 16 lanes and SG5's
+# by 3 states, which assumes 16 lanes cost what 1 lane costs. They do not.
+#
+# RESULT 2 -- SG1 GETS NO THROUGHPUT FROM LANES AT ALL, AND ITS LATENCY IS LINEAR IN W.
+#   W:            4         8        16
+#   instrs    16453     16453     16453     <- IDENTICAL, same warp-instruction stream
+#   latency  157,093   318,270   738,807    <- 2.03x then 2.32x for 2x the lanes
+#   CPI         9.55     19.34     44.90
+#   thruput   39,273    39,784    46,175    <- flat, then 17% WORSE at W=16
+# Same instructions, 4.70x the cycles from W=4 to W=16. The reference C permutation
+# issues ~218 memory instructions per round per lane, and each lane's state is a
+# stack automatic on its own slab (vx_start.S:95 spaces harts 8 KB apart), so every
+# load is W distinct cache lines and the LSU serialises them. This is risk 2 of the
+# proposal ("the ranking could invert") happening.
+#
+# RESULT 3 -- THE FENCE IS NOT FATAL. Risk 1 answered.
+#   fences=0  321,661 cycles  56,050 instrs
+#   fences=1  322,525         56,146          (+96 instrs = exactly 1 per round)
+#   fences=2  322,485         56,338
+# Two fences per round cost 824 cycles, 0.26%. The proposal assumed the barrier
+# might kill plain-ISA SG5 outright; it does not.
+#
+# THE ONE THING THAT COULD STILL INVERT RESULT 1, AND IT IS NOT MEASURED:
+# this SG1 is ARRAY-OF-STATES -- each lane's 200 bytes on its own per-hart stack.
+# That is what the library actually does (fips202.c:208 and sampling.c:221 are stack
+# automatics), so it is the real baseline and not a strawman. But a
+# STRUCTURE-OF-ARRAYS SG1, with word j of state i at base + j*W + i so a warp load
+# is one coalesced line, would remove exactly the serialisation Result 2 measures,
+# and nobody has run it. **Until it is run, the 1.73x throughput claim is against
+# the layout the library uses, not against the best possible SG1.** That is the next
+# experiment and it is cheap.
+#
+# ALSO NOT MEASURED: RTL. Everything here is simx. VX_alu_int.sv:286's alu_op[3]
+# tmask trap is RTL-only, so a school-D op can pass simx and fail rtlsim.
