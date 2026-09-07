@@ -98,8 +98,14 @@ om_PKG  = $(RTL_DIR)/om/VX_om_pkg.sv
 #   XCONFIGS="-DPQC_TOP_UNROLL=k"  rounds per cycle; latency is 24/k
 # No pqc_EXT := 1 on purpose: build.mk:32-34 would pull in hw/syn/extensions.mk,
 # whose PQC block appends the same package again.
+# The testbench deliberately sits in pqc_unit/sim/, not beside the top:
+# gen_sources.sh sweeps an include dir at -maxdepth 1, so a .sv next to
+# VX_pqc_unit_top.sv would be copied into the gate's source set.
 # UNVERIFIED: there is no Vivado on the development box, so this entry has never
-# been run. The yosys entry beside it has.
+# been run. The yosys entry beside it has not run end to end either -- that flow
+# wants sv2v at $TOOLDIR/sv2v/bin, and on this box sv2v is under ~/tools. The
+# area numbers in pqc/results/keccak_pe_area.csv come from yosys invoked
+# directly, not through this catalog.
 pqc_PRJ := VX_pqc_unit_top
 pqc_CFG := -DVX_CFG_EXT_PQC_ENABLE
 pqc_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/pqc -I$(UNITTEST_DIR)/pqc_unit

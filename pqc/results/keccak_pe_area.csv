@@ -1,0 +1,74 @@
+# Area and logic depth of the Keccak-f1600 PE, hw/rtl/pqc/VX_pqc_keccak_f1600.sv.
+#
+# Yosys 0.33 -> dfflibmap -> abc, mapped to
+# hw/syn/libs/NangateOpenCellLibrary_typical.lib (Nangate 45nm Open Cell), driven
+# from hw/unittest/pqc_unit/VX_pqc_unit_top.sv. Every configuration below also
+# passes hw/unittest/pqc_unit/sim/VX_pqc_unit_tb.sv under verilator -Wall: four
+# vectors emitted by the pristine submodule's mlk_keccakf1600_permute, one of them
+# the FIPS 202 all-zero known answer f1258f7940e1dde7, at exactly 24/UNROLL cycles.
+#
+# SCOPE, stated before the numbers because it bounds every conclusion:
+#  * This is NANGATE 45nm ASIC, not the V80 FPGA the paper targets. Use it for the
+#    RELATIVE comparisons below. V80 LUT/FF/BRAM/fmax needs Vivado, and there is
+#    none on this box.
+#  * `logic_depth` is `ltp -noff` on the generic-mapped netlist -- gate levels on
+#    the longest register-to-register path. It is a PROXY for the critical path,
+#    ignoring wire delay and gate sizing. It is not fmax. OpenSTA is not installed
+#    here either.
+#  * `dff` counts DFF_X1 only. The state register is 1600 bits, so a count near
+#    1600 is the floor; other flop variants, if the mapper emitted any, are not in
+#    this column.
+#  * NO WHOLE-CORE DENOMINATOR YET. SoK ePrint 2024/1323 Pitfall #2 requires both
+#    the isolated PE and the whole-core delta; only the first is here.
+unroll,lanes,latency_cycles,cells,dff,area_um2,logic_depth
+1,1,24,9909,1614,22471.414,11
+2,1,12,16467,1613,32940.908,18
+3,1,8,23266,1605,41234.256,27
+4,1,6,30106,1612,60941.398,35
+6,1,4,43747,1604,87462.130,52
+8,1,3,57330,1608,112124.586,69
+12,1,2,84679,1603,163661.288,102
+24,1,1,167021,1602,360797.346,193
+1,2,24,19818,3228,44939.370,11
+1,4,24,39637,6456,89884.858,11
+#
+# RESULT 1 -- UNROLLING BUYS ALMOST NO WALL CLOCK, AND THIS SETTLES UNROLL=1.
+# Logic depth is linear in UNROLL: 11, 18, 27, 35, 52, 69, 102, 193, a fit of
+# about 7.9 gate levels per additional round. So the clock period grows at the
+# same rate the cycle count falls, and their product -- a crude wall-clock proxy --
+# barely moves:
+#   UNROLL         1      2      3      4      6      8     12     24
+#   cycles x depth 264    216    216    210    208    207    204    193
+#   area vs U=1  1.00x  1.47x  1.83x  2.71x  3.89x  4.99x  7.28x  16.06x
+#   wall vs U=1  1.00x  1.22x  1.22x  1.26x  1.27x  1.28x  1.29x   1.37x
+# From UNROLL=1 to 24 the wall-clock proxy improves 1.37x for 16.06x the area.
+# UNROLL=2 is the only defensible step up: 1.22x for 1.47x. Everything above is
+# area spent on nothing. **Take UNROLL=1.**
+#
+# RESULT 2 -- REPLICATION IS EXACTLY LINEAR, SO PER-LANE COSTS EXACTLY N x PER-CORE.
+#   lanes 1 -> 2:  cells 9,909 -> 19,818 (2.0000x), area 22,471.414 -> 44,939.370 (2.00007x)
+#   lanes 1 -> 4:  cells 9,909 -> 39,637 (4.0001x), area 22,471.414 -> 89,884.858 (4.00004x)
+# There is no sharing to be found and none was expected: the engines are
+# independent and each carries its own 1600-bit state. This is the area half of
+# the per-core versus per-lane argument in keccak_ise_proposal.md S5, and it says
+# the argument has to be won on utilisation, because area gives nothing away.
+# At W=16 a per-lane PE is 16 x 22,471 = 359,543 um2 against a per-core PE's
+# 22,471 -- the same 16x the naive count predicts, now measured.
+#
+# RESULT 3 -- THE SEQUENTIAL COST IS FIXED AND THAT IS WHY AREA IS SUBLINEAR IN UNROLL.
+# dff stays between 1,602 and 1,614 across the whole UNROLL sweep: the 1600-bit
+# state dominates and only the step counter's width changes. So doubling the round
+# logic does not double the area -- UNROLL=2 is 1.47x, not 2x. The effect fades as
+# combinational logic overtakes the register: by UNROLL=12 the ratio is 7.28x for
+# 12x the rounds, and by 24 it is 16.06x for 24x.
+#
+# WHAT IS NEEDED NEXT, in order:
+#  1. The whole-core denominator. Without it "22,471 um2" has no meaning for a
+#     reviewer. hw/syn/yosys/dut has a `core` DUT (VX_core_top at 16 warps x 16
+#     threads) and a `techmap` target that skips STA, but the flow needs sv2v at
+#     $TOOLDIR/sv2v/bin and on this box sv2v is at ~/tools/sv2v/bin.
+#  2. V80 post-implementation LUT/FF/BRAM/fmax at 300 MHz, on the Vivado machine.
+#     Both catalogs now carry a `pqc` DUT for it; the Xilinx entry is UNVERIFIED.
+#  3. The school-D counterpart: the cross-lane network of
+#     cooperative_ise_proposal.md, so the two schools are compared on area rather
+#     than argued. Nothing of it is written yet.

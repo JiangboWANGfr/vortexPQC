@@ -13,6 +13,13 @@
 
 // Functional check for VX_pqc_keccak_f1600 against the library it has to match.
 //
+// WHY THIS LIVES IN A SUBDIRECTORY. The synthesis catalogs point their include
+// at hw/unittest/pqc_unit, and hw/scripts/gen_sources.sh:157 sweeps an include
+// dir with `find -maxdepth 1 -type f` -- so any .sv sitting beside the top gets
+// copied into the synthesis source set. The repo's other synthesis DUTs
+// (hw/unittest/{cache,core}) hold only main.cpp, Makefile and VX_*_top.sv for
+// exactly this reason. One level down keeps a testbench out of the gate.
+//
 // The vectors below were emitted by mlk_keccakf1600_permute from the pristine
 // pqc/third_party/mlkem-native submodule -- the same function tests/pqc use as
 // their reference -- so a word-order or rho-table mistake in the RTL cannot pass.
