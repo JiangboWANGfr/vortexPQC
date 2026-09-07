@@ -17,6 +17,9 @@ MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR
                -DMLK_CONFIG_FILE='"vortex_prof_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
+# Host only: the profile must consume the SAME coins as the baseline it claims
+# to profile. tests/pqc/mlkem/Makefile:26 adds this the same way.
+CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
 
 # ABLATE=keccak|ntt turns the matching hooks into no-ops that still claim
 # success. The build then computes garbage, on purpose: the cycle delta against

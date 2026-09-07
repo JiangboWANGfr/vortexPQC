@@ -15,8 +15,8 @@ about now.
 ## 1. The constraint that shapes everything: there is no performance decision left
 
 `pqc/results/ablation_mlkem.csv` measures ML-KEM-768's non-Keccak residual at
-**11,443,248** cycles of a **35,447,271**-cycle round trip over **156**
-permutations, so the Amdahl bound for a free Keccak is **3.098×**. Sweeping the
+**11,505,678** cycles of a **33,492,153**-cycle round trip over **144**
+permutations, so the Amdahl bound for a free Keccak is **2.911×**. Sweeping the
 end-to-end cost of one hardware permutation against that residual:
 
 | cycles per permutation | end-to-end | fraction of the bound |
@@ -30,7 +30,7 @@ end-to-end cost of one hardware permutation against that residual:
 3.3%.** Two consequences, and they are the reason this document is short on
 datapath and long on interface:
 
-- **Do not optimise throughput.** A 4-wide engine turns 156 sequential
+- **Do not optimise throughput.** A 4-wide engine turns 144 sequential
   permutations into 75 (69.2% arrive in 4-groups, `mlkem_MxL.csv`'s `keccak_x1`
   and `slots` columns) and is worth **1.7%** at the pessimistic end and 0.06% at
   the optimistic one. A single blocking engine at M=8 requests occupies **0.69%**
@@ -38,7 +38,7 @@ datapath and long on interface:
 - **Optimise area, interface size, and evaluation cleanliness.** Those are the
   axes on which this design can still be wrong.
 
-> **Denominator discipline.** The 11,443,248 / 35,447,271 pair is from
+> **Denominator discipline.** The 11,505,678 / 33,492,153 pair is from
 > `tests/pqc/mlkem_profile` at **1 core / 4 warps / 4 threads**. The M×L
 > throughput figures are from `tests/pqc/mlkem_width` at **8 warps**. They are
 > different machines and must not be spliced. Every number in the table above is
@@ -111,17 +111,17 @@ it, move it out. It is rejected here, but **not for the reason one would
 expect**, and the wrong reason is worth stating so nobody re-derives it.
 
 **The instruction count does not decide this.** Per permutation, against the
-measured non-Keccak remainder of 11,443,248 cycles, the measured baseline of
-35,447,271 (`pqc/results/ablation_mlkem.csv`), 156 permutations, and the
+measured non-Keccak remainder of 11,505,678 cycles, the measured baseline of
+33,492,153 (`pqc/results/ablation_mlkem.csv`), 144 permutations, and the
 measured CPI of 9.537 (`pqc/results/keccak_baseline_columns.csv`):
 
-| design | per permutation | 156 permutations | end to end |
+| design | per permutation | 144 permutations | end to end |
 |---|---|---|---|
-| **A.** one instruction, PE addresses memory | ~64 cy (24 rounds + 400 B) | 9,984 | **3.095x** |
-| **B.** `KLD`/`KST` shuttle, 50 + 1 + 50 = 101 instructions, no GPR round trip | 101 x 9.537 + 64 ~= 1,027 | 160,212 | **3.055x** |
-| **C.** full GPR shuttle, 50 `lw` + 50 `KWR` + 1 + 50 `KRD` + 50 `sw` = 201 | 201 x 9.537 + 64 ~= 1,981 | 309,036 | **3.016x** |
+| **A.** one instruction, PE addresses memory | ~64 cy (24 rounds + 400 B) | 9,216 | **2.909x** |
+| **B.** `KLD`/`KST` shuttle, 50 + 1 + 50 = 101 instructions, no GPR round trip | 101 x 9.537 + 64 ~= 1,027 | 147,888 | **2.874x** |
+| **C.** full GPR shuttle, 50 `lw` + 50 `KWR` + 1 + 50 `KRD` + 50 `sw` = 201 | 201 x 9.537 + 64 ~= 1,981 | 285,264 | **2.841x** |
 
-The shuttle is worth **1.30% (B) to 2.55% (C)**. On a machine at CPI 9.5 where
+The shuttle is worth **1.19% (B) to 2.34% (C)**. On a machine at CPI 9.5 where
 one permutation costs 151,872 cycles, two hundred instructions are noise. Any
 argument of the form "the shuttle is too slow" is wrong here, and B is the
 honest strongest form of the opposing case — it should be beaten on its merits,
@@ -193,7 +193,7 @@ pass 2 reading what pass 1 wrote -- cannot occur in this harness.
 What is true is the redundancy. On the x1 path a per-lane instruction makes four
 lanes each permute a private identical copy: four permutations to produce one
 useful result. That is exactly what the software baseline already does, so it is
-not a regression -- but Keccak is 67.72% of ML-KEM, and paying 4x on the
+not a regression -- but Keccak is 65.65% of ML-KEM, and paying 4x on the
 redundant-SPMD path throws away most of what the instruction is for.
 
 So the caller says which it means:
@@ -292,7 +292,7 @@ The reasons this proposal stands anyway, all from that document:
 |---|---|---|
 | new architectural state | **none** | 25.6 KB/core |
 | instructions per permutation | 1,512 (with its own 5-instruction set) | 1 |
-| **throughput** vs the PQRV baseline | **1.83x** | the 3.098x Amdahl bound is the ceiling |
+| **throughput** vs the PQRV baseline | measured **1.73x** (§4.1 there) | the 2.911x Amdahl bound is the ceiling |
 | latency vs the PQRV baseline | **9.76x** | higher, engine-limited |
 | lanes occupied per permutation | 5 of 16 | 1 |
 | at plain ISA, no new instructions | **0.66x -- loses to plain SIMT** | n/a |
@@ -305,7 +305,7 @@ Two findings from that analysis bear directly on this one:
    Keccak layout on this machine is a 64-bit funnel shift, which is not
    cross-lane at all.
 2. **The two schools are complementary, not competing.** School D wins on
-   single-permutation latency (9.76x), which is what the 48 of 156 ML-KEM
+   single-permutation latency (measured 2.60x at plain ISA), which is what the serial-chain share of ML-KEM's 144
    permutations forming a strictly serial sponge chain need -- 31%, and the one
    place this design's per-lane engine runs 15 of 16 lanes idle. This design wins
    on the batchable remainder. A hybrid is a better paper claim than either

@@ -297,12 +297,13 @@ them is shrinking the working set — which is exactly what SG5 does: five lanes
 ### 4.2 Where the latency win matters
 
 SG5's plain-ISA win is entirely on **latency**, and there is a real place for it:
-48 of ML-KEM's 156 permutations (31%, from `mlkem_MxL.csv`'s `keccak_x1` 156→75
-with `slots` 27 at L=4) form a strictly serial sponge chain on which SG1 runs 15
+the serial-chain share of ML-KEM's 144 permutations (`mlkem_MxL.csv`'s
+`keccak_x1` collapses 156→75 with `slots` 27 at L=4 on the retired 156-coin
+build; the share needs re-deriving on the KAT coins) form a strictly serial sponge chain on which SG1 runs 15
 of 16 lanes idle.
 
 **No end-to-end speedup is computed here and none should be spliced from these
-numbers.** Multiplying an instruction ratio onto `ablation_mlkem.csv`'s 3.098×
+numbers.** Multiplying an instruction ratio onto `ablation_mlkem.csv`'s 2.911×
 would violate the denominator discipline both that file and
 `keccak_baseline_columns.csv` insist on: the ablation is the profile build at
 4 warps × 4 threads, the M×L figures are at 8 warps, and these counts are at 16.

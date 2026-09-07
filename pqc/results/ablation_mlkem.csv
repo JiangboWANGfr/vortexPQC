@@ -6,30 +6,62 @@
 # including call overhead. Results are wrong by construction -- this build is an
 # ablation, never a correctness test.
 #
-# DENOMINATOR: the instrumented profile build (35,447,271), not the plain
-# baseline (32,777,984). One build, one subtraction, internally consistent. The
-# profile build carries +8.1% counter overhead; rescaling a delta taken in one
-# build against the other build's total is what produced the inflated figures
-# this file replaces.
+# COINS: the FIPS 203 KAT vectors d || z || m, the SAME input tests/pqc/mlkem runs.
+# This changed on 2026-09-07 and every number below moved with it. The profile
+# previously filled its coin buffer with h_scr[i] = i, which is reproducible but is
+# a DIFFERENT INPUT from the baseline it exists to describe. Rejection sampling
+# makes the permutation count depend on the bytes drawn: those coins landed on 156
+# permutations, a 6.28%-probability tail seed, while the KAT coins land on 144, the
+# mode at 92.6% of 20,000 host seeds. Quoting a fraction measured on one input
+# against a baseline measured on another is the mixing next_steps_recipes.md:996
+# forbids by name, and is what produced the long-retired 72.3%.
 #
-# CAVEAT, measured here: ABLATE=keccak changes the permutation count from 156 to
-# 144, because a stubbed squeeze returns constant bytes and the rejection
-# sampler stops needing top-up blocks. The delta therefore also removes those 12
-# permutations. It is still the honest Amdahl bound -- with Keccak free, those
-# top-ups would not exist either -- but it is not a pure substitution.
+# DENOMINATOR: the instrumented profile build (33,492,153), not the plain baseline.
+# One build, one subtraction, internally consistent.
 #
-# ABLATE=both does not exist. The Makefiles accepted it silently and built the
-# un-ablated baseline: measured 35,447,271, bit-identical to the baseline row.
-# Unknown ABLATE values are now a build error.
-variant,cycles,delta_vs_baseline,fraction,amdahl_bound,keccak_perms,notes
-baseline,35447271,,,,156,profile build with counters
-ablate_keccak,11443248,24004023,0.6772,3.098,144,count drops 156->144 (see caveat)
-ablate_ntt,31204138,4243133,0.1197,1.136,156,15 fwd + 9 inv transforms
-ablate_both,35447271,0,0.0000,1.000,156,CONFIGURATION DOES NOT EXIST - equals baseline
+# THE OLD CAVEAT IS GONE, AND THAT IS THE POINT.
+# On the 156-permutation coins, ABLATE=keccak dropped the count to 144 because a
+# stubbed squeeze returns constant bytes and the rejection sampler stopped needing
+# its 12 top-up blocks -- so the delta also removed work that was not Keccak. On
+# the KAT coins the count is 144 in BOTH arms (measured, printed by both runs), so
+# the ablation is now a pure substitution: same call structure, same permutation
+# count, only the work removed. This bound is cleaner than any before it.
 #
-# Cross-check of the count x per-call-cost estimator, third independent instance:
-#   156 perms x 151,872.1 cycles = 23,692,048 estimated vs 24,004,023 measured
-#   estimator runs 1.30% low (earlier instances: -1.4% ML-KEM, -1.3% ML-DSA keypair)
-# The shortfall is call overhead, which a microbenchmark of the permutation alone
-# cannot see. Same sign and magnitude three times over: a systematic, explainable
-# bias rather than noise.
+# ABLATE=both does not exist; unknown ABLATE values are a build error.
+variant,cycles,delta_vs_baseline,fraction,amdahl_bound,keccak_x1,keccak_x4,notes
+baseline,33492153,,,,144,24,profile build with counters
+ablate_keccak,11505678,21986475,0.6565,2.911,144,24,count unchanged -- pure substitution
+ablate_ntt,29248971,4243182,0.1267,1.145,144,24,15 fwd + 9 inv transforms
+#
+# CROSS-CHECK THAT VALIDATES THE WHOLE RE-RUN.
+# The NTT transform count (15 forward + 9 inverse) does not depend on rejection
+# sampling, so its absolute ablation delta MUST be invariant to the coins. It is:
+#   156 coins   4,243,133 cycles
+#   144 coins   4,243,182 cycles      0.0012% apart
+# The only thing that changed between the two builds is Keccak-related work, which
+# is exactly what was intended.
+#
+# WHAT MOVED, against the retired 156-coin figures:
+#   baseline cycles     35,447,271 -> 33,492,153     -5.52%
+#   Keccak delta        24,004,023 -> 21,986,475     -8.41%  (2,017,548 cycles;
+#                                    12 fewer permutations x 151,872 = 1,822,464,
+#                                    the remainder being their rejection top-up work)
+#   Keccak fraction         0.6772 -> 0.6565         -2.07 percentage points
+#   AMDAHL BOUND             3.098 -> 2.911          -6.03%
+#   NTT fraction            0.1197 -> 0.1267         +0.70 pp
+#   NTT Amdahl               1.136 -> 1.145          +0.79%
+# The survey estimated the modal-seed fraction would be ~1.4 pp lower and the bound
+# ~2.97x. The direction was right and the magnitude was understated: 2.07 pp
+# and 2.911x, measured.
+#
+# Estimator cross-check, and it improved too:
+#   144 perms x 151,777 cycles = 21,855,888 estimated vs 21,986,475 measured
+#   estimator runs 0.59% low, against 1.30% low on the 156 coins. The earlier gap
+#   was partly the count mismatch between the two arms, which no longer exists.
+#
+# 2.911x IS THE NUMBER THE PAPER LEADS WITH. It is measured on the modal seed, on
+# the same input as the baseline, with equal permutation counts across arms. The
+# distribution belongs in a footnote: 144 at 92.6% of 20,000 host seeds, 156 at
+# 6.28%. ML-DSA cannot be treated this way -- its 782 permutations sit at the 35th
+# percentile with mode 574, mean 1414 and p95 3243, so it needs a distribution and
+# not a point estimate (Riou et al.).

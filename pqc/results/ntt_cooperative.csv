@@ -33,8 +33,8 @@ L,coop_cycles,ref_cycles,vs_reference,vs_coop_L1,lane_efficiency,mismatch
 # 1.485x on the full ML-KEM round trip, because every layer offers 128
 # independent butterflies while the x4 Keccak API caps the batch at four and 31%
 # of ML-KEM's permutations are a strictly serial sponge chain. But NTT is only
-# 11.97% of the round trip (ablation), bound 1.136x, against Keccak's 67.72% and
-# 3.098x -- so the axis that parallelises best is attached to the smaller term.
+# 12.67% of the round trip (ablation, KAT coins), bound 1.145x, against Keccak's
+# 65.65% and 2.911x -- so the axis that parallelises best is attached to the smaller term.
 #
 # A NEGATIVE RESULT WORTH KEEPING. A two-regime mapping -- split the inner loop
 # when len >= L, whole blocks when len < L -- keeps zeta loop-invariant and is

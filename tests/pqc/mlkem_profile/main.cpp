@@ -14,6 +14,7 @@
 
 #include <vortex2.h>
 #include "common.h"
+#include "expected_test_vectors.h"
 #include "pqc_config.h"
 
 #include <cstdint>
@@ -82,10 +83,23 @@ int main(int argc, char** argv) {
     CHECK(vx_module_load_file(dev, kernel_file, &mod));
     CHECK(vx_module_get_kernel(mod, "main", &kern));
 
-    // Fixed coins, so the count is reproducible: rejection sampling retries
-    // depend on the bytes it draws, and therefore so does the Keccak count.
+    // The FIPS 203 KAT coins -- the same d || z || m that tests/pqc/mlkem uploads
+    // (main.cpp:136-138), landing on the same scratch offsets (P_OFF_COINS_KP is
+    // 64 bytes of d || z, P_OFF_COINS_ENC is 32 bytes of m).
+    //
+    // This used to be h_scr[i] = i, which is reproducible but is a DIFFERENT INPUT
+    // from the baseline. Rejection sampling makes the Keccak permutation count
+    // depend on the bytes drawn: those coins landed on 156 permutations, a 6.28%
+    // tail seed, while the baseline's KAT coins land on 144, the mode at 92.6% of
+    // 20,000 host seeds. Every Amdahl figure taken here was therefore measured on
+    // one input and quoted against a baseline measured on another -- the mixing
+    // next_steps_recipes.md:996 forbids by name, and the same mixing that produced
+    // the retired 72.3%. A profile is supposed to describe its baseline, so this is
+    // a correctness fix and not a sampling choice.
     std::vector<uint8_t> h_scr(P_SCRATCH_LEN, 0);
-    for (int i = 0; i < 96; ++i) h_scr[i] = static_cast<uint8_t>(i);
+    std::memcpy(h_scr.data() + P_OFF_COINS_KP,                     test_vector_d, 32);
+    std::memcpy(h_scr.data() + P_OFF_COINS_KP + 32,                test_vector_z, 32);
+    std::memcpy(h_scr.data() + P_OFF_COINS_ENC,                    test_vector_m, 32);
     CHECK(vx_enqueue_write(q, scr, 0, h_scr.data(), h_scr.size(), 0, nullptr, nullptr));
 
     vx_launch_info_t li{};
