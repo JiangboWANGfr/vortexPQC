@@ -9,7 +9,7 @@
 # synthesizes, so both gates measure the same modules and a divergence between
 # them is meaningful rather than an artefact of two DUT lists.
 
-DUTS := cache core tcu gfx tex raster om rtu dxa vm tensor vortex
+DUTS := cache core tcu gfx tex raster om pqc rtu dxa vm tensor vortex
 
 UNITTEST_DIR ?= $(VORTEX_HOME)/hw/unittest
 
@@ -71,3 +71,11 @@ tensor_CFG := -DVX_CFG_NUM_THREADS=16 -DVX_CFG_NUM_WARPS=16 -DVX_CFG_EXT_TCU_ENA
 vortex_TOP := Vortex
 vortex_INC :=
 vortex_CFG :=
+
+# Isolated Keccak-f1600 PE -- the area half of the per-core vs per-lane argument
+# in pqc/docs/proposals/keccak_ise_proposal.md S5. Sweep with
+#   XCONFIGS="-DPQC_TOP_UNROLL=k"   rounds per cycle, latency 24/k
+#   XCONFIGS="-DPQC_TOP_LANES=n"    1 = per-core, SIMD_WIDTH = per-lane
+pqc_TOP := VX_pqc_unit_top
+pqc_INC := -I$(UNITTEST_DIR)/pqc_unit
+pqc_CFG := -DVX_CFG_EXT_PQC_ENABLE

@@ -10,7 +10,7 @@
 # Add a DUT: append its name to DUTS and define the five variables. No new
 # directory, no dispatcher edit.
 
-DUTS := cache core cp dxa fpu gfx issue lmem mem_unit om raster rtu \
+DUTS := cache core cp dxa fpu gfx issue lmem mem_unit om pqc raster rtu \
         scope tcu tensor tex top unittest vm vortex
 
 # ---------------------------------------------------------------------------
@@ -90,6 +90,20 @@ om_PRJ := VX_om_core_top
 om_CFG := -DVX_CFG_EXT_OM_ENABLE
 om_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/om -I$(UNITTEST_DIR)/om_core
 om_PKG  = $(RTL_DIR)/om/VX_om_pkg.sv
+
+# Isolated Keccak-f1600 PE. The two axes are compile-time defines rather than
+# VX_config.toml keys so that sweeping them cannot perturb the resolved config of
+# a build that has already been measured (see VX_pqc_unit_define.vh):
+#   XCONFIGS="-DPQC_TOP_LANES=n"   1 = per-core PE, SIMD_WIDTH = per-lane PE
+#   XCONFIGS="-DPQC_TOP_UNROLL=k"  rounds per cycle; latency is 24/k
+# No pqc_EXT := 1 on purpose: build.mk:32-34 would pull in hw/syn/extensions.mk,
+# whose PQC block appends the same package again.
+# UNVERIFIED: there is no Vivado on the development box, so this entry has never
+# been run. The yosys entry beside it has.
+pqc_PRJ := VX_pqc_unit_top
+pqc_CFG := -DVX_CFG_EXT_PQC_ENABLE
+pqc_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/pqc -I$(UNITTEST_DIR)/pqc_unit
+pqc_PKG  = $(RTL_DIR)/pqc/VX_pqc_pkg.sv
 
 raster_PRJ := VX_raster_core_top
 raster_CFG := -DVX_CFG_EXT_RASTER_ENABLE
