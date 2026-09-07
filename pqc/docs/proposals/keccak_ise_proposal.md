@@ -118,10 +118,10 @@ measured CPI of 9.537 (`pqc/results/keccak_baseline_columns.csv`):
 | design | per permutation | 156 permutations | end to end |
 |---|---|---|---|
 | **A.** one instruction, PE addresses memory | ~64 cy (24 rounds + 400 B) | 9,984 | **3.095x** |
-| **B.** `KLD`/`KST` shuttle, 25 + 1 + 25 = 51 instructions, no GPR round trip | 51 x 9.537 + 64 ~= 550 | 85,800 | **3.075x** |
+| **B.** `KLD`/`KST` shuttle, 50 + 1 + 50 = 101 instructions, no GPR round trip | 101 x 9.537 + 64 ~= 1,027 | 160,212 | **3.055x** |
 | **C.** full GPR shuttle, 50 `lw` + 50 `KWR` + 1 + 50 `KRD` + 50 `sw` = 201 | 201 x 9.537 + 64 ~= 1,981 | 309,036 | **3.016x** |
 
-The shuttle is worth **0.66% (B) to 2.55% (C)**. On a machine at CPI 9.5 where
+The shuttle is worth **1.30% (B) to 2.55% (C)**. On a machine at CPI 9.5 where
 one permutation costs 151,872 cycles, two hundred instructions are noise. Any
 argument of the form "the shuttle is too slow" is wrong here, and B is the
 honest strongest form of the opposing case — it should be beaten on its merits,
@@ -156,8 +156,12 @@ Two consequences follow:
   selects the group, so they would have to be I-type: more encoding space, and
   against §2.5's preference for R-type.
 
+At the W = 16 the project has since chosen, the same table reads 200 B x 128
+harts = **25.6 KB** against a 16.4 KB integer register file. The 1.5625x ratio is
+width-invariant; only the absolute figure moves.
+
 The one-line version: the shuttle is not slow, it asks to put 6.4 KB of new
-architectural state into the ISA manual.
+architectural state into the ISA manual -- 25.6 KB at W = 16.
 
 This is not a one-instruction doctrine. NTT has real degrees of freedom —
 forward versus inverse, possibly a twiddle pointer, possibly a layer index — and
@@ -166,35 +170,49 @@ one instruction because it has exactly one thing to do.
 
 ### 2.1 Why two funct3 codes, and not one
 
-This is the one place where the obvious design is wrong, and it is a
-wrong-answer bug rather than a slowdown. The two library hooks call with
-**different pointer semantics**, verified in
-`tests/pqc/mlkem_width/mlk_simt_fips202.h`:
+**Corrected.** An earlier version of this section claimed this was a
+wrong-answer bug. It is not; it is a 4x redundancy. The claim rested on the two
+library hooks calling with different pointer semantics, and the "identical
+pointer" half of that is false:
 
 | hook | how it is called | pointers across lanes |
 |---|---|---|
-| `mlk_keccak_f1600_x1_native` (`:39-44`) | every active lane calls it with the **same** `state` — the kernel is redundant SPMD | **identical** |
-| `mlk_keccak_f1600_x4_native` (`:60-67`) | each lane copies its sub-state into a **per-lane stack `tmp[25]`** and permutes that | **distinct** |
+| `mlk_keccak_f1600_x1_native` | every active lane calls it in redundant SPMD | **distinct addresses, identical bytes** |
+| `mlk_keccak_f1600_x4_native` (`mlk_simt_fips202.h:60-67`) | each lane copies its sub-state into a per-lane stack `tmp[25]` | distinct addresses, distinct bytes |
 
-A purely per-lane instruction is correct for the x4 path and **wrong** for the
-x1 path: with four active lanes naming one address, a PE that serialises lanes
-applies the permutation four times. In software this is harmless because every
-lane computes and stores the same bytes; in hardware it is not, because pass 2
-reads what pass 1 wrote.
+Every Keccak state reaching the x1 hook is a stack automatic --
+`fips202.c:208` `mlk_shake256ctx state`, `:221` `uint64_t ctx[25]`,
+`sampling.c:221` `mlk_xof_ctx state` -- and `sw/kernel/src/vx_start.S:95-98`
+gives every hart its own 8 KB slab
+(`sp = VX_MEM_STACK_BASE_ADDR - (mhartid << VX_MEM_STACK_LOG2_SIZE)`). So four
+active lanes name **four different addresses that happen to hold the same
+bytes**. A purely per-lane instruction is therefore **correct** on both paths.
+The failure mode this section used to describe -- one address, a serialising PE,
+pass 2 reading what pass 1 wrote -- cannot occur in this harness.
+
+What is true is the redundancy. On the x1 path a per-lane instruction makes four
+lanes each permute a private identical copy: four permutations to produce one
+useful result. That is exactly what the software baseline already does, so it is
+not a regression -- but Keccak is 67.72% of ML-KEM, and paying 4x on the
+redundant-SPMD path throws away most of what the instruction is for.
 
 So the caller says which it means:
 
 - **`KECCAKF_U`** (funct3=0): execute **once**, using `rs1` from the lowest
-  active lane. All lanes observe the same result because they named the same
-  memory. This is what the x1 hook emits.
+  active lane, and broadcast nothing -- each lane's own copy is separately
+  correct only if it is separately permuted, so `KECCAKF_U` must either write
+  every active lane's buffer or the software must be told one buffer is
+  authoritative. **This is now an open question, not a settled design** (§8).
 - **`KECCAKF_L`** (funct3=1): execute **once per active lane**, each on its own
-  `rs1`. This is what the x4 SIMT backend emits.
+  `rs1`. Correct on both paths; 4x redundant on the x1 path.
 
-One decode bit, no hardware deduplication, and both hooks stay one line. The
-alternative — wrapping the x1 hook in `vx_tmc_one()`, which is what the earlier
-`origin/keccak_warp` experiment was forced into
-(`tests/regression/keccak_bench/kernel.cpp`) — pays a warp reconvergence per
-permutation and hides the semantics in the software.
+**Consequence for the "one instruction" argument (§2.0).** If `KECCAKF_U` turns
+out to need a write-back-to-all-lanes semantics that `KECCAKF_L` does not, the
+two funct3 codes are no longer a single decode bit over one datapath, and §2.0's
+claim that the only degrees of freedom are "where" and "which lanes" needs
+re-examining. The cheaper resolution is to ship `KECCAKF_L` alone and accept 4x
+on the x1 path, then measure whether `KECCAKF_U` is worth its complexity. The
+x1 path's share is measurable today from `mlkem_MxL.csv`'s `keccak_x1` column.
 
 ### 2.2 Semantics
 
@@ -258,6 +276,42 @@ The warp is instead released by `is_wstall` at decode plus a completion pulse,
 so ordering is architectural rather than a software contract.
 
 ---
+
+### 3.3 It does not distribute the state across lanes
+
+That is school D, and it has its own document:
+[`cooperative_ise_proposal.md`](cooperative_ise_proposal.md). It is a real
+alternative rather than an anti-pattern, and it beats this design on the one axis
+where this design is weakest -- **it adds zero architectural state**, because the
+Keccak state stays in ordinary GPRs. §2.0.1's 25.6 KB objection does not apply
+to it at all.
+
+The reasons this proposal stands anyway, all from that document:
+
+| | school D (SG5 at W=16) | this design |
+|---|---|---|
+| new architectural state | **none** | 25.6 KB/core |
+| instructions per permutation | 1,512 (with its own 5-instruction set) | 1 |
+| **throughput** vs the PQRV baseline | **1.83x** | the 3.098x Amdahl bound is the ceiling |
+| latency vs the PQRV baseline | **9.76x** | higher, engine-limited |
+| lanes occupied per permutation | 5 of 16 | 1 |
+| at plain ISA, no new instructions | **0.66x -- loses to plain SIMT** | n/a |
+
+Two findings from that analysis bear directly on this one:
+
+1. **School D's cooperative instructions are only 25% of its own gain.** The
+   attribution is `KRHO` 58% and `KXAN` 18% -- both lane-internal, both school A --
+   against `KXPOSE` 16% and `KTHL`/`KTHH` 9%. The largest win in a *cooperative*
+   Keccak layout on this machine is a 64-bit funnel shift, which is not
+   cross-lane at all.
+2. **The two schools are complementary, not competing.** School D wins on
+   single-permutation latency (9.76x), which is what the 48 of 156 ML-KEM
+   permutations forming a strictly serial sponge chain need -- 31%, and the one
+   place this design's per-lane engine runs 15 of 16 lanes idle. This design wins
+   on the batchable remainder. A hybrid is a better paper claim than either
+   school beating the other.
+
+**Neither is decided.** Both need the measurements in their respective §9s.
 
 ## 4. The one genuinely open question: ordering against the caller's stores
 
