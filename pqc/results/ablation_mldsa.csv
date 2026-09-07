@@ -35,3 +35,52 @@ roundtrip,full,142119160,,25751002,0.1812,1.221,"extrapolated: 95 transforms x 2
 # barely moves. Optimising the software moved which primitive is worth
 # accelerating -- the bottleneck migration OpenTitan reports after their hash
 # acceleration, arriving here from a compile flag instead.
+#
+# ============================================================================
+# WHAT IS STILL MISSING HERE, checked 2026-09-07 after the ML-KEM coins fix.
+# ============================================================================
+#
+# NOT MISSING: the coin mismatch that invalidated every ML-KEM figure does NOT
+# exist on this scheme. tests/pqc/mldsa/main.cpp:107-109 and
+# tests/pqc/mldsa_profile/main.cpp:93-95 are byte-identical --
+# seed[i] = i+1, rnd[i] = 0x40+i, msg[i] = 0x80+i -- so profile and baseline have
+# always described the same input. Nothing above needs re-running for that reason.
+#
+# NOT MISSING EITHER: the keypair rows. ML-DSA keypair is seed-stable, 190
+# permutations on 19,999 of 20,000 random seeds (host sweep,
+# next_steps_recipes.md:953), so 3.285x (low) and 3.912x (full) are as
+# representative as they will ever be.
+#
+# (1) THE ASYMMETRY THIS FILE USED TO SUPPORT IS GONE. It was written when ML-KEM
+#     measured 67.72% / 3.098x, against ML-DSA's 63.34% / 2.728x. ML-KEM is now
+#     65.65% / 2.911x on its own coins, so the two schemes are within 2.3
+#     percentage points and the "ML-KEM is more Keccak-bound" line no longer
+#     holds. Anywhere that contrast is drawn needs rewriting.
+#
+# (2) THE ROUND-TRIP SEED IS NOT REPRESENTATIVE AND NO SINGLE SEED CAN BE.
+#     782 permutations is the 35th percentile; the host sweep gives mode 574
+#     (19.18%), median 1173, mean 1414, p95 3243. The mean is 2.5x the mode, so
+#     unlike ML-KEM -- where 144 is the mode at 92.6% and switching to it was
+#     simply correct -- there is no modal seed worth switching to. The right
+#     deliverable is a DISTRIBUTION, which is also what Riou et al. demand for
+#     migration planning. Every absolute round-trip cycle count in this file is
+#     one seed's rejection-loop outcome and must be labelled as such.
+#
+# (3) THE DISTRIBUTION IS NOT ARCHIVED, AND ITS TAIL IS SUSPECT. The 20,000-seed
+#     sweep lives only in next_steps_recipes.md:951-954, not in pqc/results/, and
+#     the scanner was a one-off that is not in the tree. Worse, that entry records
+#     its own defect: the 8192-bin histogram overflowed on 6 of 20,000 round trips
+#     and dropped them, so n = 19,994 and the apparent max 8090 is a floor.
+#     **p95 = 3243 therefore comes from a truncated sample and must be re-derived**
+#     before the paper prints it.
+#
+# (4) SIGN AND VERIFY CANNOT BE ABLATED, STRUCTURALLY. See the header. This is not
+#     a gap that more runs close; the round-trip bound stays an extrapolation
+#     calibrated against the keypair ablation, and stays labelled as one.
+#
+# COST OF CLOSING THEM: (1) is a documentation edit. (3) is a host-side program,
+# no simulation, ~100 lines against mldsa-native with a counting FIPS-202 hook.
+# A modal-seed DEVICE run is a separate and larger job -- next_steps_recipes.md:1004
+# scopes it: both ML-DSA hosts hardcode the seed (getopt "k:h"), so it needs a -s
+# option plumbed through the kernel arg plus a host search for a seed yielding 574.
+# (2) is answered by (3) plus honest labelling, not by another SimX run.
