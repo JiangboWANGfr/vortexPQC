@@ -370,6 +370,37 @@ The PE itself hangs off the SFU as `PE_IDX_PQC`, following the cumulative
 SFU is `BLOCK_SIZE=1` — one instance per core serving all warps — which is
 already the placement §7.3 of the survey recommends.
 
+### 5.1 MEASURED: the replication factor costs exactly what it says
+
+`pqc/results/keccak_pe_area.csv`, `hw/rtl/pqc/VX_pqc_keccak_f1600.sv` through
+yosys to Nangate 45nm. Not the V80 — use it for ratios, not absolutes.
+
+| engines | cells | area µm² | vs 1 |
+|---:|---:|---:|---:|
+| 1 | 9,909 | 22,471 | 1.00× |
+| 2 | 19,818 | 44,939 | **2.00007×** |
+| 4 | 39,637 | 89,885 | **4.00004×** |
+
+**Exactly linear, and that is the finding.** There is no sharing to discover: the
+engines are independent and each carries its own 1600-bit state, which is ~1,600
+of the ~1,610 flops. So **the per-core versus per-lane argument cannot be won on
+area** — at W=16 a per-lane PE is 16 × 22,471 = 359,543 µm², precisely the naive
+16× — and has to be won on utilisation instead. §6's arithmetic is therefore the
+load-bearing part of the case, not a supporting one.
+
+The rounds-per-cycle axis *is* settled by measurement, and against unrolling.
+Logic depth grows linearly with it, ~7.9 gate levels per added round, so the
+clock period lengthens at the same rate the cycle count falls:
+
+| rounds/cycle | 1 | 2 | 4 | 8 | 24 |
+|---|---:|---:|---:|---:|---:|
+| cycles | 24 | 12 | 6 | 3 | 1 |
+| logic depth | 11 | 18 | 35 | 69 | 193 |
+| cycles × depth | 264 | 216 | 210 | 207 | **193** |
+| area vs 1 | 1.00× | 1.47× | 2.71× | 4.99× | **16.06×** |
+
+**1.37× of wall-clock proxy for 16× the area. Take one round per cycle.**
+
 **Not a knob:** the datapath width. A 1-round-per-cycle engine and a lane-serial
 engine share no RTL, so a key selecting between them would be two designs behind
 one name. Pick one, measure it, and report the other as future work if it
