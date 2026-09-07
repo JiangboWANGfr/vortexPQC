@@ -15,9 +15,12 @@
 # earlier check looked only in /opt/xilinx and /tools/Xilinx. The V80 part is
 # present and licensed. next_steps_recipes.md S5 step 0 now records the real
 # environment.
-unroll,lanes,stage,total_luts,logic_luts,lutrams,srls,ffs,ramb36,ramb18,uram,dsp,wns_ns,fmax_mhz
-1,1,post_synth,3437,3437,0,0,1607,0,0,0,0,,
-1,1,post_impl,3223,3223,0,0,1607,0,0,0,0,0.619,368.4
+design,unroll,lanes,stage,total_luts,logic_luts,lutrams,srls,ffs,ramb36,dsp,wns_ns,fmax_mhz
+pqc_pe,1,1,post_synth,3437,3437,0,0,1607,0,0,,
+pqc_pe,1,1,post_impl,3223,3223,0,0,1607,0,0,0.619,368.4
+pqc_pe,2,1,post_impl,7011,7011,0,0,1715,0,0,0.005,300.5
+pqc_pe,1,4,post_impl,13045,13045,0,0,6428,0,0,0.622,368.8
+VX_core_top,-,-,post_impl,33970,31996,1458,516,32115,12,20,0.343,334.4
 #
 # RESULT 1 -- IT CLOSES 300 MHz WITH ROOM. WNS = +0.619 ns against a 3.333 ns
 # period, so fmax = 1000/(3.333-0.619) = 368.4 MHz for the isolated PE. The V80
@@ -31,10 +34,10 @@ unroll,lanes,stage,total_luts,logic_luts,lutrams,srls,ffs,ramb36,ramb18,uram,dsp
 # SRL, zero BRAM, zero URAM, zero DSP. The state lives in fabric flops, which is
 # what makes the per-lane replication argument purely about LUT/FF budget with no
 # hard-block contention against the rest of the core.
-# Scaled by the exactly-linear replication measured on Nangate
-# (keccak_pe_area.csv Result 2), a per-lane PE at W=16 is ~51,600 LUTs / ~25,700
-# FFs, about 2.1% of the device's LUTs. **That scaling is not yet measured on the
-# V80 itself** -- the sweep is running.
+# Replication is now measured on the V80 too and it matches Nangate: four lanes
+# are 13,045 LUTs against 4 x 3,223 = 12,892, so 4.047x -- 1.2% of wrapper -- and
+# 6,428 FFs against 4 x 1,607, which is 4.000x exactly. The four engines come out
+# at 3,263 / 3,267 / 3,246 / 3,267 LUTs and 1,607 FFs each.
 #
 # RESULT 3 -- THE CRITICAL PATH IS ROUTING, NOT LOGIC, AND THAT MATTERS.
 #   source      pqc_unit/g_pqc_lanes[0].pqc_pe/busy_reg/C
@@ -54,6 +57,29 @@ unroll,lanes,stage,total_luts,logic_luts,lutrams,srls,ffs,ramb36,ramb18,uram,dsp
 # loose end: Nangate reported 1,614 DFF_X1 for the same design, so those 7 extra
 # are a mapping artefact and not registers the RTL asked for.
 #
-# NOT MEASURED YET: the whole-core denominator on the same part, which SoK
-# ePrint 2024/1323 Pitfall #2 requires beside the isolated figure. The `core` DUT
-# (VX_core_top) exists in the same catalog and the flow now runs here.
+# RESULT 4 -- THE DENOMINATOR, AND THE PE IS NOT THE CRITICAL PATH.
+# VX_core_top on the same part, same flow, same 300 MHz constraint, at the default
+# 1 core / 4 warps / 4 threads (VX_config.vh in the run's own src/ confirms it):
+#   33,970 total LUTs (1.32%), of which 31,996 logic + 1,458 LUTRAM + 516 SRL
+#   32,115 FFs (0.62%), 12 RAMB36, 20 DSP
+#   WNS +0.343 ns -> fmax 334.4 MHz
+# So at a MATCHED W=4:
+#   per-core PE (1 engine)  3,223 / 33,970 =  9.49% of the core's LUTs, 5.00% of FFs
+#   per-lane PE (4 engines) 13,045 / 33,970 = 38.4%
+# **And the core is slower than the PE.** 334.4 MHz against the isolated PE's
+# 368.4, so the PE is not what would stop this design closing 300 MHz -- the core
+# already is the critical path. Replication does not change that either: four
+# lanes come in at +0.622 ns against one lane's +0.619, because the engines share
+# no logic and cannot interact in timing.
+#
+# CAREFUL WITH THE W=16 EXTRAPOLATION, AND THIS FILE WILL NOT MAKE IT.
+# The project has chosen W = 16, and the PE side scales exactly 16x -- but so does
+# much of the core, and the core above is W = 4. Multiplying a W=16 PE count into
+# a W=4 core denominator would produce "a per-lane PE is 152% of its core", which
+# is arithmetic, not a measurement. The matched W=16 pair (16 engines, and
+# VX_core_top at NUM_THREADS=16) is running; until it lands the only honest
+# statement is the matched W=4 one above.
+#
+# STILL NOT MEASURED: the PE integrated into VX_core rather than beside it. Every
+# number here is an isolated flat-ported module, which is the best case for
+# placement, and the in-core figure is what SoK Pitfall #2 actually asks for.
