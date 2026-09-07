@@ -223,13 +223,56 @@ Per round, against PQRV's hand-written RV32 assembly as SG1
 | | instructions/round | per permutation | latency vs SG1 | **throughput** vs SG1 |
 |---|---:|---:|---:|---:|
 | SG1 (PQRV) | 615 | 14,885 | 1× | 1× |
-| SG5, plain ISA | 176 | 4,224 | **3.49×** | **0.66× — worse** |
+| SG5, plain ISA | 176 | 4,224 | 3.49× | 0.66× — worse |
 | SG5 + the five instructions | **63** | **1,512** | **9.76×** | **1.83×** |
 
-**The plain-ISA row is the one that matters most.** SIMT already gives 16-way
-parallelism across independent states for free; a cooperative layout has to beat
-that before it has done anything, and at plain ISA it does not — 58.7
-warp-instructions per state-round against SG1's 38.4.
+### 4.1 MEASURED, and the plain-ISA prediction was inverted
+
+`pqc/results/keccak_sg5.csv`, `tests/pqc/keccak_sg5`, simx at W=16, every arm
+verified word-by-word against the library. Marginal figures, (p=8 minus p=4)/4,
+so kernel entry and seeding cancel out:
+
+| | instr/round | latency (cy/perm) | CPI | **throughput** (cy/perm) |
+|---|---:|---:|---:|---:|
+| SG1, W=4 | 685.5 | 157,093 | **9.55** | 39,273 |
+| SG1, W=8 | 685.5 | 318,270 | 19.34 | 39,784 |
+| SG1, W=16 | 685.5 | 738,807 | 44.90 | 46,175 |
+| **SG5, W=16** | **238.5** | **79,935** | 13.96 | **26,645** |
+
+**SG5 wins both axes: 9.24× latency and 1.73× throughput** — and 1.47× throughput
+even against SG1's *best* configuration, W=4. The table above predicted SG5 would
+LOSE throughput at 0.66×.
+
+The instrument is calibrated: SG1 at W=4 gives CPI **9.55** against the 9.537 in
+`keccak_baseline_columns.csv`, 0.14% apart, on a different test and a different
+code path.
+
+**Why the prediction inverted.** The measured instruction ratio is 2.87× in SG5's
+favour (685.5 against 238.5 per round), close to the derived 3.49×, so the
+instruction counting was sound. What was wrong was dividing SG1's count by 16
+lanes and SG5's by 3 states, which assumes 16 lanes cost what one lane costs.
+They do not: **SG1's warp-instruction stream is identical at W=4, 8 and 16 —
+16,453 per permutation, to the instruction — while its cycles go 157,093 →
+318,270 → 738,807.** The reference C permutation issues ~218 memory instructions
+per round per lane, every lane's state is a stack automatic, and `vx_start.S:95`
+spaces harts 8 KB apart, so every load is W distinct cache lines and the LSU
+serialises them. SG1 extracts **no throughput from lanes at all**, and at W=16 it
+is 17% worse per permutation than at W=4. This is risk 2 of §8 happening.
+
+**The fence is not fatal — risk 1 answered.** Two fences per round cost 824
+cycles, **0.26%**, one instruction per round each (56,050 → 56,146 → 56,338
+instructions for 0, 1 and 2 fences).
+
+**What could still invert this, and it is not measured.** The SG1 arm is
+array-of-states: each lane's 200 bytes on its own per-hart stack. That is what the
+library actually does (`fips202.c:208`, `sampling.c:221` are stack automatics), so
+it is the real baseline rather than a strawman — but a **structure-of-arrays** SG1,
+with word `j` of state `i` at `base + j*W + i` so a warp load is one coalesced
+line, would remove exactly the serialisation measured above, and nobody has run
+it. Until it is, **the 1.73× is against the layout the library uses, not against
+the best possible SG1.**
+
+### 4.2 Where the latency win matters
 
 SG5's plain-ISA win is entirely on **latency**, and there is a real place for it:
 48 of ML-KEM's 156 permutations (31%, from `mlkem_MxL.csv`'s `keccak_x1` 156→75
@@ -371,10 +414,17 @@ cite Lee et al.: θ's `C[x]` reduces across one plane, Li/Mentens/Picek's
 
 ## 9. First step, and it costs nothing
 
+**DONE.** `tests/pqc/keccak_sg5`, results in `pqc/results/keccak_sg5.csv`,
+reported in §4.1. No RTL, no SimX change, no new instruction, exactly as §7
+predicted. The next step is the structure-of-arrays SG1 baseline named at the end
+of §4.1 — the one thing that could still invert the throughput result.
+
+What it was:
+
 **Write plain-ISA SG5 as a Vortex kernel using `vx_shfl_idx` with `mask = 0`.**
 No RTL, no SimX, no new instruction — §7 establishes it is buildable today.
 
-It produces:
+It produced:
 - the first measured cycle count for a cooperative Keccak on this machine;
 - the first measurement of `vx_shfl`-based Keccak anywhere in `pqc/results/`,
   which §6 identifies as the number the novelty claim depends on;
