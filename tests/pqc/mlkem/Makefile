@@ -28,6 +28,7 @@ CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
 # VX_HDRS must be set before ../common.mk: it uses ?= and filters these out of
 # the compiler inputs, so they act as prerequisites only.
 VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_mlkem_config.h \
+           $(SRC_DIR)/vortex_keccak_pe.h \
            $(SRC_DIR)/mlk_vortex_alloc.h $(VORTEX_HOME)/tests/pqc/pqc_stack.h
 
 # The host binary reads kernel_arg_t out of these; without them a layout
@@ -51,8 +52,13 @@ ifeq ($(KECCAK),asm)
 	VX_CFLAGS += -DPQC_KECCAK_ASM
 	CXXFLAGS  += -DPQC_KECCAK_ASM
 	VX_LIBS   += $(CURDIR)/pqrv_keccak.o
+else ifeq ($(KECCAK),pe)
+# The KECCAKF instruction. Needs the extension enabled in the simulator's
+# resolved config as well, so the run carries CONFIGS=-DVX_CFG_EXT_PQC_ENABLE.
+	VX_CFLAGS += -DPQC_KECCAK_PE
+	CXXFLAGS  += -DPQC_KECCAK_PE
 else ifneq ($(KECCAK),)
-$(error KECCAK must be asm or unset -- got '$(KECCAK)')
+$(error KECCAK must be asm, pe, or unset -- got '$(KECCAK)')
 endif
 
 KERNEL_LIB := vortex2

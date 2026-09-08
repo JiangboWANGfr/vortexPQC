@@ -19,6 +19,9 @@
 #include "wctl_unit.h"
 #include "csr_unit.h"
 #include "rtu/rtu_window.h"   // RtuWindow — the RTU hit-window slot file
+#ifdef VX_CFG_EXT_PQC_ENABLE
+#include "pqc/pqc_unit.h"
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 #include "dxa/dxa_unit.h"
 #endif
@@ -142,6 +145,9 @@ private:
 	static constexpr uint32_t FWD_PACK_QUADS = VX_CFG_NUM_THREADS / VX_FRAG_QUAD_LANES;
 	std::array<RasterStamp, FWD_PACK_QUADS> fwd_pack_buf_{};
 	uint32_t fwd_pack_count_ = 0;
+#endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	std::unique_ptr<PqcUnit>  pqc_unit_;
 #endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 	std::unique_ptr<DxaUnit>  dxa_unit_;

@@ -47,6 +47,16 @@
 // assembly, giving the paper an "optimized software" baseline column beside the
 // reference-C one. Off by default: the default build is the one every other
 // measurement in this tree was taken against.
+// KECCAK=pe routes the permutation to the KECCAKF instruction. Same hook, same
+// coins, same permutation count as the other two columns.
+#if defined(PQC_KECCAK_PE)
+#if defined(MLK_CONFIG_FIPS202_BACKEND_FILE)
+#error "PQC_KECCAK_PE conflicts with a FIPS-202 backend already selected"
+#endif
+#define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
+#define MLK_CONFIG_FIPS202_BACKEND_FILE "vortex_keccak_pe.h"
+#endif
+
 #if defined(PQC_KECCAK_ASM)
 #if defined(MLK_CONFIG_FIPS202_BACKEND_FILE)
 #error "PQC_KECCAK_ASM conflicts with a FIPS-202 backend already selected -- \

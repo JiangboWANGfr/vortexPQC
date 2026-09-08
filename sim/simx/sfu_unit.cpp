@@ -52,6 +52,9 @@ SfuUnit::SfuUnit(const SimContext& ctx, const char* name, Core* core)
 #endif
 	, wctl_unit_(new WctlUnit(core))
 	, csr_unit_(new CsrUnit(core))
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	, pqc_unit_(new PqcUnit(core))
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 	, dxa_unit_(new DxaUnit(core, dxa_req_out))
 #endif
@@ -67,7 +70,14 @@ SfuUnit::SfuUnit(const SimContext& ctx, const char* name, Core* core)
 {
 }
 
-uint32_t SfuUnit::latency_of(const instr_trace_t* /*trace*/) const {
+uint32_t SfuUnit::latency_of(const instr_trace_t* trace) const {
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	if (std::get_if<PqcType>(&trace->op_type)) {
+		return pqc_unit_->latency(trace);
+	}
+#else
+	(void)trace;
+#endif
 	return 4;
 }
 
@@ -410,6 +420,13 @@ void SfuUnit::on_tick() {
 			release_warp = wctl_unit_->process(trace);
 		} else if (std::get_if<CsrType>(&trace->op_type)) {
 			csr_unit_->process(trace);
+#ifdef VX_CFG_EXT_PQC_ENABLE
+		} else if (std::get_if<PqcType>(&trace->op_type)) {
+			// Blocking and self-contained: the permutation happens here and the
+			// trace falls through to the normal latency/commit path. No slot
+			// pool, no handle, no back-pressure -- see pqc/pqc_unit.h.
+			pqc_unit_->execute(trace);
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 		} else if (std::get_if<DxaType>(&trace->op_type)) {
 			// process() returns nullptr on backpressure (idempotent retry next
