@@ -16,17 +16,30 @@ keccakf_pe,11526887,2.8437,2.6305,1
 #
 # RESULT -- 2.844x, AGAINST A MEASURED CEILING OF 2.911x.
 # ablation_mlkem.csv puts the Amdahl bound for a free Keccak at 2.911x on these
-# coins. The instruction reaches **97.7% of it**. The remaining 2.3% is what the
-# PE actually costs, and it is small because the thing it replaced was enormous:
+# coins. The instruction reaches **97.7% of it**.
 #
-#   software permutation   151,872 cycles   (keccak_baseline_columns.csv)
-#   PE permutation             147 cycles   (21,209 cycles over 144 calls)
-#   ratio                       1,031x
+# WHAT THE REMAINING 2.3% IS HAS NOT BEEN MEASURED, and an earlier version of
+# this file said it had. It claimed 147 cycles per permutation, from
+#   (PE total - ablation total) / 144
+# which is a cross-build subtraction: the ablation is the mlkem_profile build
+# with its counters, the PE arm is the mlkem build. That is the same mixing this
+# directory forbids by name, and it is the mistake ablation_mlkem.csv was
+# rewritten to remove. The figure is retracted, and so is the "24 datapath + 123
+# memory" split derived from it -- neither term was isolated.
+# A real per-permutation cost needs the PE and its baseline in ONE build.
+#
+# ALSO UNRECONCILED: the PE build executes **140** KECCAKF instructions in a
+# round trip (counted in the unit), while the profile build reports **144** x1
+# calls. Same coins, same library, same parameter set, different builds and
+# different counts. Nothing per-permutation should be normalised by either number
+# until that is explained.
 #
 # THE FLOOR CHECK, which is the instrument that earned its keep twice.
 # ABLATE=keccak measures the non-Keccak remainder at 11,505,678 cycles -- the
 # cost of ML-KEM with Keccak free. A correct acceleration lands just above it.
 #   PE arm  11,526,887  =  floor + 21,209  (+0.18%)
+# (That 21,209 is itself a cross-build difference and is quoted only as a
+# consistency check against an impossible value, not as the PE's cost.)
 # Two earlier versions of this instruction reported 6.7M and 6.9M, BELOW the
 # floor, which is impossible: a wrong permutation makes the rejection sampler
 # accept everything and the work disappears. The floor caught both before the
@@ -71,3 +84,24 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # store gets no completion signal in this model, so its absence cannot be proven
 # safe, and 0.05% is not worth reopening a boundary that already produced a
 # multi-lane bug nobody could see for four hypotheses.
+
+# ============================================================================
+# THE LATENCY SWEEP, and exactly what it does and does not model.
+# ============================================================================
+# VX_CFG_PQC_KECCAK_LATENCY over {1, 12, 24, 48, 96}, ML-KEM total cycles:
+#     11,523,667 / 11,525,207 / 11,526,887 / 11,530,247 / 11,536,967
+# The fit is exact, to the cycle, with zero residual at all five points:
+#     T(L) = 11,523,527 + 140 L
+# and the slope of 140 is exactly the number of KECCAKF instructions the unit
+# counts in the run. The model is behaving precisely as written.
+#
+# So a 96x change in the datapath latency parameter moves the end to end result
+# by 0.12%, and driving it to zero would save 0.029%. **That supports "this
+# workload is insensitive to that parameter" and nothing stronger.**
+#
+# WHAT IT IS NOT. The sweep varies an ADDED COMPLETION DELAY, applied at the SFU
+# output (sfu_unit.cpp) after the AGU has already done the reads, the permutation
+# and the writeback. It is not an UNROLL implementation: it does not change the
+# clock the engine could close at, its occupancy, or how it behaves with several
+# warps issuing. Reading it as "the datapath is not worth optimising" is reading
+# more than the experiment did.

@@ -33,7 +33,22 @@ unroll,lanes,latency_cycles,cells,dff,area_um2,logic_depth
 1,2,24,19818,3228,44939.370,11
 1,4,24,39637,6456,89884.858,11
 #
-# RESULT 1 -- UNROLLING BUYS ALMOST NO WALL CLOCK, AND THIS SETTLES UNROLL=1.
+# CORRECTION, from the V80 numbers that arrived after this was written.
+# "Unrolling buys almost no wall clock" is too strong and the proxy below is what
+# made it look true. On the actual part (keccak_pe_v80.csv) the isolated PE is:
+#     UNROLL=1   24 cycles at 368.4 MHz = 65.1 ns    3,223 LUT
+#     UNROLL=2   12 cycles at 300.5 MHz = 39.9 ns    7,011 LUT
+# so **UNROLL=2 is 1.63x faster in real time**, for 2.18x the LUTs. The
+# cycles-x-depth proxy said flat because on an FPGA at UNROLL=1 the path is 86%
+# routing, so halving the cycle count does not halve fmax in proportion -- the
+# proxy was measuring the wrong term for that configuration, which
+# keccak_pe_v80.csv Result 3 already warned about.
+#
+# The defensible statement is about the TRADE, not the speed: the whole PE is
+# 0.18% of an ML-KEM round trip, so a 1.63x faster engine is worth at most 0.07%
+# end to end, against 2.18x its area. UNROLL=1 still wins, for that reason.
+#
+# RESULT 1 -- UNROLLING BUYS LITTLE WALL CLOCK PER UNIT OF AREA (see correction above).
 # Logic depth is linear in UNROLL: 11, 18, 27, 35, 52, 69, 102, 193, a fit of
 # about 7.9 gate levels per additional round. So the clock period grows at the
 # same rate the cycle count falls, and their product -- a crude wall-clock proxy --

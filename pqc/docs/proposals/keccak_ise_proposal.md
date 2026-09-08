@@ -399,7 +399,15 @@ clock period lengthens at the same rate the cycle count falls:
 | cycles × depth | 264 | 216 | 210 | 207 | **193** |
 | area vs 1 | 1.00× | 1.47× | 2.71× | 4.99× | **16.06×** |
 
-**1.37× of wall-clock proxy for 16× the area. Take one round per cycle.**
+**1.37× of wall-clock *proxy* for 16× the area.**
+
+**Corrected by the V80 run.** The proxy understates the gain: on the real part
+the isolated PE goes 24 cycles at 368.4 MHz (65.1 ns) to 12 at 300.5 MHz
+(39.9 ns), so `UNROLL=2` is **1.63× faster in wall-clock**, not flat, for 2.18×
+the LUTs. What settles it is the trade rather than the speed — the whole PE is
+0.18% of an ML-KEM round trip, so 1.63× on the engine is worth at most **0.07%**
+end to end. **Take one round per cycle, because the area is not repaid — not
+because the datapath does not get faster.**
 
 **Not a knob:** the datapath width. A 1-round-per-cycle engine and a lane-serial
 engine share no RTL, so a key selecting between them would be two designs behind
