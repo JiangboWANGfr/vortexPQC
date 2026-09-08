@@ -86,8 +86,8 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
     VX_commit_sched_if  commit_sched_if();
     VX_branch_ctl_if    branch_ctl_if[`VX_CFG_NUM_ALU_BLOCKS]();
     VX_warp_ctl_if      warp_ctl_if();
-`ifdef VX_CFG_EXT_RTU_ENABLE
-    VX_sched_unlock_if  sched_unlock_if();  // RTU TRACE wstall release -> scheduler
+`ifdef SCHED_UNLOCK_ENABLE
+    VX_sched_unlock_if  sched_unlock_if();  // wstall release -> scheduler
 `endif
 
     VX_dispatch_if      dispatch_if[NUM_EX_UNITS * `VX_CFG_ISSUE_WIDTH]();
@@ -116,6 +116,9 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
 
 `ifdef TCU_META_ENABLE
     VX_lsu_sched_if tcu_mem_if();
+`endif
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    VX_lsu_sched_if pqc_mem_if();
 `endif
 
     VX_mem_bus_if #(
@@ -228,7 +231,7 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
 
         .warp_ctl_if    (warp_ctl_if),
         .branch_ctl_if  (branch_ctl_if),
-    `ifdef VX_CFG_EXT_RTU_ENABLE
+    `ifdef SCHED_UNLOCK_ENABLE
         .sched_unlock_if (sched_unlock_if),
     `endif
 
@@ -326,6 +329,9 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
     `ifdef TCU_META_ENABLE
         .tcu_mem_if     (tcu_mem_if),
     `endif
+    `ifdef VX_CFG_EXT_PQC_ENABLE
+        .pqc_mem_if     (pqc_mem_if),
+    `endif
 
         .dispatch_if    (dispatch_if),
         .commit_if      (commit_if),
@@ -348,6 +354,8 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
     `endif
     `ifdef VX_CFG_EXT_RTU_ENABLE
         .rtu_bus_if     (rtu_bus_if),
+    `endif
+    `ifdef SCHED_UNLOCK_ENABLE
         .sched_unlock_if (sched_unlock_if),
     `endif
 
@@ -373,10 +381,19 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
     // Symmetric NUM_CLIENTS keeps module generation uniform — tied-off clients
     // cost only a few muxes inside the round-robin arbiter.
 `ifdef TCU_META_ENABLE
-    localparam LSU_SCHED_NUM_CLIENTS = 2;
+    localparam LSU_SCHED_TCU_N = 1;
 `else
-    localparam LSU_SCHED_NUM_CLIENTS = 1;
+    localparam LSU_SCHED_TCU_N = 0;
 `endif
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    localparam LSU_SCHED_PQC_N = 1;
+`else
+    localparam LSU_SCHED_PQC_N = 0;
+`endif
+    // Client 0 is the LSU; the TCU AGU and the KECCAKF engine take the next
+    // slots when built in. Both are warp-level and live on block 0 only.
+    localparam LSU_SCHED_NUM_CLIENTS = 1 + LSU_SCHED_TCU_N + LSU_SCHED_PQC_N;
+    localparam LSU_SCHED_PQC_IDX     = 1 + LSU_SCHED_TCU_N;
     for (genvar block_idx = 0; block_idx < `VX_CFG_NUM_LSU_BLOCKS; ++block_idx) begin : g_lsu_scheduler
         VX_lsu_sched_if sched_client_if [LSU_SCHED_NUM_CLIENTS]();
 
@@ -406,6 +423,25 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
             `UNUSED_VAR (sched_client_if[1].req_ready)
             `UNUSED_VAR (sched_client_if[1].rsp_valid)
             `UNUSED_VAR (sched_client_if[1].rsp_data)
+        end
+    `endif
+
+    `ifdef VX_CFG_EXT_PQC_ENABLE
+        // KECCAKF engine on block 0; tied off on other blocks.
+        if (block_idx == 0) begin : g_pqc_client
+            assign sched_client_if[LSU_SCHED_PQC_IDX].req_valid = pqc_mem_if.req_valid;
+            assign sched_client_if[LSU_SCHED_PQC_IDX].req_data  = pqc_mem_if.req_data;
+            assign pqc_mem_if.req_ready         = sched_client_if[LSU_SCHED_PQC_IDX].req_ready;
+            assign pqc_mem_if.rsp_valid         = sched_client_if[LSU_SCHED_PQC_IDX].rsp_valid;
+            assign pqc_mem_if.rsp_data          = sched_client_if[LSU_SCHED_PQC_IDX].rsp_data;
+            assign sched_client_if[LSU_SCHED_PQC_IDX].rsp_ready = pqc_mem_if.rsp_ready;
+        end else begin : g_pqc_client_tieoff
+            assign sched_client_if[LSU_SCHED_PQC_IDX].req_valid = 1'b0;
+            assign sched_client_if[LSU_SCHED_PQC_IDX].req_data  = '0;
+            assign sched_client_if[LSU_SCHED_PQC_IDX].rsp_ready = 1'b1;
+            `UNUSED_VAR (sched_client_if[LSU_SCHED_PQC_IDX].req_ready)
+            `UNUSED_VAR (sched_client_if[LSU_SCHED_PQC_IDX].rsp_valid)
+            `UNUSED_VAR (sched_client_if[LSU_SCHED_PQC_IDX].rsp_data)
         end
     `endif
 

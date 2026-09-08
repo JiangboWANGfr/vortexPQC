@@ -68,6 +68,16 @@
     `define EXT_GFX_ANY_ENABLE
 `endif
 
+// Convenience flag: some unit releases a warp that decode wstall'd, through
+// VX_sched_unlock_if. The RTU raised it first; KECCAKF needs the same thing for
+// the same reason -- a long op whose completion is not a branch, a barrier or a
+// warp-control event, so no existing unlock path covers it.
+`ifdef VX_CFG_EXT_RTU_ENABLE
+    `define SCHED_UNLOCK_ENABLE
+`elsif VX_CFG_EXT_PQC_ENABLE
+    `define SCHED_UNLOCK_ENABLE
+`endif
+
 // Numeric twin (0/1) for PE-count / uop-slot arithmetic.
 `ifdef EXT_GFX_ANY_ENABLE
     `define EXT_GFX_ANY_ENABLED 1

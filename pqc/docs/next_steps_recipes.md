@@ -1019,10 +1019,20 @@ Keccak estimates run *low* on both schemes with the same sign and magnitude (the
 
 *核验发现 15 处问题（blocking 4 处），已在下文修正。核验置信度：high*
 
+> **STATUS 2026-09-08 — Stage 1 and the RTL are done; this section is now a
+> record of the plan, not the plan.** What was built differs from the sketch
+> below in one load-bearing way: the ISA is ONE blocking instruction, not the
+> two-instruction async launch/wait pair. §2.0 of keccak_ise_proposal.md prices
+> that choice. Everything downstream of the encoding — the `_x1`/`_x4`/`_WAIT`
+> funct3 split, `vx_keccak_launch_x1`, `pqc_args_t`, `PqcType::KECCAK_WAIT` —
+> is superseded; read `sw/kernel/include/pqc/vx_keccak.h`, `sim/simx/pqc/` and
+> `hw/rtl/pqc/` for what exists. The CI vehicle is `tests/pqc/keccak_pe` and the
+> cases are in `ci/testcases/pqc.yaml`.
+
 # Step 4 — Keccak-f1600 PE: SimX model, RTL, and the per-lane vs per-core A/B
 
 ## Goal
-One Keccak-f1600 PE reachable from a two-instruction CUSTOM0 ISA (async launch → handle → wait), wired as SFU `PE_IDX_PQC` in both SimX and RTL, driven from mlkem-native / mldsa-native through their own pristine FIPS-202 backend hooks, with datapaths-per-core exposed as `VX_CFG_PQC_NUM_ENGINES` so per-lane and per-core are one model at two settings. Proven by the repo's `model_parity` gate on a small keccak microbench plus measured end-to-end cycles for ML-KEM-768 and ML-DSA-65.
+One Keccak-f1600 PE reachable from a **one-instruction** CUSTOM0 ISA (blocking `KECCAKF`, funct7=0x05/funct3=0, rs1 = &state[25], rd = x0), wired as SFU `PE_IDX_PQC` in both SimX and RTL, driven from mlkem-native / mldsa-native through their own pristine FIPS-202 backend hooks, with datapaths-per-core exposed as `VX_CFG_PQC_NUM_ENGINES` so per-lane and per-core are one model at two settings. Proven by the repo's `model_parity` gate on a small keccak microbench plus measured end-to-end cycles for ML-KEM-768 and ML-DSA-65.
 
 ## Non-negotiable prerequisites (AGENTS.md)
 - **Out-of-tree.** Everything runs from `build32/`. Re-run `../configure` from `build32/` after touching *any* `.toml`, any source Makefile, or after adding a test directory (`configure` copies `tests/` and `ci/testcases/*.yaml` into the build tree — a new dir is invisible until it does; it regenerates `build32/sw/VX_config.h` only when the toml is newer).

@@ -41,6 +41,12 @@ module VX_execute import VX_gpu_pkg::*; #(
     VX_lsu_sched_if.master tcu_mem_if,
 `endif
 
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    // KECCAKF engine memory client, on its own client slot of block 0's
+    // lsu_scheduler.
+    VX_lsu_sched_if.master pqc_mem_if,
+`endif
+
     // dispatch interface
     VX_dispatch_if.slave    dispatch_if [NUM_EX_UNITS * `VX_CFG_ISSUE_WIDTH],
 
@@ -65,6 +71,8 @@ module VX_execute import VX_gpu_pkg::*; #(
 
 `ifdef VX_CFG_EXT_RTU_ENABLE
     VX_rtu_bus_if.master    rtu_bus_if,
+`endif
+`ifdef SCHED_UNLOCK_ENABLE
     VX_sched_unlock_if.master sched_unlock_if,
 `endif
 
@@ -170,7 +178,12 @@ module VX_execute import VX_gpu_pkg::*; #(
     `endif
     `ifdef VX_CFG_EXT_RTU_ENABLE
         .rtu_bus_if     (rtu_bus_if),
+    `endif
+    `ifdef SCHED_UNLOCK_ENABLE
         .sched_unlock_if (sched_unlock_if),
+    `endif
+    `ifdef VX_CFG_EXT_PQC_ENABLE
+        .pqc_mem_if     (pqc_mem_if),
     `endif
         .sched_csr_if   (sched_csr_if),
         .warp_ctl_if    (warp_ctl_if),

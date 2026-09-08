@@ -726,6 +726,25 @@ module VX_decode import
                         `USED_IREG (rs2);
                     end
                 `endif
+                `ifdef VX_CFG_EXT_PQC_ENABLE
+                    7'h05: begin // KECCAKF -- rs1 = &state[25], rd = x0
+                        // Blocking: the engine reads and writes the state
+                        // behind the register file, so nothing downstream can
+                        // be allowed to observe it mid-permutation. Every
+                        // blocking op in this file sets is_wstall; the SimX
+                        // model not setting it is what produced a multi-lane
+                        // corruption that four hypotheses missed.
+                        case (funct3)
+                            3'h0: begin
+                                ex_type   = EX_SFU;
+                                op_type   = INST_OP_BITS'(INST_SFU_PQC);
+                                is_wstall = 1;
+                                `USED_IREG (rs1);
+                            end
+                            default:;
+                        endcase
+                    end
+                `endif
                     7'h04: begin // Load packing: vx_packlb_f / vx_packlh_f
                         case (funct3)
                             3'h1: begin // vx_packlb_f — pack 4 strided bytes into float

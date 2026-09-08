@@ -1,0 +1,74 @@
+# Test cases for the PQC extension: one instruction, KECCAKF.
+#
+# The vehicle is tests/pqc/keccak_pe, and it is deliberately NOT keccak_sg5.
+# sg5 has no warp axis -- its -t is lanes inside one warp -- so its twenty
+# ordering probes cannot reach the hazard that actually bit: a caller's store
+# still travelling when the engine reads. That one only appears above one warp.
+# keccak_pe takes -b as well as -t, and its loop runs both boundaries per
+# permutation (a CPU store immediately before the instruction, a full read-back
+# immediately after), so a regression on either side fails here.
+#
+# keccak_pe also needs no build-arm variable: the kernel always issues the
+# instruction. That matters -- an arm selected by a make variable can be
+# silently dropped by a stale copied Makefile, which is how a PE column once
+# came back identical to its own baseline and read like a result.
+category: pqc
+defaults:
+  xlen:
+  - 32
+  tier: smoke
+  configs: "-DVX_CFG_EXT_PQC_ENABLE"
+  touches: [hw/rtl/pqc, sim/simx/pqc, sw/kernel/include/pqc, tests/pqc]
+tests:
+# --- functional, both drivers -------------------------------------------
+- id: keccak_pe-1warp
+  via: blackbox
+  drivers:
+  - simx
+  - rtlsim
+  app: pqc/keccak_pe
+  args: -b 1 -t 1 -p 4
+- id: keccak_pe-4warp
+  via: blackbox
+  drivers:
+  - simx
+  - rtlsim
+  app: pqc/keccak_pe
+  args: -b 4 -t 1 -p 4
+# The multi-warp acquire case. With the guard removed this is the test that
+# fails (bad=50 at four warps, two whole states of four); one and two warps
+# still pass, which is exactly why a single-warp suite could not have caught it.
+- id: keccak_pe-8warp
+  via: blackbox
+  drivers:
+  - simx
+  - rtlsim
+  app: pqc/keccak_pe
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8
+  args: -b 8 -t 1 -p 4
+# Multi-lane within a warp: the engine serves a trace's active lanes serially.
+- id: keccak_pe-4lane
+  via: blackbox
+  drivers:
+  - simx
+  - rtlsim
+  app: pqc/keccak_pe
+  args: -b 1 -t 4 -p 4
+
+# --- check: model_parity — SimX vs rtlsim on the same app/args/configs ----
+# Pinned at four warps and below. The INSTRUCTION tracks at 1.9% there and
+# 3.3-4.6% at eight, both inside the 5% tolerance; what pushes the WHOLE-RUN
+# ratio over it at eight blocks is a fixed ~1.6k-cycle divergence in the launch
+# path that does not scale with Keccak work (measured at p=1/4/8: +1444/+1831/
+# +1592 cycles while the loop gap stays ~4%). That is core infrastructure, not
+# this unit, so the gate is set where it measures this unit.
+- id: model_parity-keccak_pe
+  check: model_parity
+  via: blackbox
+  app: pqc/keccak_pe
+  args: -b 1 -t 1 -p 8
+- id: model_parity-keccak_pe-4warp
+  check: model_parity
+  via: blackbox
+  app: pqc/keccak_pe
+  args: -b 4 -t 1 -p 8

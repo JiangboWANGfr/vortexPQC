@@ -530,6 +530,9 @@ package VX_gpu_pkg;
 `ifdef EXT_GFX_ANY_ENABLE
     localparam INST_SFU_RTUW =   4'hE;  // RTU hit window (GETW/GETWF) + trace ops
 `endif
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    localparam INST_SFU_PQC =    4'hF;  // KECCAKF -- the last free SFU code
+`endif
     localparam INST_SFU_BITS =   4;
 
     function automatic logic [3:0] inst_sfu_csr(input logic [2:0] funct3);

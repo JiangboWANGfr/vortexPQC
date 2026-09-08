@@ -1,0 +1,92 @@
+# KECCAKF in RTL: the instruction now exists in hardware, not only in the model.
+# Verilator (rtlsim), 1 core / 4 warps / 4 threads unless a row says otherwise.
+#
+# WHAT WAS BUILT. Before this, hw/rtl/pqc/ held a datapath and nothing else:
+# VX_pqc_keccak_f1600 (the permutation) and VX_pqc_unit (its replication
+# wrapper), reachable only from a standalone testbench. Neither was wired into a
+# core -- no decode, no dispatch, no way for an instruction to reach them.
+# What closes that is VX_pqc_agu, the address generator and sequencer, plus five
+# small edits: INST_SFU_PQC in VX_gpu_pkg, funct7=0x05 in VX_decode, PE_IDX_PQC
+# in VX_sfu_unit, a memory client slot in VX_core, and widening the RTU's warp
+# unlock port to cover any wstall'd long op.
+#
+# THE SEQUENCER IS THE RTL TWIN OF sim/simx/pqc/pqc_unit.cpp, one lane at a time:
+#   LOAD 50 words -> PERM (24 cycles) -> STORE 50 words -> DRAIN 50 words
+# and it carries both ordering guards the model needed, for the same reasons.
+#
+# ---------------------------------------------------------------------------
+# CORRECTNESS
+# ---------------------------------------------------------------------------
+# tests/pqc/keccak_sg5, PE arm, every ordering probe, on rtlsim:
+#   t=1..4 x f=0,4,8,16,20   bad=0   20/20 pass, matching simx exactly.
+# tests/pqc/keccak_pe (new), which sg5 structurally cannot replace:
+#   b=1,2,4,8 x t=1 and b=1 x t=4   bad=0   pass on BOTH drivers.
+#
+# ---------------------------------------------------------------------------
+# MODEL PARITY -- SimX against RTL, same binary, same args
+# ---------------------------------------------------------------------------
+# `pytest ci -m pqc` : 10 cases, all pass. The gate's own report:
+#   pqc:model_parity-keccak_pe        instrs simx=2706  rtlsim=2706   cycles gap 1.21%
+#   pqc:model_parity-keccak_pe-4warp  instrs simx=10794 rtlsim=10794  cycles gap 1.16%
+# Retired instructions are EXACTLY equal, which is the hard requirement; cycles
+# are inside the 5% tolerance with room.
+driver_pair,workload,warps,blocks,simx_cycles,rtlsim_cycles,gap_pct,instrs_equal
+simx-rtlsim,keccak_pe -p8,4,1,26955,27284,1.21,yes
+simx-rtlsim,keccak_pe -p8,4,4,28211,28543,1.16,yes
+simx-rtlsim,keccak_sg5 -a pe -p4 -t1 -f4 (loop),4,1,5231,5243,0.23,yes
+simx-rtlsim,keccak_sg5 -a pe -p4 -t2 -f4 (loop),4,1,5737,5757,0.35,yes
+simx-rtlsim,keccak_sg5 -a pe -p4 -t4 -f4 (loop),4,1,6738,6765,0.40,yes
+simx-rtlsim,keccak_sg5 -a sg1 -p4 -t4 (loop; software control),4,1,630212,642107,1.89,yes
+#
+# THE MODEL TRACKS THE RTL BETTER THAN THE CORE'S OWN SOFTWARE PATH DOES.
+# On the same test and the same run, the PE arm's Keccak loop agrees to 0.40%
+# while the pure-software SG1 arm agrees to 1.89%. Whatever else is true of this
+# unit, it is not the loose part of the model.
+#
+# READ THE LOOP, NOT THE WHOLE RUN. Whole-run totals carry a fixed simx-vs-rtlsim
+# divergence in the launch path that has nothing to do with this instruction. It
+# is the same 19.5k cycles in the PE arm and in the software arm of the same test
+# (415,768 vs 396,190 and 411,410 vs 391,891 non-loop cycles), and on keccak_pe
+# at 8 blocks it stays ~1.6k regardless of how much Keccak work is done:
+#   perms   1        4        8
+#   loop    +4.62%   +3.29%   +4.21%      <- the instruction, flat
+#   launch  +1444    +1831    +1592       <- fixed, does not scale with work
+#   total   +13.99%  +10.16%  +7.55%      <- the ratio, converging as work grows
+# So the parity gate is pinned at four warps and below, where the whole-run ratio
+# measures this unit rather than the launch path. The 8-warp case stays in CI as
+# a correctness test.
+#
+# ---------------------------------------------------------------------------
+# THE ACQUIRE GUARD IN RTL, AND WHY THE FIRST VERSION WAS THE WRONG SIGNAL
+# ---------------------------------------------------------------------------
+# First cut gated the engine's first request on the LSU scheduler's own `empty`
+# -- per CORE, where the model's guard is per WARP. Correct, and measurably too
+# conservative: the cycle gap grew with warp count and broke the gate.
+#   guard                     b=1     b=2     b=4      b=8
+#   per-core (lsu empty)      1.20%   0.96%   4.73%   13.20%
+#   per-warp (alm_empty)      1.20%   0.96%   2.62%   10.16%
+# The right signal was already in the core: VX_scheduler's per-warp pending
+# counter, exported as warp_ctl_if.warp_pending_alm_empty and read exactly as
+# VX_wctl_unit reads it for WSYNC. ALM_EMPTY is 1, so alm_empty means at most one
+# instruction of that warp is in flight -- and decode wstall'd the warp on this
+# one, so that one IS this one. That is has_pending_instrs(wid) verbatim.
+#
+# THE REGRESSION TEST WAS CHECKED AGAINST THE BUG IT EXISTS FOR. Disabling the
+# SimX guard makes tests/pqc/keccak_pe fail at four blocks (bad=50, two whole
+# states of four) while one and two blocks still pass -- the same threshold the
+# ML-KEM M x L grid showed. A regression test that cannot fail is not a test, and
+# this one was made to fail on purpose before being trusted.
+#
+# ---------------------------------------------------------------------------
+# WHAT THIS DOES NOT COVER
+# ---------------------------------------------------------------------------
+# * ENGINES > 1 is not instantiated in the core. The sequencer serves lanes
+#   serially, so a second engine would have no second client to feed; the
+#   per-core-versus-per-lane replication study stays in the standalone synthesis
+#   wrapper, where VX_pqc_unit is built at each setting and measured for area.
+# * No end-to-end ML-KEM or ML-DSA run on rtlsim. A 11.5M-cycle KAT leg under
+#   Verilator is hours and is not gateable; the microbench is the vehicle, by
+#   design, and the end-to-end numbers stay SimX's.
+# * The whole-core V80 timing closure with the PE integrated is untested. The
+#   core at 8w x 32t already has only ~15 ps of margin (core_config_v80.csv), and
+#   nothing here says where the engine lands in that.

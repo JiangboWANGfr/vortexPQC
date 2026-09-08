@@ -54,7 +54,16 @@ import VX_raster_pkg::*;
 
 `ifdef VX_CFG_EXT_RTU_ENABLE
     VX_rtu_bus_if.master    rtu_bus_if,
+`endif
+`ifdef SCHED_UNLOCK_ENABLE
     VX_sched_unlock_if.master sched_unlock_if,
+`endif
+
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    // KECCAKF engine's memory client; VX_core wires it to its own client slot
+    // on block 0's lsu_scheduler. The implicit acquire reads the scheduler's
+    // per-warp pending counter off warp_ctl_if -- see VX_pqc_agu.sv.
+    VX_lsu_sched_if.master  pqc_mem_if,
 `endif
 
     VX_sched_csr_if.slave   sched_csr_if,
@@ -68,7 +77,7 @@ import VX_raster_pkg::*;
     `UNUSED_SPARAM (INSTANCE_ID)
     localparam BLOCK_SIZE   = 1;
     localparam NUM_LANES    = `VX_CFG_NUM_SFU_LANES;
-    localparam PE_COUNT     = 2 + `VX_CFG_EXT_DXA_ENABLED + `VX_CFG_EXT_TEX_ENABLED + `VX_CFG_EXT_OM_ENABLED + `VX_CFG_EXT_RASTER_ENABLED + `VX_CFG_EXT_RTU_ENABLED;
+    localparam PE_COUNT     = 2 + `VX_CFG_EXT_DXA_ENABLED + `VX_CFG_EXT_TEX_ENABLED + `VX_CFG_EXT_OM_ENABLED + `VX_CFG_EXT_RASTER_ENABLED + `VX_CFG_EXT_RTU_ENABLED + `VX_CFG_EXT_PQC_ENABLED;
     localparam PE_SEL_BITS  = `CLOG2(PE_COUNT);
     localparam PE_IDX_WCTL  = 0;
     localparam PE_IDX_CSRS  = 1;
@@ -86,6 +95,9 @@ import VX_raster_pkg::*;
 `endif
 `ifdef VX_CFG_EXT_RTU_ENABLE
     localparam PE_IDX_RTUW  = 2 + `VX_CFG_EXT_DXA_ENABLED + `VX_CFG_EXT_TEX_ENABLED + `VX_CFG_EXT_OM_ENABLED + `VX_CFG_EXT_RASTER_ENABLED;
+`endif
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    localparam PE_IDX_PQC   = 2 + `VX_CFG_EXT_DXA_ENABLED + `VX_CFG_EXT_TEX_ENABLED + `VX_CFG_EXT_OM_ENABLED + `VX_CFG_EXT_RASTER_ENABLED + `VX_CFG_EXT_RTU_ENABLED;
 `endif
 
     VX_execute_if #(
@@ -144,6 +156,11 @@ import VX_raster_pkg::*;
     `ifdef VX_CFG_EXT_RTU_ENABLE
         if (per_block_execute_if[0].data.op_type == INST_SFU_RTUW) begin
             pe_select = PE_SEL_BITS'(PE_IDX_RTUW);
+        end
+    `endif
+    `ifdef VX_CFG_EXT_PQC_ENABLE
+        if (per_block_execute_if[0].data.op_type == INST_SFU_PQC) begin
+            pe_select = PE_SEL_BITS'(PE_IDX_PQC);
         end
     `endif
     end
@@ -271,6 +288,12 @@ import VX_raster_pkg::*;
 `endif
 
 `ifdef VX_CFG_EXT_RTU_ENABLE
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    VX_sched_unlock_if rtu_unlock_if();
+`else
+    // Sole raiser: the RTU drives the core port directly.
+    `define rtu_unlock_if sched_unlock_if
+`endif
     VX_rtu_unit #(
         .INSTANCE_ID (`SFORMATF(("%s-rtuw", INSTANCE_ID))),
         .CORE_ID     (CORE_ID),
@@ -286,8 +309,39 @@ import VX_raster_pkg::*;
     `ifdef VX_CFG_EXT_RTU_ENABLE
         ,
         .rtu_bus_if (rtu_bus_if),
-        .sched_unlock_if (sched_unlock_if)
+        .sched_unlock_if (rtu_unlock_if)
     `endif
+    );
+`endif
+
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    wire                pqc_unlock_req;
+    wire [NW_WIDTH-1:0] pqc_unlock_wid;
+    // RTU wins a same-cycle tie; the PQC AGU holds its request until taken, so
+    // nothing is dropped. With only one raiser built in this is a wire.
+`ifdef VX_CFG_EXT_RTU_ENABLE
+    wire pqc_unlock_ack = pqc_unlock_req && ~rtu_unlock_if.valid;
+    assign sched_unlock_if.valid = rtu_unlock_if.valid || pqc_unlock_ack;
+    assign sched_unlock_if.wid   = rtu_unlock_if.valid ? rtu_unlock_if.wid : pqc_unlock_wid;
+`else
+    wire pqc_unlock_ack = pqc_unlock_req;
+    assign sched_unlock_if.valid = pqc_unlock_req;
+    assign sched_unlock_if.wid   = pqc_unlock_wid;
+`endif
+
+    VX_pqc_agu #(
+        .INSTANCE_ID (`SFORMATF(("%s-pqc", INSTANCE_ID))),
+        .NUM_LANES   (NUM_LANES)
+    ) pqc_agu (
+        .clk        (clk),
+        .reset      (reset),
+        .execute_if (pe_execute_if[PE_IDX_PQC]),
+        .result_if  (pe_result_if[PE_IDX_PQC]),
+        .client_if  (pqc_mem_if),
+        .warp_pending_alm_empty (warp_ctl_if.warp_pending_alm_empty),
+        .unlock_req (pqc_unlock_req),
+        .unlock_wid (pqc_unlock_wid),
+        .unlock_ack (pqc_unlock_ack)
     );
 `endif
 

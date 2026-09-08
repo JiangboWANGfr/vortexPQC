@@ -26,8 +26,8 @@ module VX_scheduler import VX_gpu_pkg::*; #(
 
     // inputs
     VX_warp_ctl_if.slave    warp_ctl_if,
-`ifdef VX_CFG_EXT_RTU_ENABLE
-    VX_sched_unlock_if.slave sched_unlock_if,  // RTU TRACE wstall release
+`ifdef SCHED_UNLOCK_ENABLE
+    VX_sched_unlock_if.slave sched_unlock_if,  // wstall release (RTU TRACE, KECCAKF)
 `endif
     VX_branch_ctl_if.slave  branch_ctl_if [`VX_CFG_NUM_ALU_BLOCKS],
     VX_decode_sched_if.slave decode_sched_if,
@@ -278,7 +278,7 @@ module VX_scheduler import VX_gpu_pkg::*; #(
         end
     `endif
 
-    `ifdef VX_CFG_EXT_RTU_ENABLE
+    `ifdef SCHED_UNLOCK_ENABLE
         // A wstall'd TRACE retires (its traversal's first response landed and the
         // arm op wrote back the handle): resume the warp so it proceeds to WAIT,
         // which returns the response status (terminal or candidate). No trap, no
