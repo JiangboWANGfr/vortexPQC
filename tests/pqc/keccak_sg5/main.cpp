@@ -114,6 +114,9 @@ int main(int argc, char** argv) {
         uint64_t ref[KS_WORDS];
         for (unsigned j = 0; j < KS_WORDS; ++j) ref[j] = ks_seed(s, j);
         for (uint32_t p = 0; p < perms; ++p) {
+            if (fences & 16u) {
+                for (unsigned j = 0; j < KS_WORDS; ++j) ref[j] ^= 0x9e3779b97f4a7c15ull;
+            }
             mlk_keccakf1600_permute(ref);
             if (fences & 4u) {   // mirror the kernel's absorb probe
                 uint64_t acc = 0;

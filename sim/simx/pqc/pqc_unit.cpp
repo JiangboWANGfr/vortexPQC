@@ -151,9 +151,13 @@ void PqcUnit::step() {
       // Read every word back. The responses are the completion signal, and the
       // pending entries they allocate are what makes this traffic visible to
       // fences at all.
+#ifdef PQC_NO_DRAIN
+      phase_ = Phase::LANE_DONE;   // A/B: skip the read-back entirely
+#else
       phase_ = Phase::DRAINING;
       sent_  = 0;
       recvd_ = 0;
+#endif
     }
   }
 }

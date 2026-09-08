@@ -136,6 +136,14 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
     // every call and this loop did not.
     const uint64_t t0 = vx_rdcycle();
     for (unsigned p = 0; p < perms; ++p) {
+      // -f 16: CPU stores into the state IMMEDIATELY before the instruction,
+      // with nothing between them. wstall stops later instructions overtaking
+      // the PE; it says nothing about whether an earlier store has landed by the
+      // time the PE reads. This is the other half of the ordering boundary and
+      // it needs its own test rather than an argument.
+      if (arg->fences & 16u) {
+        for (unsigned j = 0; j < KS_WORDS; ++j) s[j] ^= 0x9e3779b97f4a7c15ull;
+      }
       vx_keccakf(s);
       // -f 8: a fence after the instruction. Purely diagnostic -- if this makes
       // the multi-lane read-back case pass, the defect is the instruction not

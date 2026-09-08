@@ -45,7 +45,29 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # word is already in a register. Every blocking op in decode.cpp sets wstall;
 # this one did not.
 #
-# STILL OPEN: the PE's drain re-reads all fifty words after storing them, which
-# was added while chasing the wrong cause. With the warp correctly stalled it may
-# be unnecessary. Removing it is worth a measurement -- it is a whole round trip
-# per permutation, so it is most of the 147.
+# BOTH ORDERING BOUNDARIES ARE NOW TESTED, not argued.
+# set_wstall stops LATER instructions overtaking the engine. It says nothing
+# about whether an EARLIER store has landed by the time the PE reads, which is a
+# separate boundary and got its own probe: tests/pqc/keccak_sg5 -f 16 has the CPU
+# store into the state with nothing between that and the instruction, -f 20 does
+# both directions at once.
+#   t=4 p=1 f=0    bad=0      t=4 p=4 f=4   bad=0
+#   t=4 p=4 f=0    bad=0      t=4 p=4 f=16  bad=0
+#   t=1/3/4 p=4 f=20  bad=0
+# The mechanism is that both streams enter the same lmem_switch, so accesses to
+# one address are ordered by it. Worth knowing anyway: the PQC forward block runs
+# BEFORE the LSU's own dispatch and returns on success, so this client has
+# priority over the core's queue. It did not bite here because an in-order warp
+# has already issued its earlier stores by the time the PQC instruction
+# dispatches, but the priority inversion is real and is the thing to look at
+# first if an ordering bug ever reappears.
+#
+# THE DRAIN IS KEPT, AND IT IS ALMOST FREE.
+# Measured both ways (PQC_NO_DRAIN):
+#   with drain     ML-KEM 11,526,887   microbench 769.7 cy/perm   bad=0
+#   without        ML-KEM 11,521,287   microbench 731.9 cy/perm   bad=0
+# Removing it saves 5,600 cycles end to end, 0.05%, because the PE is only 0.18%
+# of the run to begin with. Both are correct on every probe above. It stays: a
+# store gets no completion signal in this model, so its absence cannot be proven
+# safe, and 0.05% is not worth reopening a boundary that already produced a
+# multi-lane bug nobody could see for four hypotheses.
