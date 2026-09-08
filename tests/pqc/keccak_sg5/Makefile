@@ -19,6 +19,11 @@ HDRS    := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_ksg5_config.h \
         $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
         $(VORTEX_HOME)/tests/pqc/pqc_config.h
 
+ifeq ($(KECCAK),pe)
+	VX_CFLAGS += -DPQC_KECCAK_PE
+	CXXFLAGS  += -DPQC_KECCAK_PE
+endif
+
 KERNEL_LIB := vortex2
 
 include ../common.mk

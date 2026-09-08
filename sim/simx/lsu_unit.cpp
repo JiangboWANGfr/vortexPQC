@@ -80,6 +80,10 @@ LsuUnit::LsuUnit(const SimContext& ctx, const char* name, Core* core)
 	, TcuReqIn(this)
 	, TcuRspOut(this)
 #endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	, PqcReqIn(this)
+	, PqcRspOut(this)
+#endif
 	, pending_loads_(0)
 {}
 
@@ -216,6 +220,23 @@ void LsuUnit::process_response_step(uint32_t b) {
 		fwd.tag = entry.client_tag;
 		TcuRspOut.send(fwd);
 		DT(3, this->name() << " tcu-meta-rsp: " << fwd);
+		entry.count -= lsu_rsp.mask.count();
+		if (entry.count == 0) {
+			state.pending_reqs.release(lsu_rsp.tag);
+		}
+		lsu_rsp_in.pop();
+		return;
+	}
+#endif
+
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	if (entry.is_pqc) {
+		if (PqcRspOut.full())
+			return; // stall
+		LsuRsp fwd = lsu_rsp;
+		fwd.tag = entry.client_tag;
+		PqcRspOut.send(fwd);
+		DT(3, this->name() << " pqc-rsp: " << fwd);
 		entry.count -= lsu_rsp.mask.count();
 		if (entry.count == 0) {
 			state.pending_reqs.release(lsu_rsp.tag);
@@ -372,6 +393,53 @@ void LsuUnit::process_request_step(uint32_t b) {
 			core_->lmem_switch(0)->ReqIn.send(lsu_req);
 			DT(3, this->name() << " tcu-meta-req: " << lsu_req);
 			TcuReqIn.pop();
+			return; // one request per cycle into the switch
+		}
+	}
+#endif
+
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	// PQC PE client (block 0 only), modelled on the TCU metadata client above.
+	// The switch does the local-versus-global decode, so the PE does not have to
+	// know where a Keccak state lives.
+	//
+	// STORES MUST NOT ALLOCATE A PENDING ENTRY. The normal dispatch path guards
+	// its allocation with `if (!is_write || is_amo)` (see below), because a store
+	// gets no response -- an entry allocated for one would never be released, and
+	// fence release is gated on pending_reqs.empty(), so the core would deadlock.
+	// Loads allocate and are matched by their response; stores are fire and
+	// forget, ordered against the program's own accesses by the same switch.
+	if (b == 0 && !PqcReqIn.empty()) {
+		LsuReq lsu_req = PqcReqIn.peek();
+		const bool is_write = lsu_req.is_write();
+		if ((is_write || !state.pending_reqs.full()) && !core_->lmem_switch(0)->ReqIn.full()) {
+			uint32_t count = lsu_req.mask.count();
+			uint32_t tag = 0;
+			if (!is_write) {
+				std::vector<mem_addr_size_t> lane_entries(VX_CFG_NUM_LSU_LANES);
+				for (uint32_t i = 0; i < VX_CFG_NUM_LSU_LANES; ++i) {
+					if (!lsu_req.mask.test(i)) {
+						continue;
+					}
+					mem_addr_size_t e;
+					e.addr    = lsu_req.addrs.at(i);
+					e.size    = 4;
+					e.data    = 0;
+					e.amo_cmp = 0;
+					e.tid     = lsu_req.tids.at(i);
+					lane_entries.at(i) = e;
+				}
+				IntrLsuArgs pqc_args{};
+				pqc_args.width = 2; // 32-bit words
+				pending_req_t entry{nullptr, count, true, std::move(lane_entries), pqc_args, true};
+				entry.is_pqc     = true;
+				entry.client_tag = lsu_req.tag;
+				tag = state.pending_reqs.allocate(std::move(entry));
+			}
+			lsu_req.tag = tag;
+			core_->lmem_switch(0)->ReqIn.send(lsu_req);
+			DT(3, this->name() << " pqc-req: " << lsu_req);
+			PqcReqIn.pop();
 			return; // one request per cycle into the switch
 		}
 	}

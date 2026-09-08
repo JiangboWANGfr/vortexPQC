@@ -61,6 +61,13 @@ public:
 
 	CsrUnit& csr_unit() { return *csr_unit_; }
 
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	// PQC PE client port, bound to LsuUnit::PqcReqIn / PqcRspOut in core.cpp.
+	// Outside the DXA ifdef on purpose: the two extensions are independent.
+	SimChannel<LsuReq> pqc_req_out;
+	SimChannel<LsuRsp> pqc_rsp_in;
+#endif
+
 #ifdef VX_CFG_EXT_DXA_ENABLE
 	// Outbound DXA request channel — bound by Cluster to
 	// DxaCore::dxa_req_in[cid]. Owned here (SfuUnit is the SimObject;

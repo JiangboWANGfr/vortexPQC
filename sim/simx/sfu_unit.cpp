@@ -32,6 +32,10 @@ using namespace vortex;
 
 SfuUnit::SfuUnit(const SimContext& ctx, const char* name, Core* core)
 	: FuncUnit<VX_CFG_NUM_SFU_BLOCKS>(ctx, name, core, 6)
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	, pqc_req_out(this)
+	, pqc_rsp_in(this)
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 	, dxa_req_out(this)
 #endif
@@ -53,7 +57,7 @@ SfuUnit::SfuUnit(const SimContext& ctx, const char* name, Core* core)
 	, wctl_unit_(new WctlUnit(core))
 	, csr_unit_(new CsrUnit(core))
 #ifdef VX_CFG_EXT_PQC_ENABLE
-	, pqc_unit_(new PqcUnit(core))
+	, pqc_unit_(new PqcUnit(core, pqc_req_out, pqc_rsp_in))
 #endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 	, dxa_unit_(new DxaUnit(core, dxa_req_out))
@@ -93,6 +97,10 @@ bool SfuUnit::rtu_trace2_reserve_slot(uint32_t wid) {
 
 
 void SfuUnit::on_tick() {
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	// Drive the PE's AGU: one beat out per cycle, responses drained in.
+	pqc_unit_->step();
+#endif
 #ifdef VX_CFG_EXT_RTU_ENABLE
 	// Drain RTU rsps. Two flavors, both completing the warp's parked WAIT
 	// through the same writeback path (candidate-return, no async trap):
@@ -422,10 +430,12 @@ void SfuUnit::on_tick() {
 			csr_unit_->process(trace);
 #ifdef VX_CFG_EXT_PQC_ENABLE
 		} else if (std::get_if<PqcType>(&trace->op_type)) {
-			// Blocking and self-contained: the permutation happens here and the
-			// trace falls through to the normal latency/commit path. No slot
-			// pool, no handle, no back-pressure -- see pqc/pqc_unit.h.
-			pqc_unit_->execute(trace);
+			// Blocking: process() returns nullptr while the state is still
+			// being read, permuted and written back, and SfuUnit retries the
+			// trace next cycle -- the same back-pressure shape DxaUnit uses.
+			if (!pqc_unit_->process(trace)) {
+				continue;
+			}
 #endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 		} else if (std::get_if<DxaType>(&trace->op_type)) {

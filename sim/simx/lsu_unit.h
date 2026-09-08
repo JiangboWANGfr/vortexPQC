@@ -86,6 +86,14 @@ public:
 	SimChannel<LsuRsp> TcuRspOut;
 #endif
 
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	// PQC PE client port, the same shape as the TCU pair above but independent
+	// of it -- TCU_META_ENABLE is a separate switch and is off in most builds.
+	// Bound to SfuUnit's pqc_req_out / pqc_rsp_in in core.cpp.
+	SimChannel<LsuReq> PqcReqIn;
+	SimChannel<LsuRsp> PqcRspOut;
+#endif
+
 	// Returns true when all LSU blocks have no in-flight requests.
 	bool drained() const;
 
@@ -123,6 +131,13 @@ private:
 		// TcuRspOut with client_tag restored instead of written to registers.
 		bool        is_tcu     = false;
 		uint32_t    client_tag = 0;
+#ifdef VX_CFG_EXT_PQC_ENABLE
+		// PQC PE client entry, same shape as the TCU one: responses are
+		// forwarded to PqcRspOut with client_tag restored rather than written to
+		// registers. Only LOADS ever allocate one -- see the store note in
+		// LsuUnit::tick's PQC forward block.
+		bool        is_pqc     = false;
+#endif
 	};
 
 	// Per-block LSU state. Each member is a named hardware sub-block.

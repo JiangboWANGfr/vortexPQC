@@ -16,6 +16,9 @@ extern "C" {
 
 #include "common.h"
 #include "pqc_stack.h"
+#if defined(PQC_KECCAK_PE)
+#include <vx_pqc.h>
+#endif
 
 // rho offsets, indexed [x][y] -- the transpose of how FIPS 202 Table 2 prints
 // them, because SG5's lane index is x.
@@ -118,6 +121,37 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   uint32_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);
 
+#if defined(PQC_KECCAK_PE)
+  if (arg->arm == KS_ARM_PE) {
+    // One state per lane, permuted by the instruction. Same seeds and the same
+    // host-side word-by-word check as the other two arms, so a wrong answer
+    // names the word rather than just failing.
+    uint64_t s[KS_WORDS];
+    for (unsigned j = 0; j < KS_WORDS; ++j) s[j] = ks_seed(tid, j);
+    // Read the state from the PROGRAM side between permutations. The loop
+    // without this is PE -> PE -> PE, every access going through the PE's own
+    // ordered client port, which never exercises the hazard that matters: the
+    // instruction retires when its stores are ISSUED, not when they land, so a
+    // program load right after it can race them. ML-KEM does exactly that on
+    // every call and this loop did not.
+    const uint64_t t0 = vx_rdcycle();
+    for (unsigned p = 0; p < perms; ++p) {
+      vx_keccakf(s);
+      if (arg->fences & 4u) {
+        // Absorb: the program reads every word the PE just wrote and writes
+        // some of them back, which is the shape mlk_keccakf1600_xor_bytes and
+        // _extract_bytes give every sponge round. Not removable by the
+        // compiler, and mirrored exactly in the host reference.
+        uint64_t acc = 0;
+        for (unsigned j = 0; j < KS_WORDS; ++j) acc ^= s[j];
+        s[0] ^= acc;
+      }
+    }
+    const uint64_t t1 = vx_rdcycle();
+    for (unsigned j = 0; j < KS_WORDS; ++j) out[tid * KS_WORDS + j] = s[j];
+    if (tid == 0) cycles[KS_CY_RUN] = t1 - t0;
+  } else
+#endif
   if (arg->arm == KS_ARM_SG1) {
     // One lane, one whole state. This is what schools A/B/C assume, and the
     // permutation is the library's own.

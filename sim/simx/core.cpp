@@ -234,6 +234,7 @@ public:
     dispatchers_.at((int)FUType::TCU) = SimPlatform::instance().create_object<Dispatcher>(name.c_str(), simobject_, VX_CFG_DISPATCH_QUEUE_SIZE, VX_CFG_NUM_TCU_BLOCKS, VX_CFG_NUM_TCU_LANES);
   #endif
 
+
     // initialize execute units
     snprintf(sname, 100, "%s-alu", name.c_str());
     func_units_.at((int)FUType::ALU) = SimPlatform::instance().create_object<AluUnit>(sname, simobject_);
@@ -264,6 +265,21 @@ public:
       lsu->TcuRspOut.bind(&tcu_unit_->agu_rsp_in);
     }
   #endif
+  #endif
+
+  #ifdef VX_CFG_EXT_PQC_ENABLE
+    // Bind the PQC PE's AGU to the LSU block-0 client port.
+    // OUTSIDE the TCU ifdef: an earlier version of this sat inside it and was
+    // therefore never compiled in a TCU-less build, which showed up only as the
+    // simulator livelocking with a full request channel nobody drained.
+    // The PE cannot reach memory any other way and be coherent with the kernel:
+    // see the two experiments recorded in sim/simx/pqc/pqc_unit.h.
+    {
+      auto sfu = std::static_pointer_cast<SfuUnit>(func_units_.at((int)FUType::SFU));
+      auto lsu = std::static_pointer_cast<LsuUnit>(func_units_.at((int)FUType::LSU));
+      sfu->pqc_req_out.bind(&lsu->PqcReqIn);
+      lsu->PqcRspOut.bind(&sfu->pqc_rsp_in);
+    }
   #endif
 
     // commit queues — per-iw, per-FU staging fed at runtime in commit() by

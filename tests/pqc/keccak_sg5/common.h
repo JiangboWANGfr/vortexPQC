@@ -20,6 +20,7 @@
 
 #define KS_ARM_SG1 0
 #define KS_ARM_SG5 1
+#define KS_ARM_PE  2   // the KECCAKF instruction
 
 #define KS_LANES_PER_STATE 5
 #define KS_WORDS 25

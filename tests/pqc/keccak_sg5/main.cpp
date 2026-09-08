@@ -34,9 +34,11 @@ int main(int argc, char** argv) {
         else if (c == 't') lanes  = (uint32_t)std::atoi(optarg);
         else if (c == 'p') perms  = (uint32_t)std::atoi(optarg);
         else if (c == 'f') fences = (uint32_t)std::atoi(optarg);
-        else if (c == 'a') arm    = (std::strcmp(optarg,"sg1")==0) ? KS_ARM_SG1 : KS_ARM_SG5;
+        else if (c == 'a') arm    = (std::strcmp(optarg,"sg1")==0) ? KS_ARM_SG1
+                              : (std::strcmp(optarg,"pe")==0)  ? KS_ARM_PE
+                                                              : KS_ARM_SG5;
         else { std::cout << "Usage: [-k kernel] [-t lanes] [-p perms] "
-                            "[-f fences 0|1|2] [-a sg1|sg5]\n";
+                            "[-f fences 0|1|2] [-a sg1|sg5|pe]\n";
                std::exit(c == 'h' ? 0 : -1); }
     }
 
@@ -57,7 +59,7 @@ int main(int argc, char** argv) {
                     KS_LANES_PER_STATE, lanes);
         return -1;
     }
-    const uint32_t nstates = (arm == KS_ARM_SG1) ? lanes : lanes / KS_LANES_PER_STATE;
+    const uint32_t nstates = (arm == KS_ARM_SG5) ? lanes / KS_LANES_PER_STATE : lanes;
     if (perms < 1) { std::printf("*** -p must be >= 1\n"); return -1; }
 
     vx_device_h dev=nullptr; CHECK(vx_device_open(0,&dev));
@@ -111,7 +113,14 @@ int main(int argc, char** argv) {
     for (uint32_t s = 0; s < nstates; ++s) {
         uint64_t ref[KS_WORDS];
         for (unsigned j = 0; j < KS_WORDS; ++j) ref[j] = ks_seed(s, j);
-        for (uint32_t p = 0; p < perms; ++p) mlk_keccakf1600_permute(ref);
+        for (uint32_t p = 0; p < perms; ++p) {
+            mlk_keccakf1600_permute(ref);
+            if (fences & 4u) {   // mirror the kernel's absorb probe
+                uint64_t acc = 0;
+                for (unsigned j = 0; j < KS_WORDS; ++j) acc ^= ref[j];
+                ref[0] ^= acc;
+            }
+        }
         uint32_t bw = 0;
         for (unsigned j = 0; j < KS_WORDS; ++j)
             if (h_out[(size_t)s*KS_WORDS + j] != ref[j]) ++bw;
@@ -143,7 +152,7 @@ int main(int argc, char** argv) {
     const uint64_t total = (uint64_t)nstates * perms;
     std::printf("KECCAK arm=%s W=%u states=%u perms=%u fences=%u | "
                 "cycles=%llu total_perms=%llu cy_per_perm=%.1f | stack=%llu/%llu | bad=%u\n",
-                arm==KS_ARM_SG1?"sg1":"sg5", lanes, nstates, perms, fences,
+                arm==KS_ARM_SG1?"sg1":(arm==KS_ARM_PE?"pe":"sg5"), lanes, nstates, perms, fences,
                 (unsigned long long)cyc[KS_CY_RUN], (unsigned long long)total,
                 total ? (double)cyc[KS_CY_RUN]/(double)total : 0.0,
                 (unsigned long long)cyc[KS_CY_STACK], (unsigned long long)cyc[KS_CY_SPAN],
