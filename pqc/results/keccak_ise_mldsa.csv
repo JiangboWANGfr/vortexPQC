@@ -13,10 +13,10 @@
 # round-trip bound in ablation_mldsa.csv is an extrapolation. The PE computes the
 # right answer, so its round trip is MEASURED. Every row below passes.
 ram,scope,perms,baseline_cycles,pe_cycles,speedup,floor_cycles,ceiling,pct_of_ceiling
-low,keypair,190,42022203,13284166,3.1633,12790511,3.2854,96.3
-low,roundtrip,782,189935041,71625276,2.6518,,,
-full,keypair,190,39121420,10377817,3.7697,10001328,3.9116,96.4
-full,roundtrip,582,142119279,54069437,2.6285,,,
+low,keypair,190,42022203,13284356,3.1633,12790511,3.2854,96.3
+low,roundtrip,782,189935041,71626058,2.6518,,,
+full,keypair,190,39121420,10378007,3.7696,10001328,3.9116,96.4
+full,roundtrip,582,142119279,54070019,2.6284,,,
 #
 # THE EXTRAPOLATED ROUND-TRIP BOUND IS NOW CROSS-CHECKED, BY A DIFFERENT ROUTE.
 # ablation_mldsa.csv derives the free-Keccak round trip by subtracting the
@@ -32,9 +32,9 @@ full,roundtrip,582,142119279,54069437,2.6285,,,
 #
 # THE PE'S COST IS SET BY THE MEMORY SYSTEM, NOT THE DATAPATH, and this file is
 # where that stops being an inference. Per permutation, in the build that ran it:
-#   ML-KEM                 1,439 cycles     106x software
-#   ML-DSA, RAM=full       1,982 cycles      77x
-#   ML-DSA, RAM=low        2,598 cycles      58x
+#   ML-KEM                 1,440 cycles     105x software
+#   ML-DSA, RAM=full       1,983 cycles      77x
+#   ML-DSA, RAM=low        2,599 cycles      58x
 # Same instruction, same engine, same 24-cycle datapath parameter: a 1.8x spread
 # driven entirely by what else is resident. Fifty words in and fifty back out is
 # the cost, and the caller's cache pressure sets it. This is the same conclusion
@@ -66,3 +66,12 @@ full,roundtrip,582,142119279,54069437,2.6285,,,
 # wrong. mldsa_profile now stamps MLD_PROF_ARM on the DEVICE from its own #ifdefs
 # and the host prints it, so a missing arm is visible in the log instead of
 # arriving as a measurement.
+#
+# REMEASURED after the SimX engine-occupancy model was aligned with the RTL
+# (the engine's time is now spent holding the unit, as VX_pqc_agu holds PQC_PERM,
+# instead of being added at the SFU output after the unit was released). Every
+# figure above is from the aligned model. The change costs exactly one cycle per
+# permutation -- the SFU's minimum output delay, which the old 24-cycle add-on
+# absorbed -- reproduced to the cycle on all four workloads: +144 on ML-KEM's 144
+# permutations, +190 on keypair's 190, +782 and +582 on the two round trips. No
+# speedup in this file moves in the fourth decimal.

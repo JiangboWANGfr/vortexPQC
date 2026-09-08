@@ -114,16 +114,21 @@ public:
   // Drives the AGU: one request per cycle out, responses drained in.
   void step();
 
-  // Timing on top of the modelled traffic. jobs = active lanes, each a whole
-  // permutation, so with fewer engines than jobs they serialise:
+  // The SFU's output delay, and it is deliberately minimal: the engine's own
+  // time is now spent INSIDE the unit, holding owner_, because that is what the
+  // hardware does (VX_pqc_agu sits in PQC_PERM while VX_pqc_keccak_f1600 runs).
   //
-  //   latency = KECCAK_LATENCY * ceil(jobs / ENGINES)
+  // An earlier version charged KECCAK_LATENCY * ceil(jobs/ENGINES) here, at the
+  // SFU output, AFTER releasing owner_. For one warp that is the same total, but
+  // it lets the next warp start its own transfers during a window in which the
+  // hardware's engine is busy, so the model overstated multi-warp throughput --
+  // measured as a 4.6% span divergence against rtlsim at eight warps, converging
+  // to 1.9% at four. Holding the unit instead is both more faithful and what
+  // makes a multi-warp cycle comparison mean anything.
   //
-  // THAT ceil() IS THE ENTIRE PER-CORE VERSUS PER-LANE A/B. ENGINES=1 is one
-  // engine shared by the core, ENGINES=SIMD_WIDTH is one per lane, and the
-  // encoding, semantics and compiled binary are identical either way -- a
-  // parameter sweep over one source tree rather than two designs wearing one
-  // name (keccak_ise_proposal.md S5).
+  // ceil(jobs/ENGINES) survives the move: the hold is charged once per group of
+  // ENGINES lanes, so the per-core versus per-lane A/B is the same sweep it was
+  // (keccak_ise_proposal.md S5), and at ENGINES=1 it matches the RTL exactly.
   uint32_t latency(const instr_trace_t* trace) const;
 
 private:
@@ -144,6 +149,8 @@ private:
   instr_trace_t* owner_ = nullptr;
   uint32_t       lane_  = 0;          // active lane being served
   uint64_t       base_  = 0;          // that lane's rs1
+  uint32_t       perm_wait_ = 0;      // cycles left in PERMUTED; see the note
+  uint32_t       lane_seq_  = 0;      // lanes served so far in this trace
   uint32_t       sent_  = 0;          // words requested
   uint32_t       recvd_ = 0;          // words returned
   uint32_t       state_[WORDS];       // the 200 bytes, as 32-bit words

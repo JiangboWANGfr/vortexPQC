@@ -43,18 +43,41 @@ simx-rtlsim,keccak_sg5 -a sg1 -p4 -t4 (loop; software control),4,1,630212,642107
 # while the pure-software SG1 arm agrees to 1.89%. Whatever else is true of this
 # unit, it is not the loose part of the model.
 #
-# READ THE LOOP, NOT THE WHOLE RUN. Whole-run totals carry a fixed simx-vs-rtlsim
-# divergence in the launch path that has nothing to do with this instruction. It
-# is the same 19.5k cycles in the PE arm and in the software arm of the same test
-# (415,768 vs 396,190 and 411,410 vs 391,891 non-loop cycles), and on keccak_pe
-# at 8 blocks it stays ~1.6k regardless of how much Keccak work is done:
-#   perms   1        4        8
-#   loop    +4.62%   +3.29%   +4.21%      <- the instruction, flat
-#   launch  +1444    +1831    +1592       <- fixed, does not scale with work
-#   total   +13.99%  +10.16%  +7.55%      <- the ratio, converging as work grows
-# So the parity gate is pinned at four warps and below, where the whole-run ratio
-# measures this unit rather than the launch path. The 8-warp case stays in CI as
-# a correctness test.
+# READ THE LOOP, NOT THE WHOLE RUN -- AND MEASURE THE LOOP PROPERLY.
+# An earlier version of this file subtracted HART 0's loop from the whole-run
+# total and called the remainder launch overhead. That is wrong above one warp:
+# the remainder still contains every other hart's engine work, which is exactly
+# what the subtraction was trying to remove. The figures it produced (~1.6k
+# cycles of "fixed launch divergence") are withdrawn.
+#
+# tests/pqc/keccak_pe now records t0 and t1 for EVERY hart, so the span
+# (max t1 - min t0) is the real kernel extent and total - span is genuinely
+# outside it. Eight warps, eight blocks:
+#   perms          1        4        8
+#   span simx    6818    18740    34908
+#   span rtlsim  7437    20201    36991      gap +9.08%  +7.80%  +5.97%
+#   outside      ~5.6k vs ~6.9k -- a roughly constant +1.1k, not scaling with work
+# So a fixed launch-path difference is real, but it is ~1.1k cycles, not 1.6k.
+#
+# THE RESIDUAL IS LOCATED, AND IT IS NOT THIS UNIT.
+# Three measurements settle it. First, the engine's occupancy is measured
+# directly from the RTL (PQC_ACQ to PQC_IDLE, DBG_PQC): exactly 128 cycles per
+# permutation, IDENTICAL in keccak_pe and in keccak_sg5, so the unit is
+# deterministic and the same in both. Second, the PE is only 128 of a ~2,880
+# cycle loop -- 4.4% -- the rest being the program's own 25 stores, 25 loads and
+# fold. Third, and decisively, the divergence is there with no PQC instruction
+# in the binary at all:
+#   keccak_sg5 -a sg1 (pure software)   simx 1,215,990   rtlsim 1,243,048   +2.23%
+#   keccak_pe         (with the PE)     simx    23,111   rtlsim    23,732   +2.69%
+# So the ~2.2-2.7% is the core's own scalar and LSU timing divergence between the
+# two models, and the instruction adds essentially nothing to it. The "85 cycles
+# per permutation" figure was 2.7% of a loop that is 95.6% not this unit.
+#
+# WHAT MISLED THE FIRST READING: keccak_sg5 -a pe comes in at +0.08%, far tighter
+# than the software arm, and that outlier is what made the PE path look like it
+# tracked BETTER than the core's own code. It does not; that one loop shape
+# happens to model almost exactly. Two points are not a trend, and the pure
+# software control is the one that should have been run first.
 #
 # ---------------------------------------------------------------------------
 # THE ACQUIRE GUARD IN RTL, AND WHY THE FIRST VERSION WAS THE WRONG SIGNAL
@@ -87,6 +110,62 @@ simx-rtlsim,keccak_sg5 -a sg1 -p4 -t4 (loop; software control),4,1,630212,642107
 # * No end-to-end ML-KEM or ML-DSA run on rtlsim. A 11.5M-cycle KAT leg under
 #   Verilator is hours and is not gateable; the microbench is the vehicle, by
 #   design, and the end-to-end numbers stay SimX's.
-# * The whole-core V80 timing closure with the PE integrated is untested. The
-#   core at 8w x 32t already has only ~15 ps of margin (core_config_v80.csv), and
-#   nothing here says where the engine lands in that.
+# * NO xrt OR AFU LEG. Every case in ci/testcases/pqc.yaml runs on simx and
+#   rtlsim only. The project's integration verification includes the xrt/AFU
+#   path, and this extension has not been through it: the AFU wrapper's source
+#   set, its own catalog entry and a board-level run are all untouched. Passing
+#   simx and rtlsim is not the same as being integrated.
+
+# ============================================================================
+# THE PE INSIDE A WHOLE CORE ON THE V80 -- the measurement that was impossible
+# before this, because the engine was not in a core.
+# ============================================================================
+# xcv80-lsva4737-2MHP-e-S, Vivado 2025.1, post-route with phys_opt. Each row is
+# paired with the SAME core configuration without PQC from core_config_v80.csv,
+# so these are deltas and not another isolated number.
+#
+# Reproduce:
+#   source /data/Xilinx/2025.1/Vivado/settings64.sh
+#   cd build32/hw/syn/xilinx/dut
+#   SV2V_PATH=/home/jiangbowang/tools/sv2v DEVICE=xcv80-lsva4737-2MHP-e-S \
+#     CLK_FREQ_MHZ=<f> make core PREFIX=<tag> \
+#     CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=<t>"
+warps,threads,mhz,base_luts,pqc_luts,delta_luts,delta_pct,base_wns_ns,pqc_wns_ns,build_time
+8,4,300,42553,53338,10785,25.3,0.004,0.082,12m54s
+8,32,250,323072,389378,66306,20.5,0.015,0.000,66m41s
+#
+# IT FITS, AND AT THE PAPER'S CONFIGURATION IT FITS WITH NOTHING TO SPARE.
+# 8 warps x 32 threads at 250 MHz closes at WNS = 0.000 ns exactly, against the
+# baseline's +0.015. At the small 8x4 cell it does better than the baseline
+# (+0.082 against +0.004), which is placement luck on a core whose critical path
+# is elsewhere -- the honest reading is that the engine is not the critical path
+# at either size, and that the wide configuration has no margin left for it.
+#
+# THE ENGINE IS NOT THE EXPENSIVE PART. THE PORT IS.
+# Per-module deltas at 8w x 32t, the configuration the paper quotes:
+#   sfu_unit        6,548 ->  21,532    +14,984   23%   (the AGU and the engine)
+#   lmem_switch    10,531 ->  52,608    +42,077   63%   (giving it a memory port)
+#   lsu_scheduler   3,933 ->  12,597     +8,664   13%   (its client slot)
+#   issue         109,257 -> 109,949       +692    1%   (one decode case)
+#                                        -------
+#                                         66,306
+# The Keccak engine itself is 4,785 LUTs -- 7% of what the instruction costs to
+# integrate. 77% is the memory path. And the split gets worse with width: at
+# 8w x 4t the engine and AGU are 57% of a 10,785-LUT delta, at 8w x 32t they are
+# 23% of a 66,306-LUT one, because a client port on VX_lsu_sched_if is
+# NUM_LSU_LANES wide and that tracks SIMD_WIDTH. This instruction moves 50 words
+# serially; it is carrying a 32-lane port to do it.
+#
+# WHICH PRICES A DESIGN QUESTION THAT WAS QUALITATIVE UNTIL NOW.
+# keccak_ise_proposal.md S4 lists "share the LSU client" as candidate 2, costing
+# arbitration and removing the ordering question entirely. Its alternative -- the
+# private port built here -- costs 50,741 LUTs of switch and scheduler at
+# 8w x 32t, 15.7% of the baseline core. That is the number the trade was missing.
+# A narrower private port is the other direction: nothing about the sequencer
+# needs 32 lanes.
+#
+# WHAT THESE NUMBERS ARE NOT. They are the cost of an engine plus a private
+# memory port, not of "a Keccak accelerator": pqc/results/keccak_pe_area.csv
+# measures the engine standalone and understates the integrated cost by 1.75x at
+# four threads and by 13.9x at thirty-two. Quoting the standalone figure as the
+# area of this ISA extension would be wrong by an order of magnitude.
