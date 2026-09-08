@@ -625,6 +625,26 @@ inline std::ostream &operator<<(std::ostream &os, const WctlType& type) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifdef VX_CFG_EXT_PQC_ENABLE
+
+enum class PqcType {
+  KECCAKF
+};
+
+struct IntrPqcArgs {};
+
+inline std::ostream &operator<<(std::ostream &os, const PqcType& type) {
+  switch (type) {
+  case PqcType::KECCAKF: os << "PQC.KECCAKF"; break;
+  default: os << "?"; break;
+  }
+  return os;
+}
+
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
 #ifdef VX_CFG_EXT_DXA_ENABLE
 
 enum class DxaType {
@@ -815,6 +835,9 @@ using OpType = std::variant<
 , ShflType
 , WgatherType
 , WctlType
+#ifdef VX_CFG_EXT_PQC_ENABLE
+, PqcType
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 , DxaType
 #endif
@@ -842,6 +865,9 @@ using IntrArgs = std::variant<
 , IntrCsrArgs
 , IntrWgatherArgs
 , IntrWctlArgs
+#ifdef VX_CFG_EXT_PQC_ENABLE
+, IntrPqcArgs
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
 , IntrDxaArgs
 #endif

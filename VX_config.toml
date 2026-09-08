@@ -294,6 +294,23 @@ VX_CFG_DXA_MEM_PORTS = "expr: min($VX_CFG_NUM_DXA_CORES, up($VX_CFG_NUM_CORES / 
 VX_CFG_DXA_QUEUE_SIZE = 16
 VX_CFG_DXA_MAX_INFLIGHT = 8
 
+[pqc]
+# Keccak-f1600 datapaths per core. THE A/B the paper turns on:
+#   1                    one engine shared by the whole core (per-core PE)
+#   $VX_CFG_SIMD_WIDTH   one engine per lane (per-lane PE)
+# Measured on V80 the two differ by 16.6x in area and not at all in encoding,
+# semantics or compiled binary -- see pqc/results/keccak_pe_v80.csv.
+VX_CFG_PQC_NUM_ENGINES = 1
+# Engine datapath latency in cycles. hw/rtl/pqc/VX_pqc_keccak_f1600.sv at
+# UNROLL=1 is 24 rounds at one round per cycle; the memory round trip for the
+# 200 bytes in and out is on top and is swept separately.
+VX_CFG_PQC_KECCAK_LATENCY = 24
+# Cycles charged for reading the 200-byte state in and writing it back out.
+# SEPARATE FROM THE ABOVE ON PURPOSE: the datapath number comes from synthesis
+# and is solid, this one is a model of a memory system and is not, so the paper
+# reports a sensitivity curve over it rather than one figure.
+VX_CFG_PQC_MEM_LATENCY = 32
+
 [rtu]
 # RTU (Ray-Tracing Unit)
 VX_CFG_NUM_RTU_CORES       = "expr: up($VX_CFG_SOCKET_SIZE / 4)"

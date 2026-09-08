@@ -14,10 +14,10 @@
 #ifndef __VX_PQC_H__
 #define __VX_PQC_H__
 
-// Kernel-side entry point for the PQC extension. Intrinsics land in
-// pqc/vx_ntt.h and pqc/vx_keccak.h once the ISA is designed; until then this
-// header carries only the scheme constants, so a kernel can include one thing.
+// Kernel-side entry point for the PQC extension, so a kernel includes one thing.
+// pqc/vx_ntt.h joins these once the NTT ISE is designed.
 
 #include "pqc/vx_pqc_defs.h"
+#include "pqc/vx_keccak.h"
 
 #endif // __VX_PQC_H__

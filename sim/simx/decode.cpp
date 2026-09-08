@@ -393,6 +393,11 @@ static op_string_t op_string(const Instr &instr) {
         std::abort();
       }
     }
+#ifdef VX_CFG_EXT_PQC_ENABLE
+    ,[&](PqcType /*pqc_type*/)-> op_string_t {
+      return {"PQC.KECCAKF", ""};
+    }
+#endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
     ,[&](DxaType /*dxa_type*/)-> op_string_t {
       return {"DXA.ISSUE", ""};
@@ -897,6 +902,24 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
       instr->set_op_type(DxaType::ISSUE);
       instr->set_src_reg(0, rs1, RegType::Integer);
       instr->set_src_reg(1, rs2, RegType::Integer);
+    } break;
+#endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+    case 5: { // PQC. R-type, rd = x0, rs2 = x0; rs1 is the state pointer.
+              //
+              // One funct3 and one source, because Keccak-f1600 has no
+              // parameters -- 1600 bits in, 1600 bits out, 24 rounds. See
+              // pqc/docs/proposals/keccak_ise_proposal.md S2.0. Blocking, so no
+              // handle and no destination: next_steps_recipes.md Stage 1 spells
+              // an async launch/wait triple which S3.2 of that proposal rejects,
+              // and the proposal is the later document.
+      instr->set_fu_type(FUType::SFU);
+      instr->set_args(IntrPqcArgs{});
+      switch (funct3) {
+      case 0: instr->set_op_type(PqcType::KECCAKF); break;
+      default: std::abort();
+      }
+      instr->set_src_reg(0, rs1, RegType::Integer);
     } break;
 #endif
   #ifdef VX_CFG_EXT_TCU_ENABLE
