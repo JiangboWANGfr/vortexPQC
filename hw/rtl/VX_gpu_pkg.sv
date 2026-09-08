@@ -234,7 +234,8 @@ package VX_gpu_pkg;
 `ifdef VX_DBG_STALL_TIMEOUT
     localparam STALL_TIMEOUT = `VX_DBG_STALL_TIMEOUT;
 `else
-    localparam STALL_TIMEOUT = (100000 * (1 << (`VX_CFG_L2_ENABLED + `VX_CFG_L3_ENABLED)));
+    localparam STALL_TIMEOUT = (100000 * (1 << (`VX_CFG_L2_ENABLED + `VX_CFG_L3_ENABLED))
+                             * (`VX_CFG_EXT_PQC_ENABLED ? `VX_CFG_NUM_THREADS : 1));
 `endif
 
     ///////////////////////////////////////////////////////////////////////////

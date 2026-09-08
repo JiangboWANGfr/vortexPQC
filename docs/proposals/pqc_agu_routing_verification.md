@@ -35,19 +35,25 @@ For the board, use a matching PQC-enabled AVED image and `--target=hw`.
 The wide-configuration SimX timing residual remains open until measured and
 explained; the existing parity tolerance is not increased.
 
-The full 8-warp, 32-lane RTL probe exposed a simulation watchdog false positive:
-the original and fixed-routing AGUs both stopped at timestamp 4,851,379 on
-warp 5's KECCAKF. Other warps completed at 4,700,845, 4,765,725 and 4,830,305
-while it queued. The scoreboard now resets its simulation-only stall counter
-on acceptance by the waiting instruction's FU when its register operands are
-ready. The 100,000-cycle threshold is unchanged. The target probe completes
-with 13,480 retired instructions, 2,688,152 cycles and zero mismatches.
+The full 8-warp, 32-lane probes exposed an undersized simulation watchdog
+budget. In AVED, a normally completing KECCAKF took 181,786 cycles, exceeding
+the old 100,000-cycle limit. CSR reads also wait behind queued KECCAKF packets;
+the resulting dependent branch can time out while the PE still makes progress.
+With the original per-warp watchdog logic and a 32-lane budget, the full AVED
+probe completes with 13,480 instructions, 4,951,308 cycles and zero mismatches.
 
-`make -C hw/unittest/issue run-watchdog` verifies a queue progressing for longer
-than the timeout, a stopped FU, unrelated-FU activity and an unresolved register
-dependency with same-FU activity. Restoring the original counter rejects the
-progressing queue; the corrected counter still rejects all three stuck cases.
-This watchdog checks lack of progress, not a fixed per-warp latency guarantee.
+For PQC-enabled configurations, the default debug timeout now scales by the
+warp's thread count, accounting for the serial lane service. It remains 100,000
+cycles without PQC (before the existing cache-level multiplier). The counter
+retains its original per-warp semantics: unrelated activity cannot indefinitely
+hide a lost writeback or a starved warp. This changes a simulation timeout,
+not execution timing or the 5% model-parity tolerance.
+
+`make -C hw/unittest/issue run-watchdog` checks a legal serial queue exceeding
+the unscaled budget, a stopped FU, unrelated-FU activity and an unresolved
+register dependency despite same-FU activity. All stuck cases must still fail.
+`PARAMS=-DVX_DBG_STALL_TIMEOUT=100000` restores the old budget as a
+negative control and must reject the legal queue.
 
 The AVED build also rejects two unused high bits in the LSU scheduler's modulo
 temporaries. Keep the addition and comparison wide, and cast the modulo result

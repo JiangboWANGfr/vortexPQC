@@ -447,7 +447,8 @@ SYNOPSYS = false
 SV_DPI = false
 
 [debug]
-VX_DBG_STALL_TIMEOUT = "expr: (100000 * (1 << ($VX_CFG_L2_ENABLED + $VX_CFG_L3_ENABLED)))"
+# KECCAKF serializes a warp's lanes and can hold later SFU operations in its queue.
+VX_DBG_STALL_TIMEOUT = "expr: (100000 * (1 << ($VX_CFG_L2_ENABLED + $VX_CFG_L3_ENABLED)) * (1 + $VX_CFG_EXT_PQC_ENABLED * ($VX_CFG_NUM_THREADS - 1)))"
 VX_DBG_DEBUG_LEVEL = 3
 
 [[enum]]
