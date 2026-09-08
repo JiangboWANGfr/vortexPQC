@@ -79,8 +79,11 @@ in whole-run cycles and 7.80% in kernel span. A 32-thread vecadd control differs
 by 1.02%, with identical cycles when the unused PQC extension is enabled or
 disabled. A fixed platform-wide offset does not explain all these workloads.
 
-Both default and 8w×32t processor RTL configurations pass ML-KEM known-answer
-and ML-DSA full-byte portable-C differential checks. The hardware AVED driver
+Both default and 8w×32t processor RTL configurations, plus 8w×32t AVED
+simulation, pass ML-KEM known-answer and ML-DSA full-byte portable-C
+differential checks. AVED's ML-KEM run retires the same 1,163,708 instructions
+as rtlsim and takes 11,979,330 versus 11,979,295 whole-run cycles. Its ML-DSA
+timed region takes 72,355,469 versus 72,355,410 cycles. The hardware AVED driver
 also compiles and resolves its dynamic symbols against the SLASH fork; upstream
 SLASH lacks the required host-buffer API. This checks the driver build, without
 opening a device.
@@ -98,3 +101,12 @@ At 32 threads, the post-synthesis response-arbiter hierarchy drops from 44,340
 to 1,595 LUT. This supports the dynamic-indexing diagnosis; the 32+18-word
 request geometry remains intact. The routed 250 MHz result still has zero
 setup margin and does not establish full-AFU timing or a new maximum frequency.
+
+Full-image preparation exposed two SLASH dependency fixes. Commit `b57195f5`
+parses setup/hold slack by column label and gates both compute and service
+static shells; the old parser could accept negative hold slack. Commit
+`c6c1050a` carries the requested job count through the static-shell launchers,
+which previously used 14 jobs even when passed `--jobs=1`. The 139 linker tests
+pass, including failure controls against the preceding code. Build the common
+HLS IP repository before installing the static shell; a missing `hbm_bandwidth`
+IP otherwise leads to a secondary circular block-design error.
