@@ -80,25 +80,20 @@ void PqcUnit::issue_beat(bool write) {
   sent_ += n;
 }
 
-// One-word load whose only purpose is to be ordered behind the stores.
-void PqcUnit::issue_drain() {
-  LsuReq req(VX_CFG_NUM_LSU_LANES);
-  req.op   = MemOp::LD;
-  req.tag  = WORDS;            // out of range: its data is discarded
-  req.cid  = owner_->cid;
-  req.wid  = owner_->wid;
-  req.uuid = owner_->uuid;
-  req.mask.set(0);
-  req.addrs.at(0) = base_ + 4ull * (WORDS - 1);
-  req.tids.at(0)  = lane_;
-  req_out_.send(req);
-}
-
 void PqcUnit::step() {
   // Drain responses first so a load beat's data lands before the next is sent.
   while (!rsp_in_.empty()) {
     auto& rsp = rsp_in_.peek();
     const uint32_t word_base = (uint32_t)rsp.tag;
+    if (phase_ == Phase::DRAINING) {
+      // Discard the data; only the arrival matters.
+      recvd_ += rsp.mask.count();
+      if (recvd_ >= WORDS) {
+        phase_ = Phase::LANE_DONE;
+      }
+      rsp_in_.pop();
+      continue;
+    }
     if (word_base == WORDS) {
       // The drain load returned, so every store ahead of it is visible.
       // LANE_DONE and not IDLE: next_lane() keys its scan start on IDLE, so
@@ -132,7 +127,11 @@ void PqcUnit::step() {
     return;
   }
 
-  if (phase_ == Phase::LOADING) {
+  if (phase_ == Phase::DRAINING) {
+    if (sent_ < WORDS) {
+      issue_beat(false);
+    }
+  } else if (phase_ == Phase::LOADING) {
     if (sent_ < WORDS) {
       issue_beat(false);
     } else if (recvd_ == WORDS) {
@@ -149,8 +148,12 @@ void PqcUnit::step() {
     if (sent_ < WORDS) {
       issue_beat(true);
     } else {
-      issue_drain();
+      // Read every word back. The responses are the completion signal, and the
+      // pending entries they allocate are what makes this traffic visible to
+      // fences at all.
       phase_ = Phase::DRAINING;
+      sent_  = 0;
+      recvd_ = 0;
     }
   }
 }

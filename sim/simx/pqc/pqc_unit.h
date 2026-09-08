@@ -60,13 +60,24 @@ class Core;
 // against the caller's stores". This is that question, and the answer the model
 // picks is the conservative one.
 //
-// !!! KNOWN FAILURE, AND IT NEEDS BOTH CONDITIONS TO SHOW. !!!
-// tests/pqc/keccak_sg5 -a pe, on the current drain:
-//     t=1 p=4 f=4   bad=0     one lane, program reads the state back
-//     t=4 p=4 f=0   bad=0     four lanes, no program read-back
-//     t=4 p=4 f=4   bad=50    four lanes AND a program read-back
-// So multi-lane alone is fine and read-after-instruction alone is fine; only
-// the two together break, and they break two whole states out of four. The
+// !!! KNOWN FAILURE: THREE OR MORE LANES WITH A PROGRAM READ-BACK. !!!
+// tests/pqc/keccak_sg5 -a pe, p=4, with the all-words drain in place:
+//     t=1 f=4   bad=0        t=1 f=0   bad=0
+//     t=2 f=4   bad=0        t=4 f=0   bad=0
+//     t=3 f=4   FAIL
+//     t=4 f=4   FAIL (two whole states of four)
+// Neither condition alone breaks it: one and two lanes are fine with the
+// read-back, and four lanes are fine without it. The threshold is at three
+// lanes, which is a number worth explaining -- VX_CFG_NUM_LSU_LANES is 4 and
+// VX_CFG_LSU_PENDING_SIZE is 8, and 50 words is 13 beats per phase per lane.
+//
+// STOP GUESSING AT THIS POINT. Four hypotheses have been tried and each shifted
+// the symptom without predicting it. The next step is not another guess: log
+// every PQC request and response with its cycle, phase, lane and tag, then diff
+// a passing t=2 run against a failing t=3 one. The first divergence names the
+// mechanism.
+//
+// The
 // per-lane drain therefore orders THAT lane's stores but something about
 // serving lanes one after another leaves an earlier lane's writes behind. The
 // The diagnostic ran. It is the LAST two lanes -- states 2 and 3 of 4 -- and
@@ -87,8 +98,18 @@ class Core;
 // fine (its stores have many cycles of the following lanes to drain) and the
 // last lanes are not.
 //
-// The next thing to try is a drain that cannot hit: read a word the PE did not
-// just write, or wait on the LSU's own fence machinery instead.
+// THE DRAIN NOW RE-READS ALL 50 WORDS, and the one-word version is why.
+// A fence after the instruction halved the damage (bad=50 -> bad=25) rather than
+// removing it, which says the fence does not cover this client: FenceController
+// waits on pending_reqs.empty(), stores allocate no entry there, so a fence can
+// retire while the PE's writes are still in flight. A one-word drain had the
+// same hole -- it orders one line and leaves twelve.
+// Reading every word back closes both. The loads allocate pending entries, so
+// the PE's traffic is now visible to fences and to drained(), and their
+// responses are the completion signal the store path cannot give. It costs a
+// second round trip per permutation, which is real and shows up in the cycle
+// count -- and it is what hardware would pay too, in a write-acknowledge or a
+// fence, for an instruction that must not retire before its writes are seen.
 //
 // ONE LANE AT A TIME. The unit serves the active lanes of a trace serially:
 // simpler, and the timing model already serialises on VX_CFG_PQC_NUM_ENGINES,
@@ -122,10 +143,11 @@ private:
   static const uint32_t WORDS = 50;   // 25 x uint64_t as 32-bit LSU words
 
   enum class Phase { IDLE, LOADING, PERMUTED, STORING, DRAINING, LANE_DONE };
+  // DRAINING re-reads all 50 words; see the note above on why one word is not enough.
 
   bool next_lane();
   void issue_beat(bool write);
-  void issue_drain();
+  // no separate drain: the read-back IS the drain
 
   Core* core_;
   SimChannel<LsuReq>& req_out_;

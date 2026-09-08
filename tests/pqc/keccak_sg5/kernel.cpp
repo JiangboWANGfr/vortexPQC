@@ -137,6 +137,11 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
     const uint64_t t0 = vx_rdcycle();
     for (unsigned p = 0; p < perms; ++p) {
       vx_keccakf(s);
+      // -f 8: a fence after the instruction. Purely diagnostic -- if this makes
+      // the multi-lane read-back case pass, the defect is the instruction not
+      // ordering its own writes against the caller, which is a semantics
+      // question (keccak_ise_proposal.md S4) and not an AGU bug.
+      if (arg->fences & 8u) vx_fence();
       if (arg->fences & 4u) {
         // Absorb: the program reads every word the PE just wrote and writes
         // some of them back, which is the shape mlk_keccakf1600_xor_bytes and
