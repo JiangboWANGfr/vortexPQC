@@ -69,8 +69,26 @@ class Core;
 // the two together break, and they break two whole states out of four. The
 // per-lane drain therefore orders THAT lane's stores but something about
 // serving lanes one after another leaves an earlier lane's writes behind. The
-// next diagnostic is to print which two of the four states are wrong -- the
-// first two or the last two says whether it is the lanes served early or late.
+// The diagnostic ran. It is the LAST two lanes -- states 2 and 3 of 4 -- and
+// each is wrong in all 25 words rather than a few.
+//
+// AND THE AGU IS NOT THE DEFECT. Tracing every lane's completion shows all four
+// finishing cleanly on every call, recvd=50 and sent=50, at four distinct
+// 8 KB-spaced per-hart stack addresses:
+//     lane=0 base=0xfffeff30 DONE recvd=50 sent=50
+//     lane=1 base=0xfffedf30 DONE recvd=50 sent=50
+//     lane=2 base=0xfffebf30 DONE recvd=50 sent=50
+//     lane=3 base=0xfffe9f30 DONE recvd=50 sent=50
+// The PE reads, permutes and writes back the right 200 bytes for every lane. So
+// the remaining suspect is visibility rather than work: the drain load for a
+// lane may be satisfied by the cache line its own last store just filled, which
+// returns immediately and orders nothing behind it, leaving the other 49 words
+// in flight when the instruction retires. That would explain why one lane is
+// fine (its stores have many cycles of the following lanes to drain) and the
+// last lanes are not.
+//
+// The next thing to try is a drain that cannot hit: read a word the PE did not
+// just write, or wait on the LSU's own fence machinery instead.
 //
 // ONE LANE AT A TIME. The unit serves the active lanes of a trace serially:
 // simpler, and the timing model already serialises on VX_CFG_PQC_NUM_ENGINES,
