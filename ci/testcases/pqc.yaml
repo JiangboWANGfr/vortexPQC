@@ -167,6 +167,12 @@ tests:
   configs: -DVX_CFG_EXT_RTU_ENABLE
   args: -n1
 
+- id: aved-default
+  via: script
+  configs: ""
+  env: {CONFIGS: ""}
+  run: ./ci/blackbox.sh --driver=aved --target=avedsim --app=demo
+
 - id: keccak_pe-aved-target-smoke
   via: script
   configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32

@@ -393,7 +393,9 @@ module VX_core import VX_gpu_pkg::*, VX_tlb_pkg::*; #(
     // Client 0 is the LSU; the TCU AGU and the KECCAKF engine take the next
     // slots when built in. Both are warp-level and live on block 0 only.
     localparam LSU_SCHED_NUM_CLIENTS = 1 + LSU_SCHED_TCU_N + LSU_SCHED_PQC_N;
+`ifdef VX_CFG_EXT_PQC_ENABLE
     localparam LSU_SCHED_PQC_IDX     = 1 + LSU_SCHED_TCU_N;
+`endif
     for (genvar block_idx = 0; block_idx < `VX_CFG_NUM_LSU_BLOCKS; ++block_idx) begin : g_lsu_scheduler
         VX_lsu_sched_if sched_client_if [LSU_SCHED_NUM_CLIENTS]();
 
