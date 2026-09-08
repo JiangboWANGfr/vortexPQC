@@ -43,20 +43,12 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
       s[j] ^= KP_XOR_K;
     }
     vx_keccakf(s);
-    // RELEASE boundary: the program reads back every word the engine wrote.
-    // Not removable by the compiler -- s[0] depends on all of them.
-    //
-    // FOLD WITH +, NOT ^. `s[0] ^= acc` where acc is the XOR of all 25 words is
-    // algebraically s[0] = s[1]^...^s[24]: the engine's own word 0 cancels
-    // itself out and is discarded on EVERY iteration, so nothing downstream --
-    // including the host's word-by-word check -- can ever see it wrong. Word 0
-    // is the only word iota touches, so a wrong round constant would have been
-    // invisible. Addition does not cancel.
+    // Preserve all output bits while forcing an immediate read of every word.
     uint64_t acc = 0;
     for (unsigned j = 0; j < KP_WORDS; ++j) {
       acc ^= s[j];
     }
-    s[0] += acc;
+    s[0] = acc;
   }
   const uint64_t t1 = vx_rdcycle();
 

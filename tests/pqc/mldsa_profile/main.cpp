@@ -18,6 +18,7 @@
 #include "pqc_config.h"
 #include "pqc_stack.h"
 #include "mld_vortex_alloc.h"
+#include "host_reference.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -136,6 +137,27 @@ int main(int argc, char** argv) {
                         h_st[i] == -12345 ? "  (kernel never ran)" : "");
             ++errors;
         }
+    }
+    std::vector<uint8_t> ref_pk(MLDSA_PK_BYTES), ref_sk(MLDSA_SK_BYTES), ref_sig(MLDSA_SIG_BYTES);
+    if (mldsa_host_reference(h_seed.data(), h_rnd.data(), h_msg.data(), h_msg.size(),
+                            ref_pk.data(), ref_sk.data(), ref_sig.data()) != 0) {
+        std::printf("*** portable host reference failed\n");
+        ++errors;
+    } else {
+        const std::vector<uint8_t>* reference[] = { &ref_pk, &ref_sk, &ref_sig };
+        const char* names[] = { "pk", "sk", "signature" };
+        for (int i = 0; i < 3; ++i) {
+            std::vector<uint8_t> got(reference[i]->size());
+            vx_event_h read = nullptr;
+            CHECK(vx_enqueue_read(q, got.data(), bufs[3+i].h, 0, got.size(), 1, &lev, &read));
+            CHECK(vx_event_wait_value(read, 1, VX_TIMEOUT_INFINITE));
+            vx_event_release(read);
+            if (got != *reference[i]) {
+                std::printf("*** %s differs from portable host reference\n", names[i]);
+                ++errors;
+            }
+        }
+        if (!errors) std::printf("REFERENCE: pk/sk/signature match portable C byte-for-byte\n");
     }
 #endif
     if (h_ar[1] != 0) {
