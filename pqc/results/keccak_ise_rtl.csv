@@ -130,10 +130,17 @@ simx-rtlsim,keccak_sg5 -a sg1 -p4 -t4 (loop; software control),4,1,630212,642107
 #   SV2V_PATH=/home/jiangbowang/tools/sv2v DEVICE=xcv80-lsva4737-2MHP-e-S \
 #     CLK_FREQ_MHZ=<f> make core PREFIX=<tag> \
 #     CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=<t>"
-warps,threads,mhz,base_luts,pqc_luts,delta_luts,delta_pct,base_wns_ns,pqc_wns_ns,build_time
-8,4,300,42553,53338,10785,25.3,0.004,0.082,12m54s
-8,32,250,323072,389378,66306,20.5,0.015,0.000,66m41s
-8,32,300,325407,394554,69147,21.2,-0.066,-0.507,105m10s
+# routing = how VX_pqc_agu indexes state_r. "dynamic" is the original
+# state_r[sent_r + i], a 50:1 select per lane. "static" banks it: each lane only
+# ever reaches words {i, MEM_LANES+i, ...}, chosen by comparing sent_r against
+# constants. Cycle-identical -- 1277 cycles at 4 memory lanes and 419 at 32, both
+# routings, seven cases each -- so this is a pure area/timing change.
+warps,threads,mhz,routing,base_luts,pqc_luts,delta_luts,delta_pct,base_wns_ns,pqc_wns_ns
+8,4,300,dynamic,42553,53338,10785,25.3,0.004,0.082
+8,4,300,static,42553,48894,6341,14.9,0.004,0.129
+8,32,250,dynamic,323072,389378,66306,20.5,0.015,0.000
+8,32,250,static,323072,334917,11845,3.7,0.015,0.000
+8,32,300,dynamic,325407,394554,69147,21.2,-0.066,-0.507
 #
 # IT FITS AT 250 MHz WITH NOTHING TO SPARE, AND IT COSTS 11.5% OF FMAX.
 # 8 warps x 32 threads at a 250 MHz constraint closes at WNS = 0.000 ns exactly,
@@ -148,28 +155,45 @@ warps,threads,mhz,base_luts,pqc_luts,delta_luts,delta_pct,base_wns_ns,pqc_wns_ns
 # critical path in itself; what the wide configuration cannot absorb is the
 # memory-path logic below, and neither can its timing.
 #
-# THE ENGINE IS NOT THE EXPENSIVE PART. THE PORT IS.
-# Per-module deltas at 8w x 32t, the configuration the paper quotes:
-#   sfu_unit        6,548 ->  21,532    +14,984   23%   (the AGU and the engine)
-#   lmem_switch    10,531 ->  52,608    +42,077   63%   (giving it a memory port)
-#   lsu_scheduler   3,933 ->  12,597     +8,664   13%   (its client slot)
-#   issue         109,257 -> 109,949       +692    1%   (one decode case)
-#                                        -------
-#                                         66,306
-# The Keccak engine itself is 4,785 LUTs -- 7% of what the instruction costs to
-# integrate. 77% is the memory path. And the split gets worse with width: at
-# 8w x 4t the engine and AGU are 57% of a 10,785-LUT delta, at 8w x 32t they are
-# 23% of a 66,306-LUT one, because a client port on VX_lsu_sched_if is
-# NUM_LSU_LANES wide and that tracks SIMD_WIDTH. This instruction moves 50 words
-# serially; it is carrying a 32-lane port to do it.
+# THE COST IS 3.7%, AND THE 20.5% FIGURE WAS AN ARTIFACT OF THIS UNIT'S OWN
+# ADDRESSING -- NOT, AS THIS FILE PREVIOUSLY CONCLUDED, THE PRICE OF A PORT.
+# Banking the AGU's state index removes 55,494 LUTs at 8w x 32t, almost the whole
+# PQC delta, for seventeen lines and no change in cycles:
+#   no PQC                    323,072
+#   PQC, dynamic index        390,411   +67,339  (+20.8%)
+#   PQC, static banked index  334,917   +11,845  ( +3.7%)
+# Per module, dynamic -> static:
+#   mem_unit        119,843 ->  77,007   -42,836
+#   lsu_scheduler    10,705 ->   3,834    -6,871
+#   execute         146,261 -> 140,506    -5,755
 #
-# WHICH PRICES A DESIGN QUESTION THAT WAS QUALITATIVE UNTIL NOW.
-# keccak_ise_proposal.md S4 lists "share the LSU client" as candidate 2, costing
-# arbitration and removing the ordering question entirely. Its alternative -- the
-# private port built here -- costs 50,741 LUTs of switch and scheduler at
-# 8w x 32t, 15.7% of the baseline core. That is the number the trade was missing.
-# A narrower private port is the other direction: nothing about the sequencer
-# needs 32 lanes.
+# WHAT WAS ACTUALLY HAPPENING. state_r[sent_r + i] is a 50:1 select per lane
+# feeding a 32-lane request payload. That payload is the switch's datapath too,
+# so the dynamic select did not stay inside the AGU: it expanded through
+# VX_lmem_switch and the scheduler. Banking it makes each lane a 2:1 select and
+# the expansion disappears. The engine itself is 4,785 LUTs and is now about 40%
+# of what the instruction costs to integrate, not 7%.
+#
+# WITHDRAWN, AND THE WAY IT WAS GOT WRONG MATTERS MORE THAN THE NUMBER.
+# This file previously said 77% of the cost was the memory path, and priced
+# keccak_ise_proposal.md S4's "share the LSU client" alternative at 50,741 LUTs
+# on that basis. Both are withdrawn. The attribution was to the right modules --
+# my dynamic run and an independent one agree on mem_unit to 0.3% -- but the
+# CAUSE was read off the location, and the location was downstream of the real
+# one. The tell was noticed and then talked past: 43,701 LUTs for a fixed
+# two-input arbiter of unchanged width is forty LUTs per bit, which was written
+# down as "not commonsensical" and then treated as established anyway, because
+# post-synthesis and post-route agreed. They are two reports of ONE design;
+# agreement between them says nothing about cause. The experiment that settles
+# cause is the one that changes the suspected cause and re-measures, and it
+# returned the opposite of the prediction made before it ran (a saving "under
+# ten thousand" was predicted; it was 55,494).
+#
+# WHAT REMAINS TRUE: the extension fits, and at 8w x 32t it closes 250 MHz with
+# WNS exactly 0.000 -- with dynamic AND with static routing, so the zero margin
+# is the core's, not the engine's. The 300 MHz cell (-0.507 ns, 260.4 MHz
+# best-effort) was measured on the dynamic routing only; that fmax cost has NOT
+# been re-measured on the static one and should not be quoted until it is.
 #
 # WHAT THESE NUMBERS ARE NOT. They are the cost of an engine plus a private
 # memory port, not of "a Keccak accelerator": pqc/results/keccak_pe_area.csv
@@ -206,3 +230,9 @@ warps,threads,mhz,base_luts,pqc_luts,delta_luts,delta_pct,base_wns_ns,pqc_wns_ns
 # been covered separately and never together, and that the target configuration
 # had never been run on RTL at all. Both were true. Everything above ran at the
 # 4-thread default.
+
+# OPEN AFTER THE STATIC-ROUTING RESULT:
+# * 8w x 32t at 300 MHz has not been re-run with static routing, so the -11.5%
+#   fmax figure above belongs to the dynamic version only.
+# * 8w x 4t static (48,894, WNS +0.129) beats dynamic on both area and timing,
+#   which is consistent, but two cells is not a trend across widths.
