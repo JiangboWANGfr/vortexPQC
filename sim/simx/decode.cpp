@@ -920,6 +920,16 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
       default: std::abort();
       }
       instr->set_src_reg(0, rs1, RegType::Integer);
+      // The warp must stall until the PE is done. Without this the SFU holds
+      // only its own trace: the warp keeps issuing, and its next LSU load of
+      // the state runs ahead of the PE. A trace caught the CPU's read response
+      // for lane 2 at cycle 130,783 against the PE's first read of that lane at
+      // 130,785 -- the program read the state before the engine had touched it,
+      // so it read the pre-permutation value. That is unrecoverable by any
+      // amount of draining on the PE side, because the stale word is already in
+      // a register. Every blocking op in this file does the same thing; the
+      // WctlType cases are the model.
+      instr->set_wstall(true);
     } break;
 #endif
   #ifdef VX_CFG_EXT_TCU_ENABLE

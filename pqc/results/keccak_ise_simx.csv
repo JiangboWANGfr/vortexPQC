@@ -1,0 +1,51 @@
+# The KECCAKF instruction, measured end to end on ML-KEM-768.
+#
+# tests/pqc/mlkem, simx, 1 core / 4 warps / 4 threads, one lane, L2-L3 off,
+# FIPS 203 KAT coins (144 permutations). THREE COLUMNS ON ONE SOURCE TREE: the
+# arms differ by one backend header reached through mlkem-native's own
+# MLK_CONFIG_FIPS202_BACKEND_FILE hook, so the submodule is untouched, the coins
+# are identical and the permutation count is identical. What separates them is
+# the backend and not the experiment.
+#
+#   KECCAK=      reference C (default) | asm (PQRV RV32) | pe (the instruction)
+#   PQC config   1 engine, VX_CFG_PQC_KECCAK_LATENCY=24
+backend,total_cycles,vs_reference_c,vs_asm,passed
+reference_c,32778558,1.0000,,1
+pqrv_asm,30321833,1.0810,1.0000,1
+keccakf_pe,11526887,2.8437,2.6305,1
+#
+# RESULT -- 2.844x, AGAINST A MEASURED CEILING OF 2.911x.
+# ablation_mlkem.csv puts the Amdahl bound for a free Keccak at 2.911x on these
+# coins. The instruction reaches **97.7% of it**. The remaining 2.3% is what the
+# PE actually costs, and it is small because the thing it replaced was enormous:
+#
+#   software permutation   151,872 cycles   (keccak_baseline_columns.csv)
+#   PE permutation             147 cycles   (21,209 cycles over 144 calls)
+#   ratio                       1,031x
+#
+# THE FLOOR CHECK, which is the instrument that earned its keep twice.
+# ABLATE=keccak measures the non-Keccak remainder at 11,505,678 cycles -- the
+# cost of ML-KEM with Keccak free. A correct acceleration lands just above it.
+#   PE arm  11,526,887  =  floor + 21,209  (+0.18%)
+# Two earlier versions of this instruction reported 6.7M and 6.9M, BELOW the
+# floor, which is impossible: a wrong permutation makes the rejection sampler
+# accept everything and the work disappears. The floor caught both before the
+# correctness check did, and it is why the number above can be believed.
+#
+# WHAT IT TOOK, recorded because the bug was not where four hypotheses said.
+# The instruction decoded, dispatched, moved memory through an LSU client port
+# and computed the right permutation -- and still produced wrong answers on three
+# or more lanes. The cause was one missing line: PQC decode never called
+# set_wstall(true), so the warp was not stalled. The SFU held its own trace while
+# the warp kept issuing, and the program's next load of the state ran ahead of
+# the engine. A cycle trace showed the CPU's read response for lane 2 at 130,783
+# against the PE's first read of that lane at 130,785 -- the program read the
+# state two cycles before the engine touched it, and got the pre-permutation
+# value. No amount of draining on the PE side can undo that, because the stale
+# word is already in a register. Every blocking op in decode.cpp sets wstall;
+# this one did not.
+#
+# STILL OPEN: the PE's drain re-reads all fifty words after storing them, which
+# was added while chasing the wrong cause. With the warp correctly stalled it may
+# be unnecessary. Removing it is worth a measurement -- it is a whole round trip
+# per permutation, so it is most of the 147.
