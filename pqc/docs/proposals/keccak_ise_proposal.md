@@ -344,6 +344,41 @@ otherwise (`hw/rtl/core/VX_core.sv:376`), so at the evaluation configuration —
 TCU off — adding a PE client is itself a change to that parameterisation, not
 free wiring.
 
+### 4.1 What the model now settles, and what it does not
+
+The cycle-accurate model has since hit this boundary for real, so the section
+above is no longer a design sketch on both sides.
+
+**It breaks, and only above one warp.** With the engine reading through its own
+LSU client, the caller's store to the state and the PE's load of it are ordered
+by nothing, and the PE wins. With a single warp the store is always dispatched
+before the instruction reaches the engine and it never shows; from two warps up
+it does. On the full `M × L` grid, seven of twelve cells failed — every failure
+at `M ≥ 2`, block 0 always correct — and at `M=4, L=1` warps 1–3 read stale
+words in 70, 64 and 63 of their 156 permutations, always in the last beat of the
+50-word read. Evidence and method: `pqc/results/keccak_ise_simx.csv`.
+
+**Candidate 1 is the one that works, and it is nearly free.** Stalling the
+engine until the calling warp has no older instruction in flight — the model
+spells it `has_pending_instrs(wid)`, one guard before the first load — fixes all
+twelve cells at up to 8 warps × 4 lanes. It costs **161 cycles on an 11.7 M-cycle
+ML-KEM run (0.0014%)**, and exactly zero in the single-warp configuration, where
+there is never anything to wait for. Candidate 2 (share the lane's LSU port)
+would make the question disappear rather than answer it and remains the better
+hardware answer; candidate 3 stays unattractive for the reason given.
+
+**What this does not settle** is the RTL. The model's guard reads a structure
+that exists because it is a model; the hardware equivalent is an issue-stage
+interlock on the warp's outstanding stores, and its cost has not been measured.
+What the model does establish is that the interlock is *needed* — the boundary is
+not theoretical — and that at the software level its price is negligible.
+
+**And a note on test design, because it is the transferable part.** The
+single-warp probe suite for this boundary (`tests/pqc/keccak_sg5 -f 16/20`, 20
+configurations) passes completely, before and after the fix. It has no warp axis,
+so it could not have failed. A correctness argument for a memory-ordering
+boundary has to name the concurrency the tests actually reached.
+
 ---
 
 ## 5. Placement: one config key, one A/B

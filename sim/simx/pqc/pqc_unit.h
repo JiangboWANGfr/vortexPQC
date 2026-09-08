@@ -52,64 +52,51 @@ class Core;
 // permutations (tests/pqc/keccak_sg5 -f 4); a PE-to-PE loop passes because those
 // accesses share the PE's own ordered client port.
 //
-// The fix here is a DRAIN: after the last store beat, issue a single one-word
-// load and wait for its response. The switch orders that load behind the stores
-// ahead of it, so its return means they are visible. It costs one round trip,
-// which is honest -- real hardware needs an acknowledgement too, and
+// The fix here is a DRAIN: after the last store beat, read all 50 words back
+// and wait for the responses. A one-word drain was tried first and left twelve
+// of the thirteen lines unordered; a fence after the instruction only halved
+// the damage, because FenceController waits on pending_reqs.empty() and stores
+// allocate no entry there. Reading every word closes both holes -- the loads do
+// allocate entries, so the PE's traffic becomes visible to fences, and their
+// responses are the completion signal the store path cannot give. It costs a
+// second round trip, which is honest -- real hardware needs an
+// acknowledgement too, and
 // keccak_ise_proposal.md S4 is titled "the one genuinely open question: ordering
 // against the caller's stores". This is that question, and the answer the model
 // picks is the conservative one.
 //
-// !!! KNOWN FAILURE: THREE OR MORE LANES WITH A PROGRAM READ-BACK. !!!
-// tests/pqc/keccak_sg5 -a pe, p=4, with the all-words drain in place:
-//     t=1 f=4   bad=0        t=1 f=0   bad=0
-//     t=2 f=4   bad=0        t=4 f=0   bad=0
-//     t=3 f=4   FAIL
-//     t=4 f=4   FAIL (two whole states of four)
-// Neither condition alone breaks it: one and two lanes are fine with the
-// read-back, and four lanes are fine without it. The threshold is at three
-// lanes, which is a number worth explaining -- VX_CFG_NUM_LSU_LANES is 4 and
-// VX_CFG_LSU_PENDING_SIZE is 8, and 50 words is 13 beats per phase per lane.
+// The other half of that is an IMPLICIT ACQUIRE, and it took a second bug to
+// find. A store commits as soon as the LSU dispatches it -- it allocates no
+// pending entry and leaves pending_instrs_ right away -- while its data is
+// still travelling to the cache. So the PE, which injects at lmem_switch, can
+// read a word the caller has already "written". With one warp nothing else is
+// competing for the dispatch slot and it never showed; from two warps up it
+// did, and mlkem_width -b 4 -t 1 had warp 0 correct and warps 1..3 wrong in
+// 70, 64 and 63 of their 156 permutations, always in the last beat:
+//     w0  in[24] = 0000000000000000      <- correct
+//     w1  in[24] = ea29fda51a713d91      <- a previous state, still there
+//     w2  in[24] = ea29fda500000000      <- one 32-bit word stale, one fresh
+// A watch on that address read the inversion straight off:
+//     cy=181946 pqc  LD addr=fffe7078
+//     cy=181954 core ST addr=fffe7078    <- the caller's store, 8 cycles late
+// The guard is has_pending_instrs(wid) before the first load. The warp is
+// wstall'd on this instruction, so any other trace of it still in flight is
+// necessarily older, and holding for them is nearly free: 161 cycles on the
+// 11.71 M-cycle ML-KEM profile run (0.0014%), and exactly zero on the plain
+// single-warp build, where nothing else is ever in flight to wait for.
 //
-// STOP GUESSING AT THIS POINT. Four hypotheses have been tried and each shifted
-// the symptom without predicting it. The next step is not another guess: log
-// every PQC request and response with its cycle, phase, lane and tag, then diff
-// a passing t=2 run against a failing t=3 one. The first divergence names the
-// mechanism.
-//
-// The
-// per-lane drain therefore orders THAT lane's stores but something about
-// serving lanes one after another leaves an earlier lane's writes behind. The
-// The diagnostic ran. It is the LAST two lanes -- states 2 and 3 of 4 -- and
-// each is wrong in all 25 words rather than a few.
-//
-// AND THE AGU IS NOT THE DEFECT. Tracing every lane's completion shows all four
-// finishing cleanly on every call, recvd=50 and sent=50, at four distinct
-// 8 KB-spaced per-hart stack addresses:
-//     lane=0 base=0xfffeff30 DONE recvd=50 sent=50
-//     lane=1 base=0xfffedf30 DONE recvd=50 sent=50
-//     lane=2 base=0xfffebf30 DONE recvd=50 sent=50
-//     lane=3 base=0xfffe9f30 DONE recvd=50 sent=50
-// The PE reads, permutes and writes back the right 200 bytes for every lane. So
-// the remaining suspect is visibility rather than work: the drain load for a
-// lane may be satisfied by the cache line its own last store just filled, which
-// returns immediately and orders nothing behind it, leaving the other 49 words
-// in flight when the instruction retires. That would explain why one lane is
-// fine (its stores have many cycles of the following lanes to drain) and the
-// last lanes are not.
-//
-// THE DRAIN NOW RE-READS ALL 50 WORDS, and the one-word version is why.
-// A fence after the instruction halved the damage (bad=50 -> bad=25) rather than
-// removing it, which says the fence does not cover this client: FenceController
-// waits on pending_reqs.empty(), stores allocate no entry there, so a fence can
-// retire while the PE's writes are still in flight. A one-word drain had the
-// same hole -- it orders one line and leaves twelve.
-// Reading every word back closes both. The loads allocate pending entries, so
-// the PE's traffic is now visible to fences and to drained(), and their
-// responses are the completion signal the store path cannot give. It costs a
-// second round trip per permutation, which is real and shows up in the cycle
-// count -- and it is what hardware would pay too, in a write-acknowledge or a
-// fence, for an instruction that must not retire before its writes are seen.
+// TWO TRAPS WORTH LEAVING WRITTEN DOWN.
+// The first is that instr_trace_t::uuid is generated under #ifndef NDEBUG in
+// scheduler.cpp, so in a release build every uuid is 0. Two earlier versions of
+// this guard ordered on uuid, compiled clean, and were exactly as vacuous as
+// `0 < 0` -- both runs reproduced the failing cycle count to the bit, which is
+// the tell: a guard that changes nothing is not a guard that was not needed.
+// The second is that this client's forward block in LsuUnit::dispatch runs
+// ahead of the block's own req_queue and returns on success, so the PE has
+// priority over the core -- a risk recorded when this client was written, and
+// this is it arriving. How much of the eight-cycle window it opened is untested:
+// the vacuous uuid gate proved nothing about what was in req_queue, and the
+// working guard makes the question moot by holding the PE instead.
 //
 // ONE LANE AT A TIME. The unit serves the active lanes of a trace serially:
 // simpler, and the timing model already serialises on VX_CFG_PQC_NUM_ENGINES,

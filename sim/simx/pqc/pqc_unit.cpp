@@ -132,6 +132,16 @@ void PqcUnit::step() {
       issue_beat(false);
     }
   } else if (phase_ == Phase::LOADING) {
+    if (core_->has_pending_instrs(owner_->wid)) {
+      // IMPLICIT ACQUIRE -- see the header note. The warp is wstall'd on this
+      // instruction, so any OTHER trace of it still in flight is necessarily
+      // older; hold the first load until they are gone.
+      //
+      // Do not be tempted to compare trace->uuid here: scheduler.cpp generates
+      // uuids under #ifndef NDEBUG only, so in a release build every uuid is 0
+      // and any ordering test on it is silently vacuous.
+      return;
+    }
     if (sent_ < WORDS) {
       issue_beat(false);
     } else if (recvd_ == WORDS) {

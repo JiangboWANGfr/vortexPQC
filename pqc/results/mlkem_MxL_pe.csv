@@ -1,0 +1,63 @@
+# The same M x L grid as mlkem_MxL.csv, with KECCAKF instead of software Keccak.
+#   M = independent requests, one CTA each          L = lanes cooperating on the x4 batch
+# tests/pqc/mlkem_width, KECCAK=pe, simx, 1 core / 8 warps / 4 threads, L2 on.
+# Same test, same coins, same per-request verification as the software grid: every
+# cell decapsulates to encapsulation's secret and matches the W=1 pk/sk/ct/ss
+# checksums, so a cell that corrupted a neighbour fails instead of measuring.
+#
+# The PE arm swaps only the engine inside mlk_simt_fips202.h -- the x1 hook calls
+# vx_keccakf and the x4 lane-spreading loop keeps its lane mapping -- so an M x L
+# cell means the same thing in both grids and the two are comparable cell by cell.
+#
+# throughput = M * cycles(this grid's M=1,L=1) / cycles
+# vs_sw      = software cycles at the same cell / these cycles (blank where the
+#              software grid has no L2-on cell)
+l2,M,L,harts,cycles,instrs,ipc,throughput,efficiency,vs_sw,passed
+on,1,1,1,12781073,1229921,0.096,1.000,1.000,2.865,1
+on,1,2,2,12715731,1218745,0.096,1.005,0.503,2.260,1
+on,1,4,4,12712129,1213156,0.095,1.005,0.251,1.938,1
+on,2,1,2,12787508,2459842,0.192,1.999,0.999,,1
+on,2,2,4,12743832,2437490,0.191,2.006,0.501,,1
+on,2,4,8,13482526,2426312,0.180,1.896,0.237,,1
+on,4,1,4,12939667,4919684,0.380,3.951,0.988,2.871,1
+on,4,2,8,13023804,4874980,0.374,3.925,0.491,2.363,1
+on,4,4,16,13347716,4852624,0.364,3.830,0.239,2.135,1
+on,8,1,8,14036993,9839368,0.701,7.284,0.911,2.920,1
+on,8,2,16,14681493,9749960,0.664,6.964,0.435,2.454,1
+on,8,4,32,16032790,9705248,0.605,6.377,0.199,2.207,1
+#
+# THE LANE AXIS STOPS PAYING. This is the result the grid was run for.
+#   M=1, L: 1 -> 4     software  36,616,483 -> 24,640,135   1.486x
+#                      with PE   12,781,073 -> 12,712,129   1.005x
+# The L axis in this design exists to spread one request's x4 Keccak batch across
+# lanes; it accelerates nothing else. Make the permutation 106x cheaper and the
+# thing it was accelerating stops being worth accelerating -- 0.5%, which is
+# inside the noise of a cache-configuration change. The instruction and the lane
+# axis are SUBSTITUTES, not complements, and this is the measurement that says so
+# rather than an argument that it should be true.
+#
+# WHICH IS WHY THE BEST CELL MOVES. Software's best cell is M=8,L=4 at 8.280x;
+# the PE's best is M=8,L=1 at 7.284x. Best against best:
+#   software 8 requests in 35,377,658     PE 8 requests in 14,036,993     2.520x
+# and the PE reaches it with L=1, so three of every four lanes are idle. What
+# limits M is not lanes but the 19,232-byte per-hart arena against a 16 KB L1.
+#
+# THE M AXIS IS UNTOUCHED, which is the other half of the same point.
+#   M: 1 -> 8 at L=1   software 7.146x (efficiency 0.893)
+#                      with PE  7.284x (efficiency 0.911)
+# Independent requests were never bottlenecked on lane-level Keccak parallelism,
+# so removing that bottleneck neither helps nor hurts them. Batching is the axis
+# that survives acceleration.
+#
+# THE PER-CELL SPEEDUP FALLS AS L RISES -- 2.865x at L=1, 1.938x at L=4 -- and
+# that is not the instruction getting worse. It is the software arm getting
+# better: at L=4 the software has already spent four lanes buying 1.486x, so the
+# PE has less left to take. Quoting the L=1 number as "the speedup" and the L=4
+# configuration as "the machine" would be mixing two arms; the honest pair is
+# best-against-best above.
+#
+# WHAT THIS GRID COST TO GET RIGHT. Seven of the twelve cells failed on the first
+# run, every failure at M >= 2, and the cause was a second ordering bug that no
+# single-warp test could reach -- see keccak_ise_simx.csv and sim/simx/pqc/
+# pqc_unit.h. The numbers above are from after the fix; the failing run is not
+# averaged in anywhere.

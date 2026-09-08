@@ -23,6 +23,15 @@ ifneq ($(PAINT),)
 	VX_CFLAGS += -DPQC_PAINT_SLABS=$(PAINT)
 endif
 
+# KECCAK=pe swaps the engine inside the SIMT backend and leaves the lane mapping
+# alone, so an M x L cell means the same thing it meant in the software sweep.
+ifeq ($(KECCAK),pe)
+	VX_CFLAGS += -DPQC_KECCAK_PE
+	CXXFLAGS  += -DPQC_KECCAK_PE
+else ifneq ($(KECCAK),)
+$(error KECCAK must be pe or unset -- got '$(KECCAK)')
+endif
+
 ifeq ($(SERIAL),1)
 	VX_CFLAGS += -DPQC_SERIAL_FIPS202_ONLY
 	CXXFLAGS  += -DPQC_SERIAL_FIPS202_ONLY

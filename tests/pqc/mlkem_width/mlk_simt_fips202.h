@@ -22,6 +22,10 @@
 // file is pulled in from src/common.h, before keccakf1600.h exists. Same
 // namespaced symbol, same translation unit, so this is the very code the
 // baseline runs -- the only difference between the arms is which lane runs it.
+#if defined(PQC_KECCAK_PE)
+#include <vx_pqc.h>
+#endif
+
 #define mlkw_permute1 MLK_NAMESPACE(keccakf1600_permute)
 extern void mlkw_permute1(uint64_t *state);
 
@@ -40,7 +44,12 @@ static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
 {
   (void)state;
   mlkw_counts[(unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1)][MLKW_KECCAK_X1]++;
+#if defined(PQC_KECCAK_PE)
+  vx_keccakf(state);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#else
   return MLK_NATIVE_FUNC_FALLBACK;
+#endif
 }
 
 #define MLK_USE_NATIVE_FIPS202_X4
@@ -62,7 +71,14 @@ static MLK_INLINE int mlk_keccak_f1600_x4_native(uint64_t *state)
   {
     uint64_t tmp[25];
     for (i = 0; i < 25; i++) tmp[i] = state[25 * s + i];
+#if defined(PQC_KECCAK_PE)
+    // The lane mapping is unchanged -- lane t still takes sub-states
+    // t, t+W, ... -- so the L axis means exactly what it meant in the software
+    // sweep. Only the engine differs, which is the whole point of the arm.
+    vx_keccakf(tmp);
+#else
     mlkw_permute1(tmp);
+#endif
     for (i = 0; i < 25; i++) xb[s][i] = tmp[i];
   }
 

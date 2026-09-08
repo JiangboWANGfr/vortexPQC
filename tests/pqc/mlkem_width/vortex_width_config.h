@@ -17,6 +17,12 @@
 #define MLK_CONFIG_SERIAL_FIPS202_ONLY
 #endif
 
+// This build owns the FIPS-202 backend: the SIMT lane mapping has to be in it.
+// KECCAK=pe does not select a different backend here -- it swaps the engine
+// inside mlk_simt_fips202.h and leaves the mapping alone. The included baseline
+// config has already set these for its own KECCAK arms, so undefine first.
+#undef MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
+#undef MLK_CONFIG_FIPS202_BACKEND_FILE
 #define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
 #define MLK_CONFIG_FIPS202_BACKEND_FILE "mlk_simt_fips202.h"
 

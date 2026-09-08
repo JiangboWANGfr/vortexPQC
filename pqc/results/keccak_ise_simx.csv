@@ -26,16 +26,16 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # normalises the cost is the count that build executed.
 #
 #   baseline (reference C)   33,492,153
-#   KECCAK=pe                11,712,702    2.8595x
+#   KECCAK=pe                11,712,863    2.8594x
 #   ABLATE=keccak (floor)    11,505,678    ceiling 2.9109x
 #   fraction of ceiling      98.2%
-#   per permutation          (11,712,702 - 11,505,678) / 144 = 1,438 cycles
-#   against software                        151,872 -> 106x
+#   per permutation          (11,712,863 - 11,505,678) / 144 = 1,439 cycles
+#   against software                        151,872 -> 105.6x
 #
 # An earlier version of this file said 147 cycles and 1,031x. That came from
 # subtracting the profile build's floor from the PLAIN build's PE total -- the
 # plain build has no counters, so its total is lower and the difference looked
-# ten times smaller than it is. Both figures are retracted. 1,438 is also the
+# ten times smaller than it is. Both figures are retracted. 1,439 is also the
 # plausible one: 150 word accesses at this machine's memory cost is the same
 # order, and 147 never was.
 #
@@ -50,7 +50,7 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # THE FLOOR CHECK, which is the instrument that earned its keep twice.
 # ABLATE=keccak measures the non-Keccak remainder at 11,505,678 cycles -- the
 # cost of ML-KEM with Keccak free. A correct acceleration lands just above it.
-#   PE arm, same build   11,712,702  =  floor + 207,024  (+1.80%)
+#   PE arm, same build   11,712,863  =  floor + 207,185  (+1.80%)
 # Two earlier versions of this instruction reported 6.7M and 6.9M, BELOW the
 # floor, which is impossible: a wrong permutation makes the rejection sampler
 # accept everything and the work disappears. The floor caught both before the
@@ -69,23 +69,58 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # word is already in a register. Every blocking op in decode.cpp sets wstall;
 # this one did not.
 #
-# BOTH ORDERING BOUNDARIES ARE NOW TESTED, not argued.
+# BOTH ORDERING BOUNDARIES ARE NOW TESTED -- AND THE SECOND ONE WAS BROKEN.
 # set_wstall stops LATER instructions overtaking the engine. It says nothing
 # about whether an EARLIER store has landed by the time the PE reads, which is a
 # separate boundary and got its own probe: tests/pqc/keccak_sg5 -f 16 has the CPU
 # store into the state with nothing between that and the instruction, -f 20 does
-# both directions at once.
-#   t=4 p=1 f=0    bad=0      t=4 p=4 f=4   bad=0
-#   t=4 p=4 f=0    bad=0      t=4 p=4 f=16  bad=0
-#   t=1/3/4 p=4 f=20  bad=0
-# The mechanism is that both streams enter the same lmem_switch, so accesses to
-# one address are ordered by it. Worth knowing anyway: the PQC forward block runs
-# BEFORE the LSU's own dispatch and returns on success, so this client has
-# priority over the core's queue. It did not bite here because an in-order warp
-# has already issued its earlier stores by the time the PQC instruction
-# dispatches, but the priority inversion is real and is the thing to look at
-# first if an ordering bug ever reappears.
+# both directions at once. All twenty probes pass, at every lane count:
+#   t=1..4 x f=0,4,8,16,20   bad=0   (20/20)
 #
+# THOSE PROBES ARE ALL SINGLE-WARP, AND THAT IS WHY THEY PASSED. keccak_sg5 has
+# no warp axis -- -t is lanes within one warp -- so the whole suite exercises one
+# caller. Taking that as "the boundary holds" was the mistake -- an earlier
+# version of this file said so on the strength of these twenty runs.
+# The first run of the M x L grid with the PE (mlkem_MxL_pe.csv) failed 7 of 12
+# cells, every failure at M >= 2:
+#   M=1: L=1,2,4 pass        M=2: L=1,2 pass, L=4 FAIL        M=4, M=8: all FAIL
+# Block 0 was always right and the others wrong, which names the warp axis
+# directly. At M=4,L=1, warps 1..3 were wrong in 70, 64 and 63 of their 156
+# permutations. Diffing the per-permutation inputs -- all four warps do identical
+# work, so warp 0's k-th input must equal warp 1's -- put the first divergence in
+# the LAST BEAT only:
+#   w0  in[24] = 0000000000000000    correct
+#   w1  in[24] = ea29fda51a713d91    a previous state of that buffer
+#   w2  in[24] = ea29fda500000000    one 32-bit word stale, one fresh
+# in[0] and in[1] agreed everywhere, so the engine was not computing wrong; it
+# was reading words the caller had already written. A watch on that address shows
+# the inversion with no interpretation needed:
+#   cy=181946 pqc  LD addr=fffe7078
+#   cy=181954 core ST addr=fffe7078     <- the caller's store, 8 cycles later
+# against the good rounds, where core ST precedes pqc LD by ~150 cycles. Whether
+# the forward block's priority over the core's queue is what opened that window
+# is untested: the flagged inversion is real and this is the shape it would take,
+# but the guard below makes the PE stand down rather than settle the question.
+#
+# THE FIX IS AN IMPLICIT ACQUIRE, one line in pqc_unit.cpp: hold the first load
+# while core_->has_pending_instrs(wid). The warp is wstall'd on this instruction,
+# so any other trace of it still in flight is necessarily older. All 12 cells
+# pass, up to 8 warps x 4 lanes, and all 20 single-warp probes still do.
+#   cost   +161 cycles on 11,712,863 (0.0014%) in the profile build
+#          +0     in the plain single-warp build -- the numbers in the table at
+#                 the top of this file and the latency sweep below reproduce to
+#                 the cycle, because there is never anything to wait for
+#
+# TWO METHOD NOTES, both of which cost time here.
+# instr_trace_t::uuid is generated under #ifndef NDEBUG (scheduler.cpp), so every
+# uuid is 0 in a release build. Two versions of this guard ordered on uuid,
+# compiled clean, and were exactly as vacuous as `0 < 0`. The tell was that both
+# reproduced the FAILING cycle count to the bit: a guard that changes nothing is
+# not a guard that turned out to be unnecessary. The second note is that the
+# thing which finally separated "racing" from "computing wrong" was a fixed
+# pre-issue delay -- 0 fails, 20 passes, 200 passes -- which is a bad fix and a
+# very good instrument.
+
 # THE DRAIN IS KEPT, AND IT IS ALMOST FREE.
 # Measured both ways (PQC_NO_DRAIN):
 #   with drain     ML-KEM 11,526,887   microbench 769.7 cy/perm   bad=0
@@ -118,7 +153,7 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # more than the experiment did.
 
 # THE DRAIN, PRICED IN THE SAME BUILD.
-#   with drain     11,712,702        without (PQC_NO_DRAIN)  11,706,942
+#   with drain     11,712,863        without (PQC_NO_DRAIN)  11,707,103
 # 5,760 cycles over 144 permutations, 40 cycles each, 2.8% of the PE's cost.
 # Cheaper than expected for a fifty-word read-back, and the reason is worth
 # noting: those lines were just written by the PE, so the drain hits the cache.
