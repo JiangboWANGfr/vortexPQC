@@ -48,3 +48,8 @@ than the timeout, a stopped FU, unrelated-FU activity and an unresolved register
 dependency with same-FU activity. Restoring the original counter rejects the
 progressing queue; the corrected counter still rejects all three stuck cases.
 This watchdog checks lack of progress, not a fixed per-warp latency guarantee.
+
+The AVED build also rejects two unused high bits in the LSU scheduler's modulo
+temporaries. Keep the addition and comparison wide, and cast the modulo result
+directly to the client-index width. This preserves wraparound for three clients
+and avoids unused intermediate bits without disabling the lint checks.
