@@ -17,6 +17,9 @@ warps,threads,total_luts,logic_luts,lutrams,srls,ffs,dsp,wns_ns,fmax_mhz,build_t
 4,16,128939,122633,4270,2036,120295,80,0.068,306.3,19m56s
 8,4,42553,40315,1722,516,39283,20,0.004,300.4,12m00s
 8,16,148827,142273,4518,2036,134982,80,0.018,301.6,23m00s
+4,32,-,-,-,-,-,-,-0.045,293.7,86m
+8,32,325407,313044,8286,4077,269344,160,-0.066,294.2,86m
+8,32,323072,310716,8286,4070,263116,160,0.015,250.9,44m  # constrained at 250 MHz, not 300
 #
 # RESULT 1 -- THE TWO AXES COST VERY DIFFERENT AMOUNTS.
 #   thread axis (4x threads):  3.796x LUTs at 4 warps, 3.497x at 8
@@ -63,3 +66,54 @@ warps,threads,total_luts,logic_luts,lutrams,srls,ffs,dsp,wns_ns,fmax_mhz,build_t
 # at 4, and the library caps Keccak's lane axis at 4 regardless. 16 threads is
 # there only so SG5 can exist, at a cost this grid now prices: 3.5x the core area
 # and essentially all of the timing margin.
+
+# ============================================================================
+# THE 32-LANE QUESTION, AND THE DECISION. Added after the target was relaxed
+# from 300 MHz to 250 MHz.
+# ============================================================================
+#
+# At a 300 MHz constraint 32 threads FAILS at both warp counts -- -0.066 ns at
+# 8 warps, -0.045 ns at 4 -- and the failing path is the same one in both:
+#   core/issue/g_slices[0].issue_slice/scoreboard/g_scoreboard[2].operands_ready_r_reg
+# It is Vortex's own issue-stage scoreboard widening with the thread count, and
+# it has nothing to do with the PQC extension. Pipelining anything in hw/rtl/pqc
+# would not move it.
+#
+# At a 250 MHz constraint 8 warps x 32 threads CLOSES: +0.015 ns. Note the two
+# runs answer different questions and neither number is the other's:
+#   constrained 300 MHz -> -0.066 ns, i.e. the BEST-EFFORT fmax is 294.2 MHz
+#   constrained 250 MHz -> +0.015 ns, i.e. it MEETS 250, and Vivado stopped
+#                          optimising once it did (a different, easier critical
+#                          path, and 2,335 fewer LUTs)
+# Both agree: 250 passes, 300 does not, and the achievable frequency is ~294 MHz.
+#
+# WHAT 32 LANES COSTS AND BUYS, all measured:
+#   costs   2.17x the core LUTs (325,407 against 148,827; 12.64% of the device)
+#           ~2.5% of clock against the 16-lane config's 301.6 MHz best effort
+#   free    +0.025% software cycles against a 16-lane build at L=4, and +0.0002%
+#           at L=1 (lane_axis_to_16.csv). The whole build-width penalty is in the
+#           4 -> 16 step; 16 -> 32 is nothing. Having decided to pay for 16, 32 is
+#           had for almost nothing on the software side.
+#   buys    SG25 for school D: at 32 lanes each holds exactly one of the 25 state
+#           words, the slot partition becomes trivial, the impossibility theorem
+#           of cooperative_ise_proposal.md S2.2 goes vacuous, and the per-round
+#           memory transpose SG5 needs disappears entirely.
+#           The cooperative NTT keeps scaling: 26.94x self-scaling at 32 lanes,
+#           84.2% efficient, 17.022x against the library reference.
+#           Alignment with every GPU PQC paper in the survey, all of which are
+#           CUDA at warp = 32.
+#
+# DECISION: 8 warps x 32 threads, targeting ~290 MHz rather than 300.
+#   warps   8 is what the M x L sweeps support -- 0.893 efficiency at M=8 -- and
+#           the warp axis is cheap, 1.15-1.25x area for 2x warps.
+#   threads 32, on the reasoning above. NOT because the KEM uses them: the
+#           library's x4 Keccak API caps that lane axis at 4 and a wide uniform
+#           launch is 2.75x SLOWER (lane_axis_to_16.csv). The KEM launches narrow
+#           and the wide kernels -- cooperative NTT, and school D if it is built
+#           -- are separate launches that use the width.
+#   clock   ~290 MHz. 300 is not reachable at this width and the scoreboard, not
+#           the extension, is why.
+#
+# CONSEQUENCE FOR INTEGRATION, unchanged and now sharper: at 8w x 16t the core
+# had 18 ps of margin at 300 MHz; at 8w x 32t it has none at 300 and 15 ps at
+# 250. Adding the PE in-core is a timing question from the first line of RTL.
