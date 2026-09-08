@@ -16,6 +16,14 @@
 
 #include "vortex_mlkem_config.h"
 
+// The profile build owns the FIPS-202 backend, because the counters have to be
+// in it. KECCAK=pe does NOT select a different backend here the way it does in
+// the plain mlkem build -- it routes to the instruction from inside
+// mlk_prof_fips202.h, so the count and the instruction stay in one hook. The
+// included baseline config has already set these for its own KECCAK arms, so
+// undefine before redefining rather than leaving a redefinition warning.
+#undef MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
+#undef MLK_CONFIG_FIPS202_BACKEND_FILE
 #define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
 #define MLK_CONFIG_FIPS202_BACKEND_FILE "mlk_prof_fips202.h"
 

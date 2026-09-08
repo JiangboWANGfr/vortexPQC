@@ -305,11 +305,10 @@ VX_CFG_PQC_NUM_ENGINES = 1
 # UNROLL=1 is 24 rounds at one round per cycle; the memory round trip for the
 # 200 bytes in and out is on top and is swept separately.
 VX_CFG_PQC_KECCAK_LATENCY = 24
-# Cycles charged for reading the 200-byte state in and writing it back out.
-# SEPARATE FROM THE ABOVE ON PURPOSE: the datapath number comes from synthesis
-# and is solid, this one is a model of a memory system and is not, so the paper
-# reports a sensitivity curve over it rather than one figure.
-VX_CFG_PQC_MEM_LATENCY = 32
+# There is deliberately no memory-latency knob. An earlier version charged a flat
+# figure for the 200 bytes in and out; the PE now issues real beats through an LSU
+# client port, so that cost is emergent from the memory system being modelled
+# rather than asserted. A dead knob is worse than none.
 
 [rtu]
 # RTU (Ray-Tracing Unit)

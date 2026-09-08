@@ -25,6 +25,15 @@ CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
 # success. The build then computes garbage, on purpose: the cycle delta against
 # ABLATE unset is that primitive's true cost, measured rather than estimated
 # from a call count times a microbenchmark.
+# KECCAK=pe routes the permutation to the KECCAKF instruction, inside this
+# counting build, so the PE arm and its own baseline and floor are one build.
+ifeq ($(KECCAK),pe)
+	VX_CFLAGS += -DPQC_KECCAK_PE
+	CXXFLAGS  += -DPQC_KECCAK_PE
+else ifneq ($(KECCAK),)
+$(error KECCAK must be pe or unset -- got '$(KECCAK)')
+endif
+
 ifeq ($(ABLATE),keccak)
 	ABLATE_FLAGS := -DPQC_ABLATE_KECCAK
 else ifeq ($(ABLATE),ntt)

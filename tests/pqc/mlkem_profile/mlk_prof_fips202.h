@@ -21,13 +21,25 @@
 // include path instead.
 #include "src/fips202/native/api.h"
 #include "mlk_prof_counters.h"
+#if defined(PQC_KECCAK_PE)
+#include <vx_pqc.h>
+#endif
 
 #define MLK_USE_NATIVE_FIPS202_X1
 static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
 {
   (void)state;
   mlk_prof_counts[MLK_PROF_KECCAK_X1]++;
-#if defined(PQC_ABLATE_KECCAK)
+#if defined(PQC_KECCAK_PE)
+  /* KECCAK=pe inside the PROFILE build. The point is to have the PE arm, the
+   * un-ablated baseline and ABLATE=keccak all in ONE build: a per-permutation
+   * cost taken across two builds is the mixing this directory forbids, and the
+   * 147-cycle figure that came from doing it has been retracted. Here the
+   * counter and the instruction sit in the same hook, so the count that
+   * normalises the cost is the count that build actually executed. */
+  vx_keccakf(state);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#elif defined(PQC_ABLATE_KECCAK)
   /* Claim success without permuting: the call structure is untouched and the
    * permutation work vanishes, so the cycle delta against the baseline is
    * Keccak's true cost. Results are wrong by construction -- this build is an

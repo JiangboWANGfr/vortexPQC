@@ -18,28 +18,39 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # ablation_mlkem.csv puts the Amdahl bound for a free Keccak at 2.911x on these
 # coins. The instruction reaches **97.7% of it**.
 #
-# WHAT THE REMAINING 2.3% IS HAS NOT BEEN MEASURED, and an earlier version of
-# this file said it had. It claimed 147 cycles per permutation, from
-#   (PE total - ablation total) / 144
-# which is a cross-build subtraction: the ablation is the mlkem_profile build
-# with its counters, the PE arm is the mlkem build. That is the same mixing this
-# directory forbids by name, and it is the mistake ablation_mlkem.csv was
-# rewritten to remove. The figure is retracted, and so is the "24 datapath + 123
-# memory" split derived from it -- neither term was isolated.
-# A real per-permutation cost needs the PE and its baseline in ONE build.
+# THE PER-PERMUTATION COST, NOW TAKEN IN ONE BUILD -- AND THE OLD ONE WAS WRONG
+# BY A FACTOR OF TEN.
+# tests/pqc/mlkem_profile gained a KECCAK=pe arm, so the PE, its baseline and the
+# ABLATE=keccak floor are the same binary with the same counters and the same 144
+# permutations. The counting hook now holds the instruction, so the count that
+# normalises the cost is the count that build executed.
 #
-# ALSO UNRECONCILED: the PE build executes **140** KECCAKF instructions in a
-# round trip (counted in the unit), while the profile build reports **144** x1
-# calls. Same coins, same library, same parameter set, different builds and
-# different counts. Nothing per-permutation should be normalised by either number
-# until that is explained.
+#   baseline (reference C)   33,492,153
+#   KECCAK=pe                11,712,702    2.8595x
+#   ABLATE=keccak (floor)    11,505,678    ceiling 2.9109x
+#   fraction of ceiling      98.2%
+#   per permutation          (11,712,702 - 11,505,678) / 144 = 1,438 cycles
+#   against software                        151,872 -> 106x
+#
+# An earlier version of this file said 147 cycles and 1,031x. That came from
+# subtracting the profile build's floor from the PLAIN build's PE total -- the
+# plain build has no counters, so its total is lower and the difference looked
+# ten times smaller than it is. Both figures are retracted. 1,438 is also the
+# plausible one: 150 word accesses at this machine's memory cost is the same
+# order, and 147 never was.
+#
+# ON THE TWO COUNTS. The plain mlkem build executes 140 KECCAKF instructions per
+# round trip; the profile build's hook fires 144 times. The builds route the x4
+# path differently -- the profile hooks it, the plain build lets it fall back --
+# so their x1 counts differ by one x4's worth. Each build is self-consistent, and
+# the rule that matters is that a normalisation uses the count from its own
+# build. The latency sweep's slope of 140 is exactly the plain build's count,
+# which is why that sweep is internally sound.
 #
 # THE FLOOR CHECK, which is the instrument that earned its keep twice.
 # ABLATE=keccak measures the non-Keccak remainder at 11,505,678 cycles -- the
 # cost of ML-KEM with Keccak free. A correct acceleration lands just above it.
-#   PE arm  11,526,887  =  floor + 21,209  (+0.18%)
-# (That 21,209 is itself a cross-build difference and is quoted only as a
-# consistency check against an impossible value, not as the PE's cost.)
+#   PE arm, same build   11,712,702  =  floor + 207,024  (+1.80%)
 # Two earlier versions of this instruction reported 6.7M and 6.9M, BELOW the
 # floor, which is impossible: a wrong permutation makes the rejection sampler
 # accept everything and the work disappears. The floor caught both before the
@@ -105,3 +116,12 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # clock the engine could close at, its occupancy, or how it behaves with several
 # warps issuing. Reading it as "the datapath is not worth optimising" is reading
 # more than the experiment did.
+
+# THE DRAIN, PRICED IN THE SAME BUILD.
+#   with drain     11,712,702        without (PQC_NO_DRAIN)  11,706,942
+# 5,760 cycles over 144 permutations, 40 cycles each, 2.8% of the PE's cost.
+# Cheaper than expected for a fifty-word read-back, and the reason is worth
+# noting: those lines were just written by the PE, so the drain hits the cache.
+# A hit orders nothing behind it, which means the drain is not what makes this
+# correct -- set_wstall is. It stays as the conservative belt-and-braces at 2.8%,
+# not as the mechanism.
