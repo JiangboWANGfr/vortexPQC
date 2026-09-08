@@ -33,15 +33,21 @@
 
 typedef struct {
   uint64_t states_addr;  // out : nharts * 25 * uint64_t
-  uint64_t cycles_addr;  // out : KP_CY_COUNT * uint64_t
+  uint64_t cycles_addr;  // out : 2 * nharts * uint64_t -- t0,t1 per hart
   uint32_t perms;        // in  : chained permutations per hart
   uint32_t nharts;       // in  : blocks * threads
   uint32_t threads;      // in  : block_dim, for the global hart id
   uint32_t pad;
 } kernel_arg_t;
 
-#define KP_CY_RUN   0   // cycles for the whole permutation loop, hart 0
-#define KP_CY_COUNT 1
+// EVERY hart's loop is timed, not just hart 0's. Reporting one hart and then
+// calling "total minus that hart's loop" the launch overhead is wrong the
+// moment there is more than one warp: the remainder still contains the other
+// harts' PE work, which is exactly the quantity a launch-overhead claim is
+// trying to exclude. With t0/t1 per hart the host can report the true span
+// (max t1 - min t0), and total - span is then genuinely outside the kernel.
+#define KP_CY_T0(h)  (2u * (h))
+#define KP_CY_T1(h)  (2u * (h) + 1u)
 
 // One seed per hart and word. Distinct per hart so a state written to the wrong
 // hart's slot fails instead of matching.

@@ -40,6 +40,11 @@ bool PqcUnit::next_lane() {
     base_  = rs1_data[t].u;   // byte address of 25 uint64_t, the library's layout
     sent_  = 0;
     recvd_ = 0;
+    // One engine serves ENGINES lanes per pass, so only every ENGINES-th lane
+    // starts a new occupancy window.
+    perm_wait_ = ((lane_seq_ % VX_CFG_PQC_NUM_ENGINES) == 0)
+               ? VX_CFG_PQC_KECCAK_LATENCY : 0;
+    ++lane_seq_;
     phase_ = Phase::LOADING;
     return true;
   }
@@ -153,6 +158,9 @@ void PqcUnit::step() {
       phase_ = Phase::PERMUTED;
       sent_  = 0;
     }
+  } else if (phase_ == Phase::PERMUTED && perm_wait_ > 0) {
+    // The engine is busy. Hold the unit, exactly as VX_pqc_agu holds PQC_PERM.
+    --perm_wait_;
   } else if (phase_ == Phase::PERMUTED || phase_ == Phase::STORING) {
     phase_ = Phase::STORING;
     if (sent_ < WORDS) {
@@ -176,6 +184,7 @@ instr_trace_t* PqcUnit::process(instr_trace_t* trace) {
   if (owner_ == nullptr) {
     owner_ = trace;
     phase_ = Phase::IDLE;
+    lane_seq_ = 0;
     if (!next_lane()) {
       // No active lane: nothing to permute, retire immediately.
       owner_ = nullptr;
@@ -200,16 +209,8 @@ instr_trace_t* PqcUnit::process(instr_trace_t* trace) {
 }
 
 uint32_t PqcUnit::latency(const instr_trace_t* trace) const {
-  uint32_t jobs = 0;
-  for (uint32_t t = 0; t < VX_CFG_NUM_THREADS; ++t) {
-    if (trace->tmask.test(t)) {
-      ++jobs;
-    }
-  }
-  if (jobs == 0) {
-    return 1;
-  }
-  const uint32_t engines = VX_CFG_PQC_NUM_ENGINES;
-  const uint32_t passes = (jobs + engines - 1) / engines;
-  return VX_CFG_PQC_KECCAK_LATENCY * passes;
+  // The engine's time is charged inside the unit now (see the header note), so
+  // the output delay is the SFU's minimum. Anything more would double-count.
+  (void)trace;
+  return 1;
 }

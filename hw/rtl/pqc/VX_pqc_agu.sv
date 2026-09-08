@@ -109,6 +109,7 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
     pqc_state_e state_q;
 
     logic unlock_pending_r;
+    logic result_sent_r;
 
     sfu_header_t                       header_r;
     logic [NUM_LANES-1:0]              pending_lanes_r;   // lanes still to serve
@@ -247,6 +248,7 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
         if (reset) begin
             state_q         <= PQC_IDLE;
             unlock_pending_r <= 1'b0;
+            result_sent_r    <= 1'b0;
             header_r        <= '0;
             pending_lanes_r <= '0;
             base_r          <= '0;
@@ -268,7 +270,17 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
                     recvd_r         <= '0;
                     // No active lane: nothing to permute, retire immediately.
                     state_q <= (| execute_if.data.header.tmask) ? PQC_ACQ : PQC_DONE;
-                    unlock_pending_r <= 1'b1;
+                    // ONLY THE LAST PASS RELEASES THE WARP. With
+                    // SIMD_WIDTH < NUM_THREADS one KECCAKF arrives as several
+                    // passes, each with its own tmask (ci/testcases/config1.yaml
+                    // builds SIMD_WIDTH=1 and 2, so this is not hypothetical).
+                    // Unlocking on the first would let the caller's next load
+                    // run while the later passes' lanes are still unpermuted --
+                    // the same stale read the acquire exists to prevent,
+                    // reintroduced from the other end. Earlier passes still
+                    // return their result normally; they just do not unlock.
+                    unlock_pending_r <= execute_if.data.header.eop;
+                    result_sent_r    <= 1'b0;
                 end
             end
             PQC_ACQ: begin
@@ -341,10 +353,22 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
                 end
             end
             PQC_DONE: begin
-                // Both must happen: the result retires the instruction and the
-                // unlock releases the warp decode stalled.
-                if (result_fire && (unlock_ack || !unlock_pending_r)) begin
-                    state_q <= PQC_IDLE;
+                // Both must happen -- the result retires the instruction and
+                // the unlock releases the warp decode stalled -- but they can
+                // complete in EITHER ORDER and must be tracked apart. Holding
+                // result_if.valid while waiting for a preempted unlock would
+                // offer the same result again the next cycle: a duplicate
+                // commit and a corrupted pending count. The RTU can take the
+                // unlock port on the very cycle this result is accepted (it
+                // pulses unlock a cycle before its own result), so the race is
+                // reachable, not theoretical.
+                if (result_fire) begin
+                    result_sent_r <= 1'b1;
+                end
+                if ((result_sent_r || result_fire)
+                 && (!unlock_pending_r || unlock_ack)) begin
+                    state_q       <= PQC_IDLE;
+                    result_sent_r <= 1'b0;
                 end
             end
             default: state_q <= PQC_IDLE;
@@ -362,8 +386,9 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
                      warp_pending_alm_empty[header_r.wid]);
         end
         if (!reset && req_fire) begin
-            $display("[PQCDBG] t=%0t REQ rw=%b sent=%0d words=%0d addr0=%h",
-                     $time, req_w.rw, sent_r, req_words, req_w.addr[0]);
+            $display("[PQCDBG] t=%0t REQ rw=%b sent=%0d words=%0d addr0=%h base=%h local=%b tag=%h",
+                     $time, req_w.rw, sent_r, req_words, req_w.addr[0],
+                     base_addr, base_is_local, req_w.tag[7:0]);
         end
         if (!reset && rsp_fire) begin
             $display("[PQCDBG] t=%0t RSP base=%0d words=%0d recvd=%0d",
@@ -383,7 +408,7 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
     assign unlock_req = (state_q == PQC_DONE) && unlock_pending_r;
     assign unlock_wid = header_r.wid;
 
-    assign result_if.valid = (state_q == PQC_DONE);
+    assign result_if.valid = (state_q == PQC_DONE) && !result_sent_r;
     assign result_if.data  = result_w;
 
     `UNUSED_VAR (execute_if.data.op_type)

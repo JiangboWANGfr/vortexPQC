@@ -12,7 +12,7 @@
 backend,total_cycles,vs_reference_c,vs_asm,passed
 reference_c,32778558,1.0000,,1
 pqrv_asm,30321833,1.0810,1.0000,1
-keccakf_pe,11526887,2.8437,2.6305,1
+keccakf_pe,11527027,2.8437,2.6305,1
 #
 # RESULT -- 2.844x, AGAINST A MEASURED CEILING OF 2.911x.
 # ablation_mlkem.csv puts the Amdahl bound for a free Keccak at 2.911x on these
@@ -26,16 +26,16 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # normalises the cost is the count that build executed.
 #
 #   baseline (reference C)   33,492,153
-#   KECCAK=pe                11,712,863    2.8594x
+#   KECCAK=pe                11,713,007    2.8594x
 #   ABLATE=keccak (floor)    11,505,678    ceiling 2.9109x
 #   fraction of ceiling      98.2%
-#   per permutation          (11,712,863 - 11,505,678) / 144 = 1,439 cycles
-#   against software                        151,872 -> 105.6x
+#   per permutation          (11,713,007 - 11,505,678) / 144 = 1,440 cycles
+#   against software                        151,872 -> 105x
 #
 # An earlier version of this file said 147 cycles and 1,031x. That came from
 # subtracting the profile build's floor from the PLAIN build's PE total -- the
 # plain build has no counters, so its total is lower and the difference looked
-# ten times smaller than it is. Both figures are retracted. 1,439 is also the
+# ten times smaller than it is. Both figures are retracted. 1,440 is also the
 # plausible one: 150 word accesses at this machine's memory cost is the same
 # order, and 147 never was.
 #
@@ -50,7 +50,7 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # THE FLOOR CHECK, which is the instrument that earned its keep twice.
 # ABLATE=keccak measures the non-Keccak remainder at 11,505,678 cycles -- the
 # cost of ML-KEM with Keccak free. A correct acceleration lands just above it.
-#   PE arm, same build   11,712,863  =  floor + 207,185  (+1.80%)
+#   PE arm, same build   11,713,007  =  floor + 207,329  (+1.80%)
 # Two earlier versions of this instruction reported 6.7M and 6.9M, BELOW the
 # floor, which is impossible: a wrong permutation makes the rejection sampler
 # accept everything and the work disappears. The floor caught both before the
@@ -106,7 +106,7 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # while core_->has_pending_instrs(wid). The warp is wstall'd on this instruction,
 # so any other trace of it still in flight is necessarily older. All 12 cells
 # pass, up to 8 warps x 4 lanes, and all 20 single-warp probes still do.
-#   cost   +161 cycles on 11,712,863 (0.0014%) in the profile build
+#   cost   +161 cycles on 11,713,007 (0.0014%) in the profile build
 #          +0     in the plain single-warp build -- the numbers in the table at
 #                 the top of this file and the latency sweep below reproduce to
 #                 the cycle, because there is never anything to wait for
@@ -135,9 +135,9 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # THE LATENCY SWEEP, and exactly what it does and does not model.
 # ============================================================================
 # VX_CFG_PQC_KECCAK_LATENCY over {1, 12, 24, 48, 96}, ML-KEM total cycles:
-#     11,523,667 / 11,525,207 / 11,526,887 / 11,530,247 / 11,536,967
+#     11,523,807 / 11,525,347 / 11,527,027 / 11,530,387 / 11,537,107
 # The fit is exact, to the cycle, with zero residual at all five points:
-#     T(L) = 11,523,527 + 140 L
+#     T(L) = 11,523,667 + 140 L
 # and the slope of 140 is exactly the number of KECCAKF instructions the unit
 # counts in the run. The model is behaving precisely as written.
 #
@@ -145,18 +145,52 @@ keccakf_pe,11526887,2.8437,2.6305,1
 # by 0.12%, and driving it to zero would save 0.029%. **That supports "this
 # workload is insensitive to that parameter" and nothing stronger.**
 #
-# WHAT IT IS NOT. The sweep varies an ADDED COMPLETION DELAY, applied at the SFU
-# output (sfu_unit.cpp) after the AGU has already done the reads, the permutation
-# and the writeback. It is not an UNROLL implementation: it does not change the
-# clock the engine could close at, its occupancy, or how it behaves with several
-# warps issuing. Reading it as "the datapath is not worth optimising" is reading
-# more than the experiment did.
+# WHAT IT IS AND IS NOT -- and half of the old caveat has been retired.
+# The parameter used to be an ADDED COMPLETION DELAY at the SFU output, charged
+# after the unit had already been released, which modelled neither occupancy nor
+# contention. It is now the time the unit is HELD, exactly as VX_pqc_agu holds
+# PQC_PERM while the engine runs, so occupancy and multi-warp contention are
+# modelled. The slope is unchanged at 140 -- the count of KECCAKF instructions in
+# the run -- and the intercept moved by exactly +140, the one cycle per
+# instruction the old 24-cycle add-on used to absorb.
+# It is still NOT an UNROLL implementation: it does not change the clock the
+# engine could close at or its area, so it cannot price the U=1 versus U=2 trade
+# (keccak_pe_v80.csv does that). What it now supports is the stronger reading:
+# a 96x change in ENGINE OCCUPANCY moves the end-to-end result by 0.12%.
 
 # THE DRAIN, PRICED IN THE SAME BUILD.
-#   with drain     11,712,863        without (PQC_NO_DRAIN)  11,707,103
+#   with drain     11,713,007        without (PQC_NO_DRAIN)  11,707,247
 # 5,760 cycles over 144 permutations, 40 cycles each, 2.8% of the PE's cost.
 # Cheaper than expected for a fifty-word read-back, and the reason is worth
 # noting: those lines were just written by the PE, so the drain hits the cache.
 # A hit orders nothing behind it, which means the drain is not what makes this
 # correct -- set_wstall is. It stays as the conservative belt-and-braces at 2.8%,
 # not as the mechanism.
+
+# ============================================================================
+# REMEASURED 2026-09-08 on the aligned engine-occupancy model.
+# ============================================================================
+# A static review of the RTL integration observed that SimX released the unit
+# after its memory traffic and only then added the engine's time at the SFU
+# output, while VX_pqc_agu holds the unit for the whole permutation -- so the
+# model let a second warp start while the hardware's engine was still busy, and
+# no multi-warp cycle comparison between them meant anything. The model now
+# holds the unit; ceil(jobs/ENGINES) survives the move as one hold per group of
+# ENGINES lanes, so the per-core versus per-lane A/B is the same sweep it was.
+#
+# The cost is exactly ONE CYCLE PER PERMUTATION -- the SFU's minimum output
+# delay, which the 24-cycle add-on used to absorb -- and it reproduces to the
+# cycle on every workload: +144 here on 144 permutations, +140 on the plain
+# build's 140, +190/+782/+582 on ML-DSA (keccak_ise_mldsa.csv). No speedup in
+# this file moves in the fourth decimal.
+#
+# WHAT THE ALIGNMENT DID NOT DO, recorded because the prediction was wrong.
+# It was expected to close the multi-warp gap against rtlsim. It did not: the
+# single-instruction parity tightened (1.86% -> 1.83% at one warp, 1.18% -> 1.25%
+# at four) while the eight-warp span gap widened from 4.6% to 5.97%. The
+# alignment was kept anyway, because it removes a difference that was definitely
+# there. The remaining divergence was then located and it is not this unit --
+# see "THE RESIDUAL IS LOCATED" in keccak_ise_rtl.csv: the engine occupies
+# exactly 128 cycles per permutation in the RTL, identically in two different
+# tests, and the same ~2.2% simx/rtlsim gap appears in a pure software arm with
+# no PQC instruction in the binary.

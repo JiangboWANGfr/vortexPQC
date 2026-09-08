@@ -288,12 +288,12 @@ import VX_raster_pkg::*;
 `endif
 
 `ifdef VX_CFG_EXT_RTU_ENABLE
-`ifdef VX_CFG_EXT_PQC_ENABLE
+    // A REAL INTERFACE, NEVER A MACRO. `define rtu_unlock_if sched_unlock_if
+    // was tried and is a trap: the instantiation below writes the bare name, a
+    // macro needs a backtick to expand, so with PQC off this silently became an
+    // undeclared identifier and broke every RTU-only build. The default
+    // no-extension build cannot catch that.
     VX_sched_unlock_if rtu_unlock_if();
-`else
-    // Sole raiser: the RTU drives the core port directly.
-    `define rtu_unlock_if sched_unlock_if
-`endif
     VX_rtu_unit #(
         .INSTANCE_ID (`SFORMATF(("%s-rtuw", INSTANCE_ID))),
         .CORE_ID     (CORE_ID),
@@ -343,6 +343,13 @@ import VX_raster_pkg::*;
         .unlock_wid (pqc_unlock_wid),
         .unlock_ack (pqc_unlock_ack)
     );
+`elsif VX_CFG_EXT_RTU_ENABLE
+    // RTU is the sole raiser: forward its port to the core's. This branch must
+    // sit AFTER the whole PQC block -- an `elsif placed mid-block terminates the
+    // outer `ifdef early and drags everything below it, the AGU instantiation
+    // included, into the RTU-only build.
+    assign sched_unlock_if.valid = rtu_unlock_if.valid;
+    assign sched_unlock_if.wid   = rtu_unlock_if.wid;
 `endif
 
     VX_lane_gather #(

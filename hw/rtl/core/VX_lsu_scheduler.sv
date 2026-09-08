@@ -132,14 +132,33 @@ module VX_lsu_scheduler import VX_gpu_pkg::*; #(
             end
         end
 
-        wire [CLIENT_ID_BITS-1:0] grant_idx = rr_ptr_r + rotated_grant_idx;
+        // WRAP MODULO NUM_CLIENTS, not modulo 2**CLIENT_ID_BITS. Natural
+        // truncation is only correct when NUM_CLIENTS is a power of two, which
+        // it was for every configuration this arbiter had ever been built in
+        // (1 or 2). At NUM_CLIENTS=3 -- TCU metadata and the PQC engine both
+        // present -- CLIENT_ID_BITS is 2 and rr_ptr_r=2 with only client 0
+        // requesting computes grant_idx=3, indexing one past a three-entry
+        // array. Constant-folds away for a power of two, so the two-client
+        // netlist is unchanged.
+        localparam CID_SUM_W = CLIENT_ID_BITS + 1;
+        wire [CID_SUM_W-1:0] grant_sum =
+            CID_SUM_W'(rr_ptr_r) + CID_SUM_W'(rotated_grant_idx);
+        wire [CID_SUM_W-1:0] grant_mod =
+            (grant_sum >= CID_SUM_W'(NUM_CLIENTS)) ? (grant_sum - CID_SUM_W'(NUM_CLIENTS))
+                                                   : grant_sum;
+        wire [CLIENT_ID_BITS-1:0] grant_idx = CLIENT_ID_BITS'(grant_mod);
         wire                       grant_fire = any_valid && sched_req_ready;
+
+        wire [CID_SUM_W-1:0] next_ptr = CID_SUM_W'(grant_idx) + CID_SUM_W'(1);
+        wire [CID_SUM_W-1:0] next_mod =
+            (next_ptr >= CID_SUM_W'(NUM_CLIENTS)) ? (next_ptr - CID_SUM_W'(NUM_CLIENTS))
+                                                  : next_ptr;
 
         always @(posedge clk) begin
             if (reset) begin
                 rr_ptr_r <= '0;
             end else if (grant_fire) begin
-                rr_ptr_r <= grant_idx + CLIENT_ID_BITS'(1);
+                rr_ptr_r <= CLIENT_ID_BITS'(next_mod);
             end
         end
 

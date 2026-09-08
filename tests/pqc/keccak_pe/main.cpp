@@ -63,7 +63,8 @@ int main(int argc, char** argv) {
     const size_t sbytes = (size_t)nharts * KP_WORDS * sizeof(uint64_t);
     vx_buffer_h sb = nullptr, cb = nullptr;
     CHECK(vx_buffer_create(dev, sbytes, VX_MEM_WRITE, &sb));
-    CHECK(vx_buffer_create(dev, KP_CY_COUNT * sizeof(uint64_t), VX_MEM_WRITE, &cb));
+    const size_t cbytes = (size_t)2 * nharts * sizeof(uint64_t);
+    CHECK(vx_buffer_create(dev, cbytes, VX_MEM_WRITE, &cb));
 
     kernel_arg_t arg{};
     CHECK(vx_buffer_address(sb, &arg.states_addr));
@@ -73,8 +74,8 @@ int main(int argc, char** argv) {
     // Poison: a kernel that never ran must fail, not read back zeros.
     std::vector<uint64_t> poison(nharts * KP_WORDS, 0xDEADBEEFDEADBEEFULL);
     CHECK(vx_enqueue_write(q, sb, 0, poison.data(), sbytes, 0, nullptr, nullptr));
-    std::vector<uint64_t> cpoison(KP_CY_COUNT, 0xDEADBEEFDEADBEEFULL);
-    CHECK(vx_enqueue_write(q, cb, 0, cpoison.data(), KP_CY_COUNT * 8, 0, nullptr, nullptr));
+    std::vector<uint64_t> cpoison(2 * nharts, 0xDEADBEEFDEADBEEFULL);
+    CHECK(vx_enqueue_write(q, cb, 0, cpoison.data(), cbytes, 0, nullptr, nullptr));
 
     vx_module_h mod = nullptr; vx_kernel_h kern = nullptr;
     CHECK(vx_module_load_file(dev, kf, &mod));
@@ -86,15 +87,18 @@ int main(int argc, char** argv) {
     vx_event_h lev = nullptr, e = nullptr;
     CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &lev));
 
-    std::vector<uint64_t> h_out(nharts * KP_WORDS), cyc(KP_CY_COUNT, 0);
+    std::vector<uint64_t> h_out(nharts * KP_WORDS), cyc(2 * nharts, 0);
     CHECK(vx_enqueue_read(q, h_out.data(), sb, 0, sbytes, 1, &lev, &e));
     CHECK(vx_event_wait_value(e, 1, VX_TIMEOUT_INFINITE)); vx_event_release(e); e = nullptr;
-    CHECK(vx_enqueue_read(q, cyc.data(), cb, 0, KP_CY_COUNT * 8, 1, &lev, &e));
+    CHECK(vx_enqueue_read(q, cyc.data(), cb, 0, cbytes, 1, &lev, &e));
     CHECK(vx_event_wait_value(e, 1, VX_TIMEOUT_INFINITE)); vx_event_release(e);
 
     int errors = 0;
-    if (cyc[KP_CY_RUN] == 0xDEADBEEFDEADBEEFULL) {
-        std::printf("*** cycle counter untouched -- the kernel never ran\n"); ++errors;
+    for (uint32_t h = 0; h < nharts; ++h) {
+        if (cyc[KP_CY_T0(h)] == 0xDEADBEEFDEADBEEFULL) {
+            std::printf("*** hart %u cycle counter untouched -- it never ran\n", h);
+            ++errors;
+        }
     }
 
     // Mirror the kernel loop word for word.
@@ -107,7 +111,7 @@ int main(int argc, char** argv) {
             mlk_keccakf1600_permute(s);
             uint64_t acc = 0;
             for (uint32_t j = 0; j < KP_WORDS; ++j) acc ^= s[j];
-            s[0] ^= acc;
+            s[0] += acc;
         }
         for (uint32_t j = 0; j < KP_WORDS; ++j) {
             const uint64_t got = h_out[(size_t)h * KP_WORDS + j];
@@ -125,11 +129,29 @@ int main(int argc, char** argv) {
         ++errors;
     }
 
-    const double per = (double)cyc[KP_CY_RUN] / (double)perms;
-    std::printf("KECCAK_PE blocks=%u threads=%u harts=%u perms=%u | hart0 cycles=%llu "
-                "cy_per_perm=%.1f | bad=%u\n",
+    // The SPAN, not one hart's loop: max end - min start across every hart.
+    // Subtracting a single hart's loop from the whole-run total leaves the other
+    // harts' engine work inside the remainder, so it cannot be called launch
+    // overhead. The span can.
+    uint64_t t_lo = ~0ull, t_hi = 0, loop_min = ~0ull, loop_max = 0, loop_sum = 0;
+    if (!errors) {
+        for (uint32_t h = 0; h < nharts; ++h) {
+            const uint64_t a = cyc[KP_CY_T0(h)], b = cyc[KP_CY_T1(h)];
+            if (a < t_lo) t_lo = a;
+            if (b > t_hi) t_hi = b;
+            const uint64_t d = b - a;
+            if (d < loop_min) loop_min = d;
+            if (d > loop_max) loop_max = d;
+            loop_sum += d;
+        }
+    } else { t_lo = t_hi = loop_min = loop_max = 0; }
+    const double per = (double)(loop_sum / nharts) / (double)perms;
+    std::printf("KECCAK_PE blocks=%u threads=%u harts=%u perms=%u | span=%llu "
+                "loop_min=%llu loop_max=%llu cy_per_perm=%.1f | bad=%u\n",
                 blocks, threads, nharts, perms,
-                (unsigned long long)cyc[KP_CY_RUN], per, bad);
+                (unsigned long long)(t_hi - t_lo),
+                (unsigned long long)loop_min, (unsigned long long)loop_max,
+                per, bad);
 
     vx_device_dump_perf(dev, stdout);
 
