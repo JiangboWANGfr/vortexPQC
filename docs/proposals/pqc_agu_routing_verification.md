@@ -110,3 +110,27 @@ which previously used 14 jobs even when passed `--jobs=1`. The 139 linker tests
 pass, including failure controls against the preceding code. Build the common
 HLS IP repository before installing the static shell; a missing `hbm_bandwidth`
 IP otherwise leads to a secondary circular block-design error.
+
+Full static-shell implementation exposed two clock-constraint defects in the
+SLASH dependency. `7cbc7b2b` selects `No_buffer` for the three Clocking Wizards
+fed by CIPS and retains their 100 ps input jitter on the shared `clk_pl_3`.
+The previous default created three redundant primary clocks on internal pins.
+A controlled project-level STA comparison preserves WNS +0.002 ns and WHS
++0.007 ns while removing those clocks; implementation from regenerated IPs
+is required before signing off the resulting shell.
+
+`5ffeaa10` expresses the requested kernel rate as a generated clock instead of
+replacing the MMCM output with a primary clock. A real MMCME5 probe consumes
+the emitted XDC: the old constraints fail the master-clock check, while the
+new ones retain one 250 MHz clock and its reference. Both the new constraint
+and a 250 MHz MMCM configuration report 2.809 ns setup slack in this small
+probe. Runtime-frequency STA can still report TIMING-1 because the shell's
+boot MMCM registers describe 200 MHz; board validation must record the actual
+programmed rate and clock registers. Complete-static-region STA at the runtime
+rate and final RM timing remain required in addition to the small probe.
+
+AMC firmware builds with the installed `armr5-none-eabi-gcc` once
+`/data/Xilinx/2025.1/gnu/armr5/lin/gcc-arm-none-eabi/bin` is on `PATH`.
+The generated BSP can be reused when resuming compilation after this environment
+error. The board-side ML-KEM and ML-DSA kernels are byte-identical to the kernels
+that passed the target AVED simulation checks.
