@@ -19,6 +19,15 @@ MLDSA_FLAGS := -I$(MLDSA_DIR)/mldsa -I$(VORTEX_HOME)/tests/pqc/mldsa -I$(SRC_DIR
 VX_CFLAGS += $(MLDSA_FLAGS)
 CXXFLAGS  += $(MLDSA_FLAGS)
 
+# KECCAK=pe routes the permutation to the KECCAKF instruction, inside this
+# counting build, so the PE arm and its own baseline and floor are one build.
+ifeq ($(KECCAK),pe)
+	VX_CFLAGS += -DPQC_KECCAK_PE
+	CXXFLAGS  += -DPQC_KECCAK_PE
+else ifneq ($(KECCAK),)
+$(error KECCAK must be pe or unset -- got '$(KECCAK)')
+endif
+
 # ABLATE=keccak|ntt turns the matching hooks into no-ops that still claim
 # success; the cycle delta against ABLATE unset is that primitive's cost.
 # The build then computes garbage, on purpose.

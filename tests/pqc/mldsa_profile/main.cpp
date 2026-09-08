@@ -173,14 +173,43 @@ int main(int argc, char** argv) {
     std::printf("STACK: peak=%u of %u paintable (slab %u)   ARENA: peak=%u of %u fail=%u\n",
                 h_ar[2], h_ar[3], (unsigned)PQC_SLAB_BYTES,
                 h_ar[0], (unsigned)MLD_ARENA_BYTES, h_ar[1]);
-    static const char* pname[MLD_PROF_COUNT] = {
+    static const char* pname[MLD_PROF_ARM] = {
         "keccak_f1600_x1", "keccak_f1600_x4", "poly_ntt", "poly_invntt", "rej_uniform"
     };
     std::printf("%-18s %10s\n", "primitive", "calls");
-    for (int i = 0; i < MLD_PROF_COUNT; ++i)
+    for (int i = 0; i < MLD_PROF_ARM; ++i)
         std::printf("%-18s %10u\n", pname[i], h_cnt[i]);
     if (h_cnt[MLD_PROF_KECCAK_X1] == 0) {
         std::printf("*** keccak_f1600_x1 was never called -- hook not wired in\n");
+        ++errors;
+    }
+
+    // What the DEVICE was built as, printed so that "asked for KECCAK=pe, got
+    // the baseline" is visible in the log instead of arriving as a PE arm that
+    // reproduces its own baseline to the cycle. build32 holds COPIES of these
+    // Makefiles and `configure` refreshes them; an unrefreshed copy drops the
+    // arm silently, and the $(error) guard cannot fire from a file that was not
+    // copied. The host is built from the same file, so it cannot detect that on
+    // its own -- but the two sides take the flag through different variables
+    // (VX_CFLAGS and CXXFLAGS), and a mismatch between them is caught here.
+    const uint32_t dev_arm = h_cnt[MLD_PROF_ARM];
+    uint32_t host_arm = 0;
+#if defined(PQC_KECCAK_PE)
+    host_arm |= MLD_ARM_KECCAK_PE;
+#endif
+#if defined(PQC_ABLATE_KECCAK)
+    host_arm |= MLD_ARM_ABLATE_KECCAK;
+#endif
+#if defined(PQC_ABLATE_NTT)
+    host_arm |= MLD_ARM_ABLATE_NTT;
+#endif
+    std::printf("ARM: keccak=%s ablate=%s\n",
+                (dev_arm & MLD_ARM_KECCAK_PE) ? "pe" : "c",
+                (dev_arm & MLD_ARM_ABLATE_KECCAK) ? "keccak"
+                  : (dev_arm & MLD_ARM_ABLATE_NTT) ? "ntt" : "none");
+    if (dev_arm != host_arm) {
+        std::printf("*** arm mismatch: device 0x%x, host 0x%x -- one side was "
+                    "built without the other's flags\n", dev_arm, host_arm);
         ++errors;
     }
 

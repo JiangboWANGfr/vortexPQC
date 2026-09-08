@@ -21,13 +21,25 @@
 #if !defined(__ASSEMBLER__)
 #include "src/fips202/native/api.h"
 #include "mld_prof_counters.h"
+#if defined(PQC_KECCAK_PE)
+#include <vx_pqc.h>
+#endif
 
 #define MLD_USE_NATIVE_FIPS202_X1
 static MLD_INLINE int mld_keccak_f1600_x1_native(uint64_t *state)
 {
   (void)state;
   mld_prof_counts[MLD_PROF_KECCAK_X1]++;
-#if defined(PQC_ABLATE_KECCAK)
+#if defined(PQC_KECCAK_PE)
+  /* KECCAK=pe inside the COUNTING build, exactly as mlkem_profile does it, so
+   * the PE arm, its own baseline and the ABLATE=keccak floor are one build with
+   * one set of counters. And unlike the ablation, this arm computes the right
+   * answer, so it is the only one that can measure SIGN and VERIFY: a stubbed
+   * permutation makes the Fiat-Shamir loop run to MLD_MAX_SIGNING_ATTEMPTS and
+   * SampleInBall spin, which is why the floor is keypair-only. */
+  vx_keccakf(state);
+  return MLD_NATIVE_FUNC_SUCCESS;
+#elif defined(PQC_ABLATE_KECCAK)
   return MLD_NATIVE_FUNC_SUCCESS;
 #else
   return MLD_NATIVE_FUNC_FALLBACK;

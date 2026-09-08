@@ -39,6 +39,17 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   // rather than unwound; the peak across all three is what gets reported.
   for (int i = 0; i < MLD_PROF_COUNT; ++i)
     mld_prof_counts[i] = 0;
+  mld_prof_counts[MLD_PROF_ARM] =
+#if defined(PQC_KECCAK_PE)
+      MLD_ARM_KECCAK_PE |
+#endif
+#if defined(PQC_ABLATE_KECCAK)
+      MLD_ARM_ABLATE_KECCAK |
+#endif
+#if defined(PQC_ABLATE_NTT)
+      MLD_ARM_ABLATE_NTT |
+#endif
+      0u;
 
   uint64_t t0 = vx_rdcycle();
   mld_arena_reset();
