@@ -213,7 +213,8 @@ module VX_scoreboard import VX_gpu_pkg::*; #(
                         $time, INSTANCE_ID, w, to_fullPC(staging_if[w].data.PC), staging_if[w].data.tmask, timeout_ctr,
                         operands_busy, xregs_busy, staging_if[w].data.uuid))
                 `endif
-                    timeout_ctr <= timeout_ctr + 1;
+                    // A queued long operation may wait through several FU accepts.
+                    timeout_ctr <= (data_ready && fu_release[ex_sel]) ? '0 : timeout_ctr + 1;
                 end else if (ibuffer_fire) begin
                     timeout_ctr <= '0;
                 end

@@ -46,6 +46,11 @@ defaults:
   - hw/rtl/
 tests:
 
+- id: scoreboard-watchdog
+  via: script
+  tier: smoke
+  run: make -C hw/unittest/issue run-watchdog
+
 # ---------------------------------------------------------------------------
 # check: perf_gate — rtlsim cycles vs. ci/baselines/perf/core.json
 #

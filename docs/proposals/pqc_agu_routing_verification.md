@@ -34,3 +34,17 @@ The AVED integration smoke uses `./ci/blackbox.sh --driver=aved --target=avedsim
 For the board, use a matching PQC-enabled AVED image and `--target=hw`.
 The wide-configuration SimX timing residual remains open until measured and
 explained; the existing parity tolerance is not increased.
+
+The full 8-warp, 32-lane RTL probe exposed a simulation watchdog false positive:
+the original and fixed-routing AGUs both stopped at timestamp 4,851,379 on
+warp 5's KECCAKF. Other warps completed at 4,700,845, 4,765,725 and 4,830,305
+while it queued. The scoreboard now resets its simulation-only stall counter
+on acceptance by the waiting instruction's FU when its register operands are
+ready. The 100,000-cycle threshold is unchanged. The target probe completes
+with 13,480 retired instructions, 2,688,152 cycles and zero mismatches.
+
+`make -C hw/unittest/issue run-watchdog` verifies a queue progressing for longer
+than the timeout, a stopped FU, unrelated-FU activity and an unresolved register
+dependency with same-FU activity. Restoring the original counter rejects the
+progressing queue; the corrected counter still rejects all three stuck cases.
+This watchdog checks lack of progress, not a fixed per-warp latency guarantee.

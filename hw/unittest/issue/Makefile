@@ -23,3 +23,13 @@ RTL_INCLUDE += -I$(RTL_DIR)/interfaces -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_
 TOP := VX_issue_top
 
 include ../common.mk
+
+.PHONY: run-watchdog
+run-watchdog:
+	$(VERILATOR_PATH)/bin/verilator --binary --timing --assert -Wall -Wno-fatal \
+	    -Wno-DECLFILENAME -Wno-REDEFMACRO -j $(THREADS) -DSIMULATION \
+	    -DVX_CFG_XLEN=$(XLEN) -DVX_CFG_NUM_WARPS=8 -DVX_DBG_STALL_TIMEOUT=64 \
+	    $(RTL_INCLUDE) $(RTL_DIR)/VX_gpu_pkg.sv \
+	    $(SRC_DIR)/sim/VX_scoreboard_watchdog_tb.sv \
+	    --top-module VX_scoreboard_watchdog_tb --Mdir obj_watchdog
+	python3 $(SRC_DIR)/sim/check_watchdog.py ./obj_watchdog/VVX_scoreboard_watchdog_tb
