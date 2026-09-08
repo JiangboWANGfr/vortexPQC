@@ -208,7 +208,7 @@ gen-bin: $(VBIN_CONTAINER)
 $(VBIN_CONTAINER): $(IP_DIR)/component.xml $(BUILD_DIR)/config.cfg $(SCOPE_JSON)
 	mkdir -p $(BIN_DIR)
 	TOOL_DIR=$(SCRIPT_DIR) $(SLASHKIT) link -c $(BUILD_DIR)/config.cfg -p $(TARGET) -o $(VBIN_CONTAINER) \
-	  -k $(IP_DIR)/component.xml --vivado $(VIVADO) \
+	  -k $(IP_DIR)/component.xml --vivado $(VIVADO) --jobs $(MAX_JOBS) \
 	  --pre-synth-tcls $(SRC_DIR)/pre_synth_hook.tcl
 
 clean:

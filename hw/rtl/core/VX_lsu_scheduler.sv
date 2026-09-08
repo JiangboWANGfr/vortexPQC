@@ -143,22 +143,21 @@ module VX_lsu_scheduler import VX_gpu_pkg::*; #(
         localparam CID_SUM_W = CLIENT_ID_BITS + 1;
         wire [CID_SUM_W-1:0] grant_sum =
             CID_SUM_W'(rr_ptr_r) + CID_SUM_W'(rotated_grant_idx);
-        wire [CID_SUM_W-1:0] grant_mod =
+        wire [CLIENT_ID_BITS-1:0] grant_idx = CLIENT_ID_BITS'(
             (grant_sum >= CID_SUM_W'(NUM_CLIENTS)) ? (grant_sum - CID_SUM_W'(NUM_CLIENTS))
-                                                   : grant_sum;
-        wire [CLIENT_ID_BITS-1:0] grant_idx = CLIENT_ID_BITS'(grant_mod);
+                                                   : grant_sum);
         wire                       grant_fire = any_valid && sched_req_ready;
 
         wire [CID_SUM_W-1:0] next_ptr = CID_SUM_W'(grant_idx) + CID_SUM_W'(1);
-        wire [CID_SUM_W-1:0] next_mod =
+        wire [CLIENT_ID_BITS-1:0] next_mod = CLIENT_ID_BITS'(
             (next_ptr >= CID_SUM_W'(NUM_CLIENTS)) ? (next_ptr - CID_SUM_W'(NUM_CLIENTS))
-                                                  : next_ptr;
+                                                  : next_ptr);
 
         always @(posedge clk) begin
             if (reset) begin
                 rr_ptr_r <= '0;
             end else if (grant_fire) begin
-                rr_ptr_r <= CLIENT_ID_BITS'(next_mod);
+                rr_ptr_r <= next_mod;
             end
         end
 

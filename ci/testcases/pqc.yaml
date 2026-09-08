@@ -18,7 +18,7 @@ defaults:
   - 32
   tier: smoke
   configs: "-DVX_CFG_EXT_PQC_ENABLE"
-  touches: [hw/rtl/pqc, sim/simx/pqc, sw/kernel/include/pqc, tests/pqc]
+  touches: [hw/rtl/pqc, hw/rtl/core/VX_sfu_unit.sv, hw/rtl/core/VX_scoreboard.sv, sim/simx/pqc, sim/simx/core.cpp, sw/kernel/include/pqc, tests/pqc]
 tests:
 # --- functional, both drivers -------------------------------------------
 - id: keccak_pe-1warp
@@ -70,6 +70,12 @@ tests:
 # 8 warps x 32 threads. Everything above runs at the 4-thread default, so the
 # 32-lane path -- where NUM_LSU_LANES is 32 and the 50-word state becomes two
 # beats of 32 and 18 instead of thirteen of four -- was exercised only by hand.
+- id: keccak_pe-target-1x1
+  via: blackbox
+  drivers: [simx, rtlsim]
+  app: pqc/keccak_pe
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 1 -t 1 -p 4
 - id: keccak_pe-target-1x32
   via: blackbox
   drivers:
@@ -86,24 +92,14 @@ tests:
   app: pqc/keccak_pe
   configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -b 8 -t 1 -p 4
-# THE FULL MACHINE, AND IT NEEDS A LONGER WATCHDOG -- WHICH IS THE FINDING.
-# The engine serves one lane at a time, so a 32-lane KECCAKF occupies it for
-# 32 lane-services. With eight warps queued behind it the last warp waits about
-# 678k cycles, and VX_DBG_STALL_TIMEOUT is 100k: the case trips the core's own
-# stall assertion even at -p 1. That is not a deadlock -- raising the watchdog
-# makes it pass with bad=0 -- and it is not a harness quirk either. A single
-# instruction that stalls a warp for hundreds of thousands of cycles is a real
-# serialization limit of the per-core engine at wide SIMD, and it is the reason
-# this case exists. b=4,t=32 and b=8,t=16 both have half the lane-services and
-# both pass under the default watchdog, which is what makes the boundary visible.
 - id: keccak_pe-target-8x32
   via: blackbox
   drivers:
   - simx
   - rtlsim
   app: pqc/keccak_pe
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_DBG_STALL_TIMEOUT=2000000
-  args: -b 8 -t 32 -p 1
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8 -t 32 -p 4
 
 # --- configurations the static review found broken, now regressions ----
 # Each of these failed before its fix, and the failure is recorded next to it so
@@ -120,10 +116,7 @@ tests:
   app: pqc/keccak_pe
   configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_SIMD_WIDTH=2
   args: -b 1 -t 4 -p 4
-# Two raisers on VX_sched_unlock_if. The RTU can take the port on the cycle the
-# engine's result is accepted, and the engine used to re-offer that result the
-# next cycle -- a duplicate commit. Also the only build that exercises the
-# arbitration between them.
+# Extension coexistence; same-cycle completion contention is checked below.
 - id: keccak_pe-rtu
   via: blackbox
   drivers:
@@ -145,17 +138,7 @@ tests:
   args: -b 4 -t 1 -p 4
 
 # --- check: model_parity — SimX vs rtlsim on the same app/args/configs ----
-# Pinned at four warps and below, where the whole-run ratio measures this unit
-# rather than everything around it. Measured with per-hart timestamps (the
-# earlier per-hart-0 subtraction was wrong and its numbers are withdrawn):
-# outside the kernel there is a roughly constant ~1.1k-cycle simx/rtlsim
-# difference that does not scale with Keccak work. Inside it the two models
-# differ by ~2.7%, but that is the core's own scalar/LSU divergence, not this
-# unit: the same gap (+2.23%) appears in a pure software arm with no PQC
-# instruction in the binary, and the engine's RTL occupancy is exactly 128
-# cycles per permutation in every test. At eight warps the span gap reaches
-# 5.97%; at four and below the gate reports 1.2-1.9%.
-# See pqc/results/keccak_ise_rtl.csv.
+# Short launches and the 32-thread kernel span remain separate diagnostics.
 - id: model_parity-keccak_pe
   check: model_parity
   via: blackbox
@@ -166,3 +149,43 @@ tests:
   via: blackbox
   app: pqc/keccak_pe
   args: -b 4 -t 1 -p 8
+- id: model_parity-keccak_pe-8warp
+  check: model_parity
+  via: blackbox
+  app: pqc/keccak_pe
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8
+  args: -b 8 -t 1 -p 8
+
+- id: keccak-unit
+  via: script
+  run: make -C hw/unittest/pqc_unit run
+- id: agu-unit-4lane
+  via: script
+  run: make -C hw/unittest/pqc_unit run-agu MEM_LANES=4
+- id: agu-unit-32lane
+  via: script
+  run: make -C hw/unittest/pqc_unit run-agu MEM_LANES=32
+- id: sfu-rtu-pqc-contention
+  via: script
+  run: make -C hw/unittest/pqc_unit run-sfu
+- id: rtu-only
+  via: blackbox
+  drivers: [rtlsim]
+  app: rt_smoke
+  configs: -DVX_CFG_EXT_RTU_ENABLE
+  args: -n1
+
+- id: aved-default
+  via: script
+  configs: ""
+  env: {CONFIGS: ""}
+  run: ./ci/blackbox.sh --driver=aved --target=avedsim --app=demo
+
+- id: keccak_pe-aved-target-smoke
+  via: script
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  run: ./ci/blackbox.sh --driver=aved --target=avedsim --app=pqc/keccak_pe --args="-b 1 -t 1 -p 1"
+- id: keccak_pe-aved-target-full
+  via: script
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  run: ./ci/blackbox.sh --driver=aved --target=avedsim --app=pqc/keccak_pe --args="-b 8 -t 32 -p 4"

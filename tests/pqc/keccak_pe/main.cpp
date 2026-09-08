@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
             mlk_keccakf1600_permute(s);
             uint64_t acc = 0;
             for (uint32_t j = 0; j < KP_WORDS; ++j) acc ^= s[j];
-            s[0] += acc;
+            s[0] = acc;
         }
         for (uint32_t j = 0; j < KP_WORDS; ++j) {
             const uint64_t got = h_out[(size_t)h * KP_WORDS + j];
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     // The SPAN, not one hart's loop: max end - min start across every hart.
     // Subtracting a single hart's loop from the whole-run total leaves the other
     // harts' engine work inside the remainder, so it cannot be called launch
-    // overhead. The span can.
+    // overhead. The span covers all timed loops.
     uint64_t t_lo = ~0ull, t_hi = 0, loop_min = ~0ull, loop_max = 0, loop_sum = 0;
     if (!errors) {
         for (uint32_t h = 0; h < nharts; ++h) {

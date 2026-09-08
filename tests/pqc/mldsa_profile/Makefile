@@ -7,7 +7,7 @@ SRC_DIR := $(VORTEX_HOME)/tests/pqc/$(PROJECT)
 
 MLDSA_DIR := $(VORTEX_HOME)/pqc/third_party/mldsa-native
 
-SRCS := $(SRC_DIR)/main.cpp
+SRCS := $(SRC_DIR)/main.cpp $(SRC_DIR)/host_reference.cpp
 
 VX_SRCS := $(SRC_DIR)/kernel.cpp
 
@@ -54,7 +54,7 @@ CXXFLAGS  += $(ABLATE_FLAGS)
 
 # The host binary reads kernel_arg_t out of these; without them a layout
 # change rebuilds the kernel and leaves the host on the old struct.
-HDRS := $(SRC_DIR)/common.h \
+HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/host_reference.h \
         $(SRC_DIR)/mld_prof_counters.h \
         $(VORTEX_HOME)/tests/pqc/pqc_stack.h \
         $(VORTEX_HOME)/tests/pqc/pqc_config.h

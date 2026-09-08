@@ -543,7 +543,6 @@ public:
     for (uint32_t iw = 0; iw < VX_CFG_ISSUE_WIDTH; ++iw) {
       bool any_scrb_blocked = false;
       BitVector<> ready_set(PER_ISSUE_WARPS);
-      BitVector<> suppress_set(PER_ISSUE_WARPS);
       for (uint32_t w = 0; w < PER_ISSUE_WARPS; ++w) {
         uint32_t wid = w * VX_CFG_ISSUE_WIDTH + iw;
         auto& ibuffer = ibuffers_.at(wid);
@@ -589,27 +588,18 @@ public:
             continue; // ray pool full
           }
         #endif
-          ready_set.set(w); // mark instruction as ready
-          // suppress warps whose target FU dispatch queue is going-full. Credit
-          // based: spent at issue, returned at FU accept, so it counts in-flight
-          // ops still in operand collection (like the hardware scoreboard), not just
-          // what has already reached the queue.
+          // The RTL gates readiness on the FU's dispatch credits even when
+          // every eligible warp targets a congested unit.
           if (fu_credits_.at(iw).at(fu) >= VX_CFG_DISPATCH_QUEUE_SIZE - 1) {
-            suppress_set.set(w);
+            continue;
           }
+          ready_set.set(w);
         }
       }
 
       if (ready_set.any()) {
-        // Only suppress when at least one warp can issue to a free FU;
-        // otherwise let all warps through so the pipeline absorbs transient stalls.
-        BitVector<> eff_suppress(PER_ISSUE_WARPS);
-        auto unsuppressed = ready_set & ~suppress_set;
-        if (unsuppressed.any()) {
-          eff_suppress = suppress_set;
-        }
         // select one instruction from ready set
-        auto w = ibuffer_arbs_.at(iw).grant(ready_set, eff_suppress);
+        auto w = ibuffer_arbs_.at(iw).grant(ready_set);
         uint32_t wid = w * VX_CFG_ISSUE_WIDTH + iw;
         auto& ibuffer = ibuffers_.at(wid);
         auto trace = ibuffer->peek();

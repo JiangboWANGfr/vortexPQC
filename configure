@@ -226,7 +226,7 @@ gen_header() {
     local fmt="$3"
     local extra="$4"
     if [ ! -f "$out" ] || [ "$toml" -nt "$out" ] || [ "$CONFIG_STAMP" -nt "$out" ] || [ "$SOURCE_DIR/ci/gen_config.py" -nt "$out" ]; then
-        "$SOURCE_DIR/ci/gen_config.py" --config "$toml" --output "$out" --format "$fmt" $extra
+        "$SOURCE_DIR/ci/gen_config.py" --config "$toml" --output "$out" --format "$fmt" $extra || exit $?
     fi
 }
 # gen_config.py reads XLEN from the environment to resolve the XLEN-dependent

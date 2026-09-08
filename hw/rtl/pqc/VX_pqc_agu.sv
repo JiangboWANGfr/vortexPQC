@@ -200,7 +200,14 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
             end
             req_w.addr[i]   = base_word_addr + LSU_ADDR_WIDTH'(sent_r) + LSU_ADDR_WIDTH'(i);
             req_w.byteen[i] = {LSU_WORD_SIZE{1'b1}};
-            req_w.data[i]   = state_r[WIDX_W'(sent_r + WCNT_W'(i))];
+            // Each lane only selects its word from an aligned request group.
+            for (int group_idx = 0; group_idx < `CDIV(WORDS, MEM_LANES); ++group_idx) begin
+                if ((group_idx * MEM_LANES + i) < WORDS) begin
+                    if (sent_r == WCNT_W'(group_idx * MEM_LANES)) begin
+                        req_w.data[i] = state_r[group_idx * MEM_LANES + i];
+                    end
+                end
+            end
             req_w.attr[i]   = a;
         end
         // The beat's starting word index rides in the tag and comes back on the
@@ -297,9 +304,11 @@ module VX_pqc_agu import VX_gpu_pkg::*; #(
                     sent_r <= sent_r + req_words;
                 end
                 if (rsp_fire) begin
-                    for (int i = 0; i < MEM_LANES; ++i) begin
-                        if (client_if.rsp_data.mask[i]) begin
-                            state_r[WIDX_W'(rsp_word_base + WIDX_W'(i))] <= client_if.rsp_data.data[i];
+                    // Partial and reordered responses preserve the request's lane positions.
+                    for (int w = 0; w < WORDS; ++w) begin
+                        if ((rsp_word_base == WIDX_W'((w / MEM_LANES) * MEM_LANES))
+                         && client_if.rsp_data.mask[w % MEM_LANES]) begin
+                            state_r[w] <= client_if.rsp_data.data[w % MEM_LANES];
                         end
                     end
                     if ((recvd_r + rsp_words) == WCNT_W'(WORDS)) begin

@@ -17,7 +17,7 @@
 //   for p in 0..perms-1:
 //       for j: s[j] ^= K          <- a CPU store with nothing between it and
 //       vx_keccakf(s)                the instruction: the ACQUIRE boundary
-//       acc = XOR s[j]; s[0] ^= acc  <- the program reads every word the engine
+//       acc = XOR s[j]; s[0] = acc  <- the program reads every word the engine
 //                                      just wrote: the RELEASE boundary
 //
 // which is exactly what a sponge round does (xor_bytes, permute, extract_bytes)
@@ -45,7 +45,7 @@ typedef struct {
 // moment there is more than one warp: the remainder still contains the other
 // harts' PE work, which is exactly the quantity a launch-overhead claim is
 // trying to exclude. With t0/t1 per hart the host can report the true span
-// (max t1 - min t0), and total - span is then genuinely outside the kernel.
+// (max t1 - min t0), and total - span covers work outside these timed loops.
 #define KP_CY_T0(h)  (2u * (h))
 #define KP_CY_T1(h)  (2u * (h) + 1u)
 
