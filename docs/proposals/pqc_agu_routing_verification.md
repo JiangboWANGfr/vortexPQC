@@ -88,6 +88,13 @@ also compiles and resolves its dynamic symbols against the SLASH fork; upstream
 SLASH lacks the required host-buffer API. This checks the driver build, without
 opening a device.
 
+The same portable ML-DSA-65 host oracle also passes 115 checks from
+[NIST ACVP v1.1.0.41](https://github.com/usnistgov/ACVP-Server/tree/v1.1.0.41/gen-val/json-files):
+25 key-generation, 60 internal signing and 30 internal verification cases,
+including rejection of 24 invalid signatures. The downloaded inputs and
+expected outputs have recorded SHA-256 digests. These ACVP inputs were tested
+on the host oracle; the device runs above retain their differential-test scope.
+
 Matched V80 implementations compare PQC-enabled baseline `94708d50c` with
 optimized `dabf107d2`; the latter differs from the merged RTL only in a disabled
 diagnostic print. The comparison includes integration fixes, not just routing.
@@ -135,15 +142,35 @@ The generated BSP can be reused when resuming compilation after this environment
 error. The board-side ML-KEM and ML-DSA kernels are byte-identical to the kernels
 that passed the target AVED simulation checks.
 
-The first regenerated-clock implementation is rejected despite positive timing:
+The first regenerated-clock implementation was rejected despite positive timing:
 two exported XDC files from the project-level STA diagnostic remained in its
-constraint set and reintroduced the old primary clocks. The No_buffer IP
-outputs are correct, but the implementation script still imports those
-diagnostic files. A clean rebuild must remove them and check the clocks after
-opt_design before proceeding to routing. Subsequent temporary STA imports
+constraint set and reintroduced the old primary clocks. Removing them and
+rebuilding produces 39 clocks, WNS +0.001 ns, WHS +0.011 ns and WPWS 0.000 ns,
+with zero failing setup, hold or pulse-width endpoints. The routed design has
+no DRC errors or clock-related Critical Warnings. Temporary STA imports now
 use `read_xdc -no_add` and verify that the project file list is unchanged.
+
+Resuming implementation from a checkpoint loses the nonproject subprocess's
+IP repository setting. Restoring the project's repository paths in the image
+pre-hook lets the original UUID update script run; readback matches the
+synthesized-checkpoint digest `356ef9dbb6983008146b803cc7b555fc`.
+Device-image generation succeeds while retaining the routed checkpoint.
+The full static region, with the reference bandwidth RM black-boxed, passes
+at boot 200 MHz (WNS +0.427 ns / WHS +0.013 ns) and runtime 250 MHz
+(+0.311 ns / +0.013 ns), with zero failing setup, hold or pulse-width endpoints.
+The runtime constraint reports the expected TIMING-1 mismatch with the boot
+MMCM parameters; actual programmed-clock readback remains a board check.
+All 486 declared pin properties match the 245 ports in the routed design,
+including six scalar reference-clock ports renamed to single-bit buses by
+implementation. A wrong-package-pin control is rejected by the checker.
+Final PQC RM timing and DFX compatibility checks remain required.
 
 AVED simulation's in-process C API does not execute the hardware C++ VRT
 staging code. A separate `TARGET=sim` run using an actual simulation vbin and
 VRT, including `VORTEX_AVED_FORCE_STAGE=1`, is queued to cover that path
 without requiring a board.
+
+The legacy xrtsim entry point also needs direct coverage: its extension source
+list currently omits the PQC directory. Default-core and PQC combined/full-width
+smokes are queued after the VRT simulation work to obtain a failing control
+before repairing that build entry point.
