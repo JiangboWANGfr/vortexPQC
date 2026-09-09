@@ -134,3 +134,16 @@ AMC firmware builds with the installed `armr5-none-eabi-gcc` once
 The generated BSP can be reused when resuming compilation after this environment
 error. The board-side ML-KEM and ML-DSA kernels are byte-identical to the kernels
 that passed the target AVED simulation checks.
+
+The first regenerated-clock implementation is rejected despite positive timing:
+two exported XDC files from the project-level STA diagnostic remained in its
+constraint set and reintroduced the old primary clocks. The No_buffer IP
+outputs are correct, but the implementation script still imports those
+diagnostic files. A clean rebuild must remove them and check the clocks after
+opt_design before proceeding to routing. Subsequent temporary STA imports
+use `read_xdc -no_add` and verify that the project file list is unchanged.
+
+AVED simulation's in-process C API does not execute the hardware C++ VRT
+staging code. A separate `TARGET=sim` run using an actual simulation vbin and
+VRT, including `VORTEX_AVED_FORCE_STAGE=1`, is queued to cover that path
+without requiring a board.
