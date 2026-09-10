@@ -1,109 +1,210 @@
 #include <vortex2.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <unistd.h>
 #include <vector>
 #include "common.h"
 #include "pqc_config.h"
-#include "pqc_stack.h"
 
 #define CHECK(_e) do { int _r = (_e); if (_r) { \
   std::fprintf(stderr, "FAIL %s:%d: '%s' -> %d\n", __FILE__, __LINE__, #_e, _r); \
   std::exit(-1); } } while (0)
 
 int main(int argc, char** argv) {
-    const char* kf = "kernel.vxbin";
-    uint32_t lanes = 1;
-    int c;
-    while ((c = getopt(argc, argv, "k:t:h")) != -1) {
-        if (c == 'k') kf = optarg;
-        else if (c == 't') lanes = (uint32_t)std::atoi(optarg);
-        else { std::cout << "Usage: [-k kernel] [-t lanes]\n"; std::exit(c == 'h' ? 0 : -1); }
+#if defined(PQC_NTTBF_K)
+  const char* implementation = "register-sg2";
+#elif defined(PQC_NTT_SMEM32)
+  const char* implementation = "scratch";
+#elif defined(PQC_NTT_REG32)
+  const char* implementation = "register";
+#else
+  const char* implementation = "shared";
+#endif
+  const char* kf = "kernel.vxbin";
+  uint32_t lanes = 1, requests = 1;
+  int c;
+  while ((c = getopt(argc, argv, "k:t:b:h")) != -1) {
+    if (c == 'k') {
+      kf = optarg;
+    } else if (c == 't') {
+      lanes = (uint32_t)std::atoi(optarg);
+    } else if (c == 'b') {
+      requests = (uint32_t)std::atoi(optarg);
+    } else {
+      std::cout << "Usage: [-k kernel] [-t lanes] [-b requests]\n";
+      return c == 'h' ? 0 : -1;
     }
-    if (lanes < 1) { std::fprintf(stderr, "FAIL: -t must be >= 1\n"); return -1; }
+  }
+  if (lanes < 1 || lanes > 32 || (lanes & (lanes - 1u))) {
+    std::fprintf(stderr, "FAIL: -t must be a power of two from 1 to 32\n");
+    return -1;
+  }
+  if (requests < 1 || requests > NTT_MAX_REQUESTS) {
+    std::fprintf(stderr, "FAIL: -b must be from 1 to %d\n", NTT_MAX_REQUESTS);
+    return -1;
+  }
+#if defined(PQC_NTT_REG32) || defined(PQC_NTT_SMEM32)
+  if (lanes != 32) {
+    std::fprintf(stderr, "FAIL: W32 NTT requires -t 32\n");
+    return -1;
+  }
+#endif
 
-    vx_device_h dev=nullptr; CHECK(vx_device_open(0,&dev));
-    const pqc::config cfg = pqc::print_config(dev, 1, lanes);
-    if (pqc::require_slots(cfg, 1, lanes) != 0) { vx_device_release(dev); return -1; }
-    vx_queue_info_t qi={sizeof(qi),nullptr,VX_QUEUE_PRIORITY_NORMAL,0};
-    vx_queue_h q=nullptr; CHECK(vx_queue_create(dev,&qi,&q));
+  vx_device_h dev = nullptr;
+  CHECK(vx_device_open(0, &dev));
+  const pqc::config cfg = pqc::print_config(dev, requests, lanes);
+  if (cfg.cores != 1) {
+    std::fprintf(stderr, "FAIL: batch timestamps require one shared core cycle counter\n");
+    vx_device_release(dev);
+    return -1;
+  }
+  if (pqc::require_slots(cfg, requests, lanes) != 0) {
+    vx_device_release(dev);
+    return -1;
+  }
+  vx_queue_info_t qi = {sizeof(qi), nullptr, VX_QUEUE_PRIORITY_NORMAL, 0};
+  vx_queue_h q = nullptr;
+  CHECK(vx_queue_create(dev, &qi, &q));
 
-    vx_buffer_h pb=nullptr, rb=nullptr, cb=nullptr, mb=nullptr;
-    CHECK(vx_buffer_create(dev, NTT_N*sizeof(int16_t), VX_MEM_WRITE, &pb));
-    CHECK(vx_buffer_create(dev, NTT_N*sizeof(int16_t), VX_MEM_WRITE, &rb));
-    CHECK(vx_buffer_create(dev, NTT_CY_COUNT*sizeof(uint64_t), VX_MEM_WRITE, &cb));
-    CHECK(vx_buffer_create(dev, sizeof(uint32_t), VX_MEM_WRITE, &mb));
+  const size_t slots = NTT_DIRECTIONS * NTT_CASES * requests;
+  const size_t poly_bytes = slots * NTT_N * sizeof(int16_t);
+  vx_buffer_h pb = nullptr, rb = nullptr, results_buffer = nullptr;
+  CHECK(vx_buffer_create(dev, poly_bytes, VX_MEM_READ_WRITE, &pb));
+  CHECK(vx_buffer_create(dev, poly_bytes, VX_MEM_WRITE, &rb));
+  CHECK(vx_buffer_create(dev, slots * sizeof(ntt_result_t), VX_MEM_READ_WRITE, &results_buffer));
 
-    kernel_arg_t arg{};
-    CHECK(vx_buffer_address(pb,&arg.poly_addr));
-    CHECK(vx_buffer_address(rb,&arg.ref_addr));
-    CHECK(vx_buffer_address(cb,&arg.cycles_addr));
-    CHECK(vx_buffer_address(mb,&arg.mism_addr));
-    arg.lanes = lanes;
+  kernel_arg_t arg{};
+  CHECK(vx_buffer_address(pb, &arg.poly_addr));
+  CHECK(vx_buffer_address(rb, &arg.ref_addr));
+  CHECK(vx_buffer_address(results_buffer, &arg.results_addr));
+  arg.lanes = lanes;
+  arg.requests = requests;
 
-    // Poison, so a kernel that never ran fails instead of matching two buffers
-    // nobody wrote.
-    std::vector<uint32_t> poison(1, 0xDEADBEEFu);
-    CHECK(vx_enqueue_write(q, mb, 0, poison.data(), sizeof(uint32_t), 0, nullptr, nullptr));
+  std::vector<ntt_result_t> results(slots);
+  for (auto& result : results) {
+    result.mismatches = 0xDEADBEEFu;
+  }
+  CHECK(vx_enqueue_write(q, results_buffer, 0, results.data(),
+                        results.size() * sizeof(ntt_result_t), 0, nullptr, nullptr));
 
-    vx_module_h mod=nullptr; vx_kernel_h kern=nullptr;
-    CHECK(vx_module_load_file(dev,kf,&mod));
-    CHECK(vx_module_get_kernel(mod,"main",&kern));
+  vx_module_h mod = nullptr;
+  vx_kernel_h kern = nullptr;
+  CHECK(vx_module_load_file(dev, kf, &mod));
+  CHECK(vx_module_get_kernel(mod, "main", &kern));
 
-    vx_launch_info_t li{}; li.struct_size=sizeof(li); li.kernel=kern;
-    li.args_host=&arg; li.args_size=sizeof(arg);
-    li.ndim=1; li.grid_dim[0]=1; li.block_dim[0]=lanes;
-    vx_event_h lev=nullptr,e=nullptr;
-    CHECK(vx_enqueue_launch(q,&li,0,nullptr,&lev));
+  vx_launch_info_t li{};
+  li.struct_size = sizeof(li);
+  li.kernel = kern;
+  li.args_host = &arg;
+  li.args_size = sizeof(arg);
+  li.ndim = 1;
+  li.grid_dim[0] = requests;
+#if defined(PQC_NTT_SMEM32)
+  li.lmem_size = NTT_SMEM_WORDS * sizeof(uint32_t);
+#endif
+  for (arg.inverse = 0; arg.inverse < NTT_DIRECTIONS; ++arg.inverse) {
+    for (arg.sample = 0; arg.sample < NTT_CASES; ++arg.sample) {
+      // Separate launches prevent scalar reference work overlapping the batch.
+      for (arg.reference = 0; arg.reference < 2; ++arg.reference) {
+        li.block_dim[0] = arg.reference ? 1 : lanes;
+        vx_event_h launch = nullptr;
+        CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &launch));
+        CHECK(vx_event_wait_value(launch, 1, VX_TIMEOUT_INFINITE));
+        vx_event_release(launch);
+      }
+    }
+  }
 
-    std::vector<int16_t> h_out(NTT_N), h_ref(NTT_N);
-    std::vector<uint64_t> cyc(NTT_CY_COUNT,0);
-    std::vector<uint32_t> mism(1,0);
-    CHECK(vx_enqueue_read(q,h_out.data(),pb,0,h_out.size()*2,1,&lev,&e));
-    CHECK(vx_event_wait_value(e,1,VX_TIMEOUT_INFINITE)); vx_event_release(e); e=nullptr;
-    CHECK(vx_enqueue_read(q,h_ref.data(),rb,0,h_ref.size()*2,1,&lev,&e));
-    CHECK(vx_event_wait_value(e,1,VX_TIMEOUT_INFINITE)); vx_event_release(e); e=nullptr;
-    CHECK(vx_enqueue_read(q,cyc.data(),cb,0,cyc.size()*8,1,&lev,&e));
-    CHECK(vx_event_wait_value(e,1,VX_TIMEOUT_INFINITE)); vx_event_release(e); e=nullptr;
-    CHECK(vx_enqueue_read(q,mism.data(),mb,0,sizeof(uint32_t),1,&lev,&e));
-    CHECK(vx_event_wait_value(e,1,VX_TIMEOUT_INFINITE)); vx_event_release(e);
+  auto read = [&](void* dst, vx_buffer_h buffer, size_t bytes) {
+    vx_event_h event = nullptr;
+    CHECK(vx_enqueue_read(q, dst, buffer, 0, bytes, 0, nullptr, &event));
+    CHECK(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    vx_event_release(event);
+  };
+  std::vector<int16_t> h_out(slots * NTT_N), h_ref(slots * NTT_N);
+  read(h_out.data(), pb, poly_bytes);
+  read(h_ref.data(), rb, poly_bytes);
+  read(results.data(), results_buffer, results.size() * sizeof(ntt_result_t));
 
-    int errors = 0;
-    if (mism[0] == 0xDEADBEEFu) {
-        std::printf("*** mismatch counter untouched -- the kernel never ran\n"); ++errors;
-    } else if (mism[0] != 0) {
-        std::printf("*** %u of %d coefficients differ from the library's own NTT\n",
-                    mism[0], NTT_N);
-        for (int i = 0, shown = 0; i < NTT_N && shown < 4; ++i)
-            if (h_out[i] != h_ref[i]) {
-                std::printf("    [%3d] coop %6d  ref %6d\n", i, h_out[i], h_ref[i]);
-                ++shown;
+  int errors = 0;
+  for (unsigned inverse = 0; inverse < NTT_DIRECTIONS; ++inverse) {
+    const char* direction = inverse ? "inverse" : "forward";
+    for (unsigned sample = 0; sample < NTT_CASES; ++sample) {
+      uint64_t coop_start = UINT64_MAX, coop_end = 0;
+      uint64_t ref_start = UINT64_MAX, ref_end = 0;
+      uint32_t total_bad = 0;
+      for (unsigned req = 0; req < requests; ++req) {
+        const size_t slot = (inverse * NTT_CASES + sample) * requests + req;
+        const auto& result = results[slot];
+        uint32_t bad = 0;
+        for (unsigned i = 0; i < NTT_N; ++i) {
+          const size_t index = slot * NTT_N + i;
+          if (h_out[index] != h_ref[index]) {
+            if (bad < 4) {
+              std::printf("*** %s sample=%u request=%u [%u] coop=%d ref=%d\n",
+                          direction, sample, req, i, h_out[index], h_ref[index]);
             }
-        ++errors;
+            ++bad;
+          }
+        }
+        total_bad += bad;
+        if (bad || result.mismatches != bad) {
+          std::printf("*** %s sample=%u request=%u mismatch=%u device_mismatch=%u\n",
+                      direction, sample, req, bad, result.mismatches);
+          ++errors;
+        }
+        if (result.coop_end <= result.coop_start || result.ref_end <= result.ref_start) {
+          std::printf("*** %s sample=%u request=%u invalid timestamps\n", direction, sample, req);
+          ++errors;
+        }
+        if (!result.stack_span || result.stack_peak >= result.stack_span) {
+          std::printf("*** %s sample=%u request=%u stack=%u/%u\n",
+                      direction, sample, req, result.stack_peak, result.stack_span);
+          ++errors;
+        }
+        coop_start = std::min(coop_start, result.coop_start);
+        coop_end = std::max(coop_end, result.coop_end);
+        ref_start = std::min(ref_start, result.ref_start);
+        ref_end = std::max(ref_end, result.ref_end);
+        if (sample == 0) {
+          std::printf("NTT_REQUEST implementation=%s direction=%s M=%u L=%u request=%u "
+                      "coop_start=%llu coop_end=%llu "
+                      "ref_start=%llu ref_end=%llu stack=%u/%u mismatch=%u\n",
+                      implementation, direction, requests, lanes, req,
+                      (unsigned long long)result.coop_start, (unsigned long long)result.coop_end,
+                      (unsigned long long)result.ref_start, (unsigned long long)result.ref_end,
+                      result.stack_peak, result.stack_span, bad);
+        }
+      }
+      const uint64_t coop = coop_end > coop_start ? coop_end - coop_start : 0;
+      const uint64_t ref = ref_end > ref_start ? ref_end - ref_start : 0;
+      std::printf("NTT_BATCH implementation=%s direction=%s M=%u L=%u sample=%u "
+                  "coop=%llu ref=%llu "
+                  "speedup=%.3f checked=%u mismatch=%u\n",
+                  implementation, direction, requests, lanes, sample,
+                  (unsigned long long)coop, (unsigned long long)ref,
+                  coop ? (double)ref / (double)coop : 0.0, requests * NTT_N, total_bad);
+      if (!inverse && !sample && requests == 1) {
+        const auto& result = results[0];
+        std::printf("NTT implementation=%s W=%u  coop=%llu  ref=%llu  speedup=%.3f  "
+                    "stack=%u/%u  mismatch=%u\n",
+                    implementation, lanes, (unsigned long long)coop, (unsigned long long)ref,
+                    coop ? (double)ref / (double)coop : 0.0,
+                    result.stack_peak, result.stack_span, total_bad);
+      }
     }
-    if (cyc[NTT_CY_COOP] == 0 || cyc[NTT_CY_REF] == 0) {
-        std::printf("*** a phase measured zero cycles\n"); ++errors;
-    }
-    if (cyc[NTT_CY_STACK] >= cyc[NTT_CY_SPAN]) {
-        std::printf("*** stack peak %llu B filled its whole %llu B paintable slab\n",
-                    (unsigned long long)cyc[NTT_CY_STACK],
-                    (unsigned long long)cyc[NTT_CY_SPAN]); ++errors;
-    }
+  }
+  vx_device_dump_perf(dev, stdout);
 
-    std::printf("NTT W=%u  coop=%llu  ref=%llu  speedup=%.3f  stack=%llu/%llu  mismatch=%u\n",
-                lanes, (unsigned long long)cyc[NTT_CY_COOP],
-                (unsigned long long)cyc[NTT_CY_REF],
-                cyc[NTT_CY_COOP] ? (double)cyc[NTT_CY_REF]/(double)cyc[NTT_CY_COOP] : 0.0,
-                (unsigned long long)cyc[NTT_CY_STACK], (unsigned long long)cyc[NTT_CY_SPAN],
-                mism[0]);
-    vx_device_dump_perf(dev, stdout);
-
-    vx_event_release(lev);
-    vx_buffer_release(pb); vx_buffer_release(rb); vx_buffer_release(cb); vx_buffer_release(mb);
-    vx_kernel_release(kern); vx_module_release(mod);
-    vx_queue_release(q); vx_device_release(dev);
-    std::cout << (errors ? "FAILED!" : "PASSED!") << std::endl;
-    return errors ? -1 : 0;
+  vx_buffer_release(pb);
+  vx_buffer_release(rb);
+  vx_buffer_release(results_buffer);
+  vx_kernel_release(kern);
+  vx_module_release(mod);
+  vx_queue_release(q);
+  vx_device_release(dev);
+  std::cout << (errors ? "FAILED!" : "PASSED!") << std::endl;
+  return errors ? -1 : 0;
 }

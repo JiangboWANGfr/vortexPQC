@@ -24,6 +24,35 @@
 
 using namespace vortex;
 
+namespace {
+
+int32_t signed16(uint32_t value) {
+	int32_t result = static_cast<int32_t>(value & 0xffffu);
+	return result < 0x8000 ? result : result - 0x10000;
+}
+
+int32_t montgomery_reduce_k(int32_t a, int32_t b) {
+	constexpr uint32_t kQInv = 62209;
+	constexpr int32_t kModulus = 3329;
+	int32_t product = a * b;
+	uint32_t inverted =
+		((static_cast<uint32_t>(product) & 0xffffu) * kQInv) & 0xffffu;
+	int32_t factor = signed16(inverted);
+	int32_t difference = product - factor * kModulus;
+	return signed16(static_cast<uint32_t>(difference) >> 16);
+}
+
+int32_t barrett_reduce_k(int32_t value) {
+	constexpr int32_t kMultiplier = 20159;
+	constexpr int32_t kRounding = 1 << 25;
+	constexpr int32_t kModulus = 3329;
+	int32_t rounded = kMultiplier * value + kRounding;
+	int32_t quotient = rounded >> 26;
+	return signed16(value - quotient * kModulus);
+}
+
+}
+
 AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 	: FuncUnit<VX_CFG_NUM_ALU_BLOCKS>(ctx, name, core)
 {}
@@ -84,6 +113,10 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 		default:
 			std::abort();
 		}
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	} else if (std::get_if<NttType>(&trace->op_type)) {
+		return 6;
+#endif
 	}
 	std::abort();
 }
@@ -548,6 +581,58 @@ void AluUnit::execute(instr_trace_t* trace) {
 			std::abort();
 		}
 		DT(3, this->name() << " execute: op=" << mdv_type << ", " << *trace);
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	} else if (std::get_if<NttType>(&trace->op_type)) {
+		auto ntt_type = std::get<NttType>(trace->op_type);
+		switch (ntt_type) {
+		case NttType::MUL_K: {
+			for (uint32_t t = thread_start; t < num_threads; ++t) {
+				if (!tmask.test(t)) continue;
+				int32_t a = signed16(rs1_data[t].u);
+				int32_t b = signed16(rs2_data[t].u);
+				rd_data[t].i = static_cast<WordI>(montgomery_reduce_k(a, b));
+			}
+		} break;
+		case NttType::BF_CT_K:
+		case NttType::BF_GS_K: {
+			auto nttArgs = std::get<IntrNttArgs>(instrArgs);
+			const uint32_t lanes = VX_CFG_NUM_ALU_LANES;
+			const uint32_t distance = 1u << nttArgs.stage;
+			if (lanes != 32 || distance >= lanes || (num_threads % lanes) != 0)
+				std::abort();
+			for (uint32_t base = 0; base < num_threads; base += lanes) {
+				for (uint32_t lo = 0; lo < lanes; ++lo) {
+					if (lo & distance) continue;
+					uint32_t low_lane = base + lo;
+					uint32_t high_lane = low_lane + distance;
+					bool low_active = tmask.test(low_lane);
+					bool high_active = tmask.test(high_lane);
+					if (low_active != high_active)
+						std::abort();
+					if (!low_active) continue;
+
+					int32_t a = signed16(rs1_data[low_lane].u);
+					int32_t b = signed16(rs1_data[high_lane].u);
+					int32_t zeta = signed16(rs2_data[low_lane].u);
+					if (ntt_type == NttType::BF_CT_K) {
+						int32_t product = montgomery_reduce_k(b, zeta);
+						rd_data[low_lane].i = static_cast<WordI>(signed16(a + product));
+						rd_data[high_lane].i = static_cast<WordI>(signed16(a - product));
+					} else {
+						int32_t sum = signed16(a + b);
+						int32_t difference = signed16(b - a);
+						rd_data[low_lane].i = static_cast<WordI>(barrett_reduce_k(sum));
+						rd_data[high_lane].i =
+							static_cast<WordI>(montgomery_reduce_k(difference, zeta));
+					}
+				}
+			}
+		} break;
+		default:
+			std::abort();
+		}
+		DT(3, this->name() << " execute: op=" << ntt_type << ", " << *trace);
+#endif
 	} else {
 		std::abort();
 	}

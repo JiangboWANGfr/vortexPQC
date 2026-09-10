@@ -1,0 +1,15 @@
+# simx, RV32, 1 core, 8 warps, 32 threads, L2/L3 off, PQC enabled, 1 PE.
+# Each arm uses the same host/kernel binaries for M=1 and M=8, L=1.
+# makespan = max(request end) - min(request start), excludes launch/readback.
+# KAT d||z||m SHA256=34efecad8eae8e447bb2c782029bafb29769adcdce3fd8dff21ce3fafcc34a5b
+# Every request counts: x1=144,x4=24,ntt=15,intt=9,rej=27,mulcache=12,basemul=12,reduce=18.
+# NTT no-op outputs are invalid; ratios are sensitivity, not physical ISA speedup.
+arm,requests,batch_cycles,min_request_cycles,max_request_cycles,validation,kernel_sha256
+base,1,34418365,34418365,34418365,kat,26636a7b1ed0236b53b8367be6dad768de6fc793d900360da8dce5a378dd426a
+base,8,47829440,42161242,47829412,kat,26636a7b1ed0236b53b8367be6dad768de6fc793d900360da8dce5a378dd426a
+pe,1,11968032,11968032,11968032,kat,6440da901814151c006ffb14755790d9ea87bd1b4b038967d58e59b29f7d1eda
+pe,8,15940118,13342280,15940045,kat,6440da901814151c006ffb14755790d9ea87bd1b4b038967d58e59b29f7d1eda
+pe_no_ntt,1,7644507,7644507,7644507,ablation_control_flow,8e31f6f90703bf63e646804895055243ba8c47f10d418444200aea5182e7e938
+pe_no_ntt,8,9667744,8425658,9667688,ablation_control_flow,8e31f6f90703bf63e646804895055243ba8c47f10d418444200aea5182e7e938
+no_ntt,1,30092054,30092054,30092054,ablation_control_flow,722c71d3998c193bdf2cff6f2caa9ea374dcd7a993e9bf4e4763a8c57f2e09d9
+no_ntt,8,41927273,37648301,41927208,ablation_control_flow,722c71d3998c193bdf2cff6f2caa9ea374dcd7a993e9bf4e4763a8c57f2e09d9

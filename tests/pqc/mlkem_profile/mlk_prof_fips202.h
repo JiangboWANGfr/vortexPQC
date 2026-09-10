@@ -29,7 +29,7 @@
 static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
 {
   (void)state;
-  mlk_prof_counts[MLK_PROF_KECCAK_X1]++;
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_KECCAK_X1]++;
 #if defined(PQC_KECCAK_PE)
   /* KECCAK=pe inside the PROFILE build. The point is to have the PE arm, the
    * un-ablated baseline and ABLATE=keccak all in ONE build: a per-permutation
@@ -55,7 +55,7 @@ static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
 static MLK_INLINE int mlk_keccak_f1600_x4_native(uint64_t *state)
 {
   (void)state;
-  mlk_prof_counts[MLK_PROF_KECCAK_X4]++;
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_KECCAK_X4]++;
   return MLK_NATIVE_FUNC_FALLBACK;
 }
 

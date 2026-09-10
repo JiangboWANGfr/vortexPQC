@@ -727,22 +727,48 @@ module VX_decode import
                     end
                 `endif
                 `ifdef VX_CFG_EXT_PQC_ENABLE
-                    7'h05: begin // KECCAKF -- rs1 = &state[25], rd = x0
-                        // Blocking: the engine reads and writes the state
-                        // behind the register file, so nothing downstream can
-                        // be allowed to observe it mid-permutation. Every
-                        // blocking op in this file sets is_wstall; the SimX
-                        // model not setting it is what produced a multi-lane
-                        // corruption that four hypotheses missed.
+                    7'h05: begin // PQC custom instructions
                         case (funct3)
-                            3'h0: begin
+                            3'h0: begin // KECCAKF -- rs1 = &state[25], rd = x0
+                                // Blocking: the engine reads and writes the state
+                                // behind the register file, so nothing downstream can
+                                // be allowed to observe it mid-permutation. Every
+                                // blocking op in this file sets is_wstall; the SimX
+                                // model not setting it is what produced a multi-lane
+                                // corruption that four hypotheses missed.
                                 ex_type   = EX_SFU;
                                 op_type   = INST_OP_BITS'(INST_SFU_PQC);
                                 is_wstall = 1;
                                 `USED_IREG (rs1);
                             end
+                            3'h2: begin // NTTMUL.K -- signed low-16 Montgomery multiply
+                                ex_type = EX_ALU;
+                                op_type = INST_OP_BITS'(INST_ALU_NTTMUL_K);
+                                op_args.alu.xtype   = ALU_TYPE_ARITH;
+                                op_args.alu.is_w    = 0;
+                                op_args.alu.use_PC  = 0;
+                                op_args.alu.use_imm = 0;
+                                op_args.alu.imm20   = '0;
+                                `USED_IREG (rd);
+                                `USED_IREG (rs1);
+                                `USED_IREG (rs2);
+                            end
                             default:;
                         endcase
+                    end
+                    7'h06, 7'h07: begin // NTTBF.{CT,GS}.K.XORs
+                        if ((funct3 <= 3'h4) && (`VX_CFG_NUM_ALU_LANES == 32)) begin
+                            ex_type = EX_ALU;
+                            op_type = INST_OP_BITS'(INST_ALU_NTTBF_K);
+                            op_args.alu.xtype   = ALU_TYPE_ARITH;
+                            op_args.alu.is_w    = 0;
+                            op_args.alu.use_PC  = 0;
+                            op_args.alu.use_imm = 0;
+                            op_args.alu.imm20   = {16'b0, funct7[0], funct3};
+                            `USED_IREG (rd);
+                            `USED_IREG (rs1);
+                            `USED_IREG (rs2);
+                        end
                     end
                 `endif
                     7'h04: begin // Load packing: vx_packlb_f / vx_packlh_f

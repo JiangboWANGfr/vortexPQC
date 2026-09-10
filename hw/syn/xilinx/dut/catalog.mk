@@ -10,7 +10,7 @@
 # Add a DUT: append its name to DUTS and define the five variables. No new
 # directory, no dispatcher edit.
 
-DUTS := cache core cp dxa fpu gfx issue lmem mem_unit om pqc raster rtu \
+DUTS := cache core cp dxa fpu gfx issue lmem mem_unit om pqc pqc_ntt raster rtu \
         scope tcu tensor tex top unittest vm vortex
 
 # ---------------------------------------------------------------------------
@@ -110,6 +110,12 @@ pqc_PRJ := VX_pqc_unit_top
 pqc_CFG := -DVX_CFG_EXT_PQC_ENABLE
 pqc_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/pqc -I$(UNITTEST_DIR)/pqc_unit
 pqc_PKG  = $(RTL_DIR)/pqc/VX_pqc_pkg.sv
+
+pqc_ntt_PRJ := VX_pqc_ntt_top
+pqc_ntt_CFG := -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_THREADS=32 \
+               -DVX_CFG_SIMD_WIDTH=32 -DVX_CFG_NUM_ALU_LANES=32
+pqc_ntt_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/pqc -I$(UNITTEST_DIR)/pqc_ntt
+pqc_ntt_PKG  = $(RTL_DIR)/pqc/VX_pqc_pkg.sv
 
 raster_PRJ := VX_raster_core_top
 raster_CFG := -DVX_CFG_EXT_RASTER_ENABLE

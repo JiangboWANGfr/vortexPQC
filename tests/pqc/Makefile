@@ -3,7 +3,7 @@ include $(ROOT_DIR)/config.mk
 
 # --- master list ------------------------------------------------------
 TESTS := \
-    mlkem mlkem_microbench mlkem_profile \
+    mlkem mlkem_microbench mlkem_profile mlkem_ntt_cost mlkem_ntt_xn nttmul_k \
     mldsa mldsa_microbench mldsa_profile \
     keccak_sg5
 

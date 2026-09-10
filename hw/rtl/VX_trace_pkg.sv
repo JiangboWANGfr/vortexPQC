@@ -87,6 +87,15 @@ package VX_trace_pkg;
                             endcase
                         end else begin
                             case (INST_ALU_BITS'(op_type))
+                            `ifdef VX_CFG_EXT_PQC_ENABLE
+                                INST_ALU_NTTMUL_K: `TRACE(level, ("NTTMUL.K"))
+                                INST_ALU_NTTBF_K: begin
+                                    if (op_args.alu.imm20[3])
+                                        `TRACE(level, ("NTTBF.GS.K.XOR%0d", 1 << op_args.alu.imm20[2:0]))
+                                    else
+                                        `TRACE(level, ("NTTBF.CT.K.XOR%0d", 1 << op_args.alu.imm20[2:0]))
+                                end
+                            `endif
                                 INST_ALU_ADD:   `TRACE(level, ("ADD"))
                                 INST_ALU_SUB:   `TRACE(level, ("SUB"))
                                 INST_ALU_SLL:   `TRACE(level, ("SLL"))

@@ -22,12 +22,19 @@
 #include "src/native/api.h"
 #include "mlk_prof_counters.h"
 
+#if defined(PQC_NTT_COOP)
+void mlk_profile_ntt(int16_t* p, unsigned inverse);
+#endif
+
 #define MLK_USE_NATIVE_NTT
 static MLK_INLINE int mlk_ntt_native(int16_t p[MLKEM_N])
 {
   (void)p;
-  mlk_prof_counts[MLK_PROF_NTT]++;
-#if defined(PQC_ABLATE_NTT)
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_NTT]++;
+#if defined(PQC_NTT_COOP)
+  mlk_profile_ntt(p, 0);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#elif defined(PQC_ABLATE_NTT)
   /* See the Keccak hook: skipping the transform leaves the input bound (< q)
    * in place, which still satisfies the wider bound the contract promises on
    * success, so the library carries on rather than tripping an assertion. */
@@ -41,8 +48,11 @@ static MLK_INLINE int mlk_ntt_native(int16_t p[MLKEM_N])
 static MLK_INLINE int mlk_intt_native(int16_t p[MLKEM_N])
 {
   (void)p;
-  mlk_prof_counts[MLK_PROF_INTT]++;
-#if defined(PQC_ABLATE_NTT)
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_INTT]++;
+#if defined(PQC_NTT_COOP)
+  mlk_profile_ntt(p, 1);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#elif defined(PQC_ABLATE_NTT)
   /* See the Keccak hook: skipping the transform leaves the input bound (< q)
    * in place, which still satisfies the wider bound the contract promises on
    * success, so the library carries on rather than tripping an assertion. */
@@ -56,7 +66,7 @@ static MLK_INLINE int mlk_intt_native(int16_t p[MLKEM_N])
 static MLK_INLINE int mlk_poly_reduce_native(int16_t p[MLKEM_N])
 {
   (void)p;
-  mlk_prof_counts[MLK_PROF_POLY_REDUCE]++;
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_POLY_REDUCE]++;
   return MLK_NATIVE_FUNC_FALLBACK;
 }
 
@@ -65,7 +75,7 @@ static MLK_INLINE int mlk_poly_mulcache_compute_native(
     int16_t x[MLKEM_N / 2], const int16_t a[MLKEM_N])
 {
   (void)x; (void)a;
-  mlk_prof_counts[MLK_PROF_MULCACHE]++;
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_MULCACHE]++;
   return MLK_NATIVE_FUNC_FALLBACK;
 }
 
@@ -77,7 +87,7 @@ static MLK_INLINE int mlk_polyvec_basemul_acc_montgomery_cached_k3_native(
     const int16_t b[3 * MLKEM_N], const int16_t b_cache[3 * (MLKEM_N / 2)])
 {
   (void)r; (void)a; (void)b; (void)b_cache;
-  mlk_prof_counts[MLK_PROF_BASEMUL]++;
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_BASEMUL]++;
   return MLK_NATIVE_FUNC_FALLBACK;
 }
 
@@ -86,7 +96,7 @@ static MLK_INLINE int mlk_rej_uniform_native(int16_t *r, unsigned len,
                                              const uint8_t *buf, unsigned buflen)
 {
   (void)r; (void)len; (void)buf; (void)buflen;
-  mlk_prof_counts[MLK_PROF_REJ_UNIFORM]++;
+  mlk_prof_counts[vx_hart_id()][MLK_PROF_REJ_UNIFORM]++;
   return MLK_NATIVE_FUNC_FALLBACK;
 }
 

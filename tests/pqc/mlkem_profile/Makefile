@@ -34,6 +34,47 @@ else ifneq ($(KECCAK),)
 $(error KECCAK must be pe or unset -- got '$(KECCAK)')
 endif
 
+ifneq ($(NTT),)
+ifneq ($(filter coop reg32 smem32,$(NTT)),$(NTT))
+$(error NTT must be coop, reg32, smem32, or unset -- got '$(NTT)')
+endif
+ifneq ($(XLEN),32)
+$(error cooperative NTT currently requires XLEN=32)
+endif
+ifneq ($(ABLATE),)
+$(error cooperative NTT requires ABLATE unset)
+endif
+	VX_CFLAGS += -DPQC_NTT_COOP
+	CXXFLAGS  += -DPQC_NTT_COOP
+ifeq ($(NTT),reg32)
+	VX_CFLAGS += -DPQC_NTT_REG32
+	CXXFLAGS  += -DPQC_NTT_REG32
+else ifeq ($(NTT),smem32)
+	VX_CFLAGS += -DPQC_NTT_SMEM32
+	CXXFLAGS  += -DPQC_NTT_SMEM32
+endif
+endif
+
+ifeq ($(NTTMUL),ise)
+ifeq ($(NTT),)
+$(error NTTMUL=ise requires a cooperative NTT layout)
+endif
+	VX_CFLAGS += -DPQC_NTTMUL_K
+	CXXFLAGS  += -DPQC_NTTMUL_K
+else ifneq ($(NTTMUL),)
+$(error NTTMUL must be ise or unset -- got '$(NTTMUL)')
+endif
+
+ifeq ($(NTTBF),ise)
+ifneq ($(NTT),reg32)
+$(error NTTBF=ise requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_NTTBF_K
+	CXXFLAGS  += -DPQC_NTTBF_K
+else ifneq ($(NTTBF),)
+$(error NTTBF must be ise or unset -- got '$(NTTBF)')
+endif
+
 ifeq ($(ABLATE),keccak)
 	ABLATE_FLAGS := -DPQC_ABLATE_KECCAK
 else ifeq ($(ABLATE),ntt)
@@ -55,6 +96,12 @@ CXXFLAGS  += $(ABLATE_FLAGS)
 HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/mlk_prof_counters.h \
         $(VORTEX_HOME)/tests/pqc/pqc_config.h
+VX_HDRS := $(HDRS) $(SRC_DIR)/mlk_prof_arith.h \
+           $(SRC_DIR)/mlk_prof_fips202.h $(SRC_DIR)/vortex_prof_config.h
+ifneq ($(NTT),)
+VX_HDRS += $(VORTEX_HOME)/tests/pqc/mlkem_coop_ntt.h $(SRC_DIR)/mlk_coop_dispatch.h \
+           $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h
+endif
 
 KERNEL_LIB := vortex2
 

@@ -33,18 +33,34 @@ extern "C" {
 #include <vx_intrinsics.h>
 #include "common.h"
 
+#if defined(PQC_NTT_COOP)
+#include "mlkem_coop_ntt.h"
+#include "mlk_coop_dispatch.h"
+
+extern "C" __attribute__((noinline, used)) void mlk_profile_main(kernel_arg_t* arg) {
+#else
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
-  if (blockIdx.x != 0 || threadIdx.x != 0)
+#endif
+  const unsigned req = blockIdx.x;
+  if (req >= arg->requests || threadIdx.x != 0) {
     return;
+  }
 
-  auto s      = reinterpret_cast<uint8_t*>(arg->scratch_addr);
-  auto counts = reinterpret_cast<uint32_t*>(arg->counts_addr);
-  auto status = reinterpret_cast<int32_t*>(arg->status_addr);
+  auto s      = reinterpret_cast<uint8_t*>(arg->scratch_addr) + req * P_SCRATCH_LEN;
+  auto counts = reinterpret_cast<uint32_t*>(arg->counts_addr) + req * MLK_PROF_COUNT;
+  auto status = reinterpret_cast<int32_t*>(arg->status_addr) + req * 3;
+  auto local_counts = mlk_prof_counts[vx_hart_id()];
 
-  for (int i = 0; i < MLK_PROF_COUNT; ++i)
-    mlk_prof_counts[i] = 0;
+  for (int i = 0; i < MLK_PROF_COUNT; ++i) {
+    local_counts[i] = 0;
+  }
+  local_counts[MLK_PROF_ARM] = MLK_ARM_EXPECTED;
 
-  auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
+#if defined(PQC_NTT_COOP)
+  mlk_coop_args[vx_warp_id()].lanes = arg->ntt_lanes;
+#endif
+
+  auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr) + req * P_CYCLE_COUNT;
 
   // The arena is a bump allocator whose frees are no-ops, so it has to be reset
   // between operations or the three phases accumulate and the third runs out.
@@ -60,10 +76,24 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   status[2] = mlkem_dec(s + P_OFF_SS_DEC, s + P_OFF_CT, s + P_OFF_SK);
   uint64_t t3 = vx_rdcycle();
 
-  cycles[0] = t1 - t0;
-  cycles[1] = t2 - t1;
-  cycles[2] = t3 - t2;
+  cycles[P_CYCLE_KEYPAIR] = t1 - t0;
+  cycles[P_CYCLE_ENCAPS] = t2 - t1;
+  cycles[P_CYCLE_DECAPS] = t3 - t2;
+  cycles[P_CYCLE_START] = t0;
+  cycles[P_CYCLE_END] = t3;
 
-  for (int i = 0; i < MLK_PROF_COUNT; ++i)
-    counts[i] = mlk_prof_counts[i];
+  for (int i = 0; i < MLK_PROF_COUNT; ++i) {
+    counts[i] = local_counts[i];
+  }
 }
+
+#if defined(PQC_NTT_COOP)
+// KMU initializes every launched lane before the KEM narrows to its leader.
+__kernel __attribute__((naked)) void kernel_main(kernel_arg_t*) {
+  asm volatile (
+      "li t0, 1\n\t"
+      ".insn r %0, 0, 0, x0, t0, x0\n\t"
+      "tail mlk_profile_main"
+      :: "i"(RISCV_CUSTOM0));
+}
+#endif
