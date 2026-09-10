@@ -314,12 +314,14 @@ package VX_gpu_pkg;
     ///////////////////////////////////////////////////////////////////////////
 
     localparam INST_ALU_ADD =    4'b0000;
-    //localparam INST_ALU_UNUSED=4'b0001;
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    localparam INST_ALU_NTTMUL_K = 4'b0001;
+    localparam INST_ALU_NTTBF_K  = 4'b0110;
+`endif
     localparam INST_ALU_LUI =    4'b0010;
     localparam INST_ALU_AUIPC =  4'b0011;
     localparam INST_ALU_SLTU =   4'b0100;
     localparam INST_ALU_SLT =    4'b0101;
-    //localparam INST_ALU_UNUSED=4'b0110;
     localparam INST_ALU_SUB =    4'b0111;
     localparam INST_ALU_SRL =    4'b1000;
     localparam INST_ALU_SRA =    4'b1001;

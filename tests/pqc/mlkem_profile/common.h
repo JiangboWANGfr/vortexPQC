@@ -8,10 +8,26 @@
 // key material alone is ~4.7 KB against an 8 KB per-thread stack.
 typedef struct {
   uint64_t scratch_addr;  // in/out : MLKEM working buffers
-  uint64_t counts_addr;   // out    : MLK_PROF_COUNT * uint32_t
-  uint64_t status_addr;   // out    : 3 * int32_t, one per KEM step
-  uint64_t cycles_addr;   // out    : 3 * uint64_t, one per KEM step
+  uint64_t counts_addr;   // out    : MLK_PROF_COUNT * uint32_t per request
+  uint64_t status_addr;   // out    : 3 * int32_t per request
+  uint64_t cycles_addr;   // out    : P_CYCLE_COUNT * uint64_t per request
+  uint32_t requests;
+  uint32_t ntt_lanes;
 } kernel_arg_t;
+
+enum {
+  P_CYCLE_KEYPAIR,
+  P_CYCLE_ENCAPS,
+  P_CYCLE_DECAPS,
+  P_CYCLE_START,
+  P_CYCLE_END,
+#if defined(PQC_PROFILE_ARITH)
+  P_CYCLE_MULCACHE,
+  P_CYCLE_BASEMUL,
+  P_CYCLE_REDUCE,
+#endif
+  P_CYCLE_COUNT
+};
 
 // Scratch layout for ML-KEM-768, 64-byte aligned sections.
 #define P_OFF_COINS_KP  0      // 64

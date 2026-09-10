@@ -11,6 +11,10 @@ tests:
   - id: hw
     via: script
     run: "make -C hw/unittest"
+  - id: hw-mm-axi-arb
+    via: script
+    run: "make -C hw/unittest/mm_axi_arb run"
+    touches: [hw/rtl/libs/VX_mm_axi_arb.sv, hw/rtl/afu/common/VX_afu_wrap.sv, hw/unittest/mm_axi_arb]
   # FPU arithmetic units (VX_fma/fdiv/fsqrt/fcvt/fdivsqrt): the `hw` lane above only
   # builds the unit tests; this lane executes them so a softfloat-divergent
   # regression actually fails CI (each driver checks bit-exact result+fflags over

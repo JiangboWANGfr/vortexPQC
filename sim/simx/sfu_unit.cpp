@@ -32,6 +32,7 @@ using namespace vortex;
 
 SfuUnit::SfuUnit(const SimContext& ctx, const char* name, Core* core)
 	: FuncUnit<VX_CFG_NUM_SFU_BLOCKS>(ctx, name, core, 6)
+	, warp_resume_out(this)
 #ifdef VX_CFG_EXT_PQC_ENABLE
 	, pqc_req_out(this)
 	, pqc_rsp_in(this)
@@ -424,8 +425,15 @@ void SfuUnit::on_tick() {
 		}
 
 		bool release_warp = trace->fetch_stall;
-		if (std::get_if<WctlType>(&trace->op_type)) {
+		if (auto type = std::get_if<WctlType>(&trace->op_type)) {
 			release_warp = wctl_unit_->process(trace);
+			if (trace->eop && release_warp
+			 && (*type == WctlType::SPLIT || *type == WctlType::JOIN)) {
+				// Control resumes before writeback; JOIN adds the divergence-stack register.
+				const uint32_t delay = (*type == WctlType::JOIN && VX_CFG_NUM_THREADS > 1) ? 2 : 1;
+				warp_resume_out.send(trace->wid, delay);
+				release_warp = false;
+			}
 		} else if (std::get_if<CsrType>(&trace->op_type)) {
 			csr_unit_->process(trace);
 #ifdef VX_CFG_EXT_PQC_ENABLE

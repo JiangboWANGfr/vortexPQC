@@ -32,7 +32,7 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
     localparam NUM_LANES    = `VX_CFG_NUM_ALU_LANES;
     localparam PARTIAL_BW   = (BLOCK_SIZE != `VX_CFG_ISSUE_WIDTH) || (NUM_LANES != `VX_CFG_SIMD_WIDTH);
     localparam PE_COUNT     = 1 + `VX_CFG_EXT_M_ENABLED + `VX_CFG_EXT_KSG25_ENABLED
-                                + `VX_CFG_EXT_KROUND25_ENABLED;
+                                + `VX_CFG_EXT_KROUND25_ENABLED + `VX_CFG_EXT_PQC_ENABLED;
     localparam PE_SEL_BITS  = `CLOG2(PE_COUNT);
     localparam PE_IDX_INT   = 0;
     localparam PE_IDX_MDV   = PE_IDX_INT + `VX_CFG_EXT_M_ENABLED;
@@ -42,6 +42,10 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
 `ifdef VX_CFG_EXT_KROUND25_ENABLE
     localparam PE_IDX_KROUND25 = PE_IDX_MDV + `VX_CFG_EXT_KSG25_ENABLED
                                            + `VX_CFG_EXT_KROUND25_ENABLED;
+`endif
+`ifdef VX_CFG_EXT_PQC_ENABLE
+    localparam PE_IDX_NTT   = 1 + `VX_CFG_EXT_M_ENABLED + `VX_CFG_EXT_KSG25_ENABLED
+                                + `VX_CFG_EXT_KROUND25_ENABLED;
 `endif
 
     VX_execute_if #(
@@ -90,6 +94,13 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
             if (per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_OTHER
              && per_block_execute_if[block_idx].data.op_type == INST_OP_BITS'(INST_KROUND)) begin
                 pe_select = PE_IDX_KROUND25;
+            end
+        `endif
+        `ifdef VX_CFG_EXT_PQC_ENABLE
+            if ((per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_ARITH)
+             && ((per_block_execute_if[block_idx].data.op_type == INST_ALU_NTTMUL_K)
+              || (per_block_execute_if[block_idx].data.op_type == INST_ALU_NTTBF_K))) begin
+                pe_select = PE_IDX_NTT;
             end
         `endif
         end
@@ -151,6 +162,18 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
             .reset      (reset),
             .execute_if (pe_execute_if[PE_IDX_KROUND25]),
             .result_if  (pe_result_if[PE_IDX_KROUND25])
+        );
+    `endif
+
+    `ifdef VX_CFG_EXT_PQC_ENABLE
+        VX_pqc_nttmul #(
+            .INSTANCE_ID (`SFORMATF(("%s-nttmul%0d", INSTANCE_ID, block_idx))),
+            .NUM_LANES (NUM_LANES)
+        ) nttmul_unit (
+            .clk        (clk),
+            .reset      (reset),
+            .execute_if (pe_execute_if[PE_IDX_NTT]),
+            .result_if  (pe_result_if[PE_IDX_NTT])
         );
     `endif
     end

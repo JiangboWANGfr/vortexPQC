@@ -60,6 +60,7 @@ public:
 	SfuUnit(const SimContext& ctx, const char* name, Core*);
 
 	CsrUnit& csr_unit() { return *csr_unit_; }
+	SimEventLink<uint32_t> warp_resume_out;
 
 #ifdef VX_CFG_EXT_PQC_ENABLE
 	// PQC PE client port, bound to LsuUnit::PqcReqIn / PqcRspOut in core.cpp.

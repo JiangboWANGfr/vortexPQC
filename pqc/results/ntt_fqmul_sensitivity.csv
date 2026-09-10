@@ -1,0 +1,11 @@
+# Controlled M=1 L=1 transforms; 8 samples plus one discarded warmup.
+# simx,rv32,cores=1,warps=8,threads=32,l2=0,l3=0,ext_pqc=1
+# Symmetric unroll=disabled; identity is two dependent XORs consuming both inputs.
+# Identity output is invalid. This is sensitivity, not production cost or ISA speedup.
+# Real transforms checked coefficient-by-coefficient against upstream C on 9 inputs each.
+# See docs/proposals/ntt_acceleration_proposal.md for reproduction and limits.
+arm,cycles_per_call,instructions_per_call,checksum,reference_checked
+ntt,152862.5,15841.5,0x5d4d5c3d,1
+ntt_identity,119509.5,12121.5,0x99b29345,0
+intt,274771.5,28405.5,0xcd12d4c8,1
+intt_identity,234370.5,23660.5,0x90a2b8a5,0

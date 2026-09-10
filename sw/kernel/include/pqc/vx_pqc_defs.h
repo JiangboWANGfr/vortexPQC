@@ -29,6 +29,8 @@
 // TCU, DXA, load packing); 0x05 is the first free one.
 #define VX_PQC_EXT_OPCODE   RISCV_CUSTOM0   /* 0x0B */
 #define VX_PQC_FUNCT7       0x05
+#define VX_PQC_F7_NTTBF_CT_K 0x08
+#define VX_PQC_F7_NTTBF_GS_K 0x09
 
 // funct3 within row 0x05.
 //
@@ -48,6 +50,14 @@
 // be a de-duplication optimisation for the redundant-SPMD x1 path, worth
 // measuring before it is worth encoding.
 #define VX_PQC_F3_KECCAKF   0   /* per-lane: permute the state each active lane names */
+#define VX_PQC_F3_NTTMUL_K  2   /* per-lane: ML-KEM Montgomery multiplication */
+
+// funct3 encodes log2 of the NTTBF XOR partner distance.
+#define VX_PQC_F3_NTTBF_XOR1   0
+#define VX_PQC_F3_NTTBF_XOR2   1
+#define VX_PQC_F3_NTTBF_XOR4   2
+#define VX_PQC_F3_NTTBF_XOR8   3
+#define VX_PQC_F3_NTTBF_XOR16  4
 
 #define VX_PQC_KECCAK_LANES 25  /* uint64_t words in a Keccak-f1600 state */
 #define VX_PQC_KECCAK_WAY   4   /* sub-states in the library's x4 hook */

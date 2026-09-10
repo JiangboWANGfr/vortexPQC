@@ -1,13 +1,3 @@
-// One ML-KEM-768 forward NTT across L lanes, against the library's own C.
-//
-// The library sources are included textually, the way tests/pqc/genmat_xn does
-// it, for one specific reason: mlk_fqmul and mlk_zetas are file-scope statics in
-// poly.c, and the arith-backend hook is included from common.h long before they
-// exist. Pulling the translation unit in puts them in scope, so the cooperative
-// transform uses the library's own butterfly arithmetic and the library's own
-// twiddle table -- not a copy that could drift from it. What differs between the
-// two arms is only which lane does which butterfly.
-
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
 
@@ -22,110 +12,112 @@ extern "C" {
 }
 
 #include "common.h"
+#include "mlkem_coop_ntt.h"
 #include "pqc_stack.h"
 
-// The transform being shared is the whole point, so it cannot live on the
-// stack: vx_start.S gives each hart its own slab, so a stack mlk_poly would be
-// L private copies and each lane would do 1/L of the butterflies on its own.
-// That is not a cooperative NTT, it is L partial ones -- and it reads as a
-// speedup, which is why the coefficient-by-coefficient check against the
-// library exists. .bss is one address space shared by every hart; one row per
-// warp keeps independent warps out of each other's way.
-#define NTT_MAX_WARPS 8
-static mlk_poly ntt_work[NTT_MAX_WARPS];
-// The reference arm gets the same storage class as the cooperative one. With it
-// on the stack and the shared transform in .bss the two arms differ in memory
-// placement as well as in lane mapping, and the comparison stops being about
-// the lane mapping.
-static mlk_poly ntt_ref[NTT_MAX_WARPS];
+// A shared polynomial per request avoids lane-private stacks and warp aliases.
+static mlk_poly ntt_work[NTT_MAX_REQUESTS];
 
-// Layer `layer` has len = 256 >> layer and exactly 128 butterflies, in
-// 256/(2*len) blocks of len each, block b using zetas[2^(layer-1) + b]. The
-// reference walks them as a nested loop; this flattens the pair to a single
-// index 0..127 so lane t can take t, t+L, t+2L, ... Every butterfly in a layer
-// is independent, so the only ordering that matters is between layers.
-// Layer `layer` has len = 256 >> layer and exactly 128 butterflies, in
-// 256/(2*len) blocks of len each, block b using zetas[2^(layer-1) + b]. The
-// reference walks that as a nested loop; this flattens the pair to one index
-// 0..127 so lane t takes t, t+L, t+2L, ... Every butterfly within a layer is
-// independent, so the only ordering that matters is between layers.
-//
-// A two-regime variant was tried and is slower where it counts: splitting the
-// inner loop when len >= L and whole blocks when len < L keeps zeta loop
-// invariant and wins at one lane (190,360 against 211,510 cycles), but loses at
-// four (57,830 against 53,686), which is the operating point. Recorded here so
-// the choice does not look arbitrary, and because "the obvious optimisation is
-// the wrong one above L=2" is the kind of thing worth knowing before designing
-// the instruction.
-static void ntt_coop(int16_t *r, unsigned L, unsigned tid) {
-  for (unsigned layer = 1; layer <= 7; ++layer) {
-    const unsigned lg  = 8u - layer;      // len = 1 << lg
-    const unsigned len = 1u << lg;
-    const unsigned k0  = 1u << (layer - 1);
-    for (unsigned b = tid; b < NTT_N / 2; b += L) {
-      const unsigned block = b >> lg;
-      const unsigned jj    = b & (len - 1u);
-      const unsigned j     = (block << (lg + 1)) + jj;
-      const int16_t zeta   = mlk_zetas[k0 + block];
-      const int16_t t      = mlk_fqmul(r[j + len], zeta);
-      r[j + len] = (int16_t)(r[j] - t);
-      r[j]       = (int16_t)(r[j] + t);
-    }
-    // Lanes of a warp are lockstep, so no barrier is needed -- but the writes
-    // must be visible to the other lanes before the next layer reads them.
-    vx_fence();
+static __attribute__((noinline)) int16_t input(unsigned i, unsigned req, unsigned sample, unsigned inverse) {
+  const int high = inverse ? INT16_MAX : MLKEM_Q - 1;
+  const int low = inverse ? INT16_MIN : 1 - MLKEM_Q;
+  if (sample == 0) {
+    return (int16_t)((int)((i * 3121u + req * 977u) % (2u * MLKEM_Q - 1u))
+                     - (MLKEM_Q - 1));
+  }
+  if (sample == 1) {
+    return i == req ? low : high;
+  }
+  if (sample == 2) {
+    return i == req ? 0 : ((i & 1u) ? high : low);
+  }
+  if (sample == 3) {
+    return i == req ? 1 : 0;
+  }
+  return i == req ? high : low;
+}
+
+static __attribute__((noinline)) void reference(mlk_poly* p, unsigned inverse) {
+  if (inverse) {
+    mlk_poly_invntt_tomont_c(p);
+  } else {
+    mlk_poly_ntt_c(p);
   }
 }
 
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
-  auto out    = reinterpret_cast<int16_t*>(arg->poly_addr);
-  auto ref    = reinterpret_cast<int16_t*>(arg->ref_addr);
-  auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
-  auto mism   = reinterpret_cast<uint32_t*>(arg->mism_addr);
+  const unsigned req = blockIdx.x;
+  const unsigned tid = threadIdx.x;
+  const unsigned lanes = arg->reference ? 1 : arg->lanes;
+  const unsigned slot = (arg->inverse * NTT_CASES + arg->sample) * arg->requests + req;
+  auto out = reinterpret_cast<int16_t*>(arg->poly_addr) + slot * NTT_N;
+  auto ref = reinterpret_cast<int16_t*>(arg->ref_addr) + slot * NTT_N;
+  auto result = reinterpret_cast<ntt_result_t*>(arg->results_addr) + slot;
+  mlk_poly* p = &ntt_work[req];
 
-  const unsigned tid = (unsigned)vx_thread_id();
-  const unsigned L   = arg->lanes;
-
-  uint32_t sp0;
-  const uint32_t span = pqc_stack_paint(&sp0);
-
-  const unsigned wid = (unsigned)vx_warp_id() & (NTT_MAX_WARPS - 1);
-  mlk_poly *a = &ntt_work[wid];
-  mlk_poly *b = &ntt_ref[wid];
-
-  // Same deterministic input for both arms, inside the +-q bound the transform
-  // requires on entry. Every lane writes the same values to the same shared
-  // array -- idempotent, so no barrier is needed to agree on it, only a fence
-  // to make it visible before the transform starts reading across lanes.
-  for (unsigned i = 0; i < NTT_N; ++i) {
-    const int16_t v = (int16_t)((int)(i * 3121u % (2u * MLKEM_Q)) - MLKEM_Q + 1);
-    a->coeffs[i] = v;
-    b->coeffs[i] = v;
-  }
-  vx_fence();
-
-  const uint64_t t0 = vx_rdcycle();
-  ntt_coop(a->coeffs, L, tid);
-  const uint64_t t1 = vx_rdcycle();
-
-  // The reference runs on one lane: it is the L=1 denominator, and running it
-  // redundantly on all of them would measure the same thing L times.
+  uint32_t sp0 = 0;
+  uint32_t span = 0;
   if (tid == 0) {
-    const uint64_t t2 = vx_rdcycle();
-    mlk_poly_ntt_c(b);
-    const uint64_t t3 = vx_rdcycle();
+    span = pqc_stack_paint(&sp0);
+  }
+  for (unsigned i = tid; i < NTT_N; i += lanes) {
+    p->coeffs[i] = input(i, req, arg->sample, arg->inverse);
+  }
+  // All resident warps finish setup before any request starts its measurement.
+  vx_barrier(1u << 8, arg->requests);
 
+  const uint64_t start = vx_rdcycle_sync();
+  if (arg->reference) {
+    reference(p, arg->inverse);
+#if defined(PQC_NTT_SMEM32)
+  } else if (arg->inverse) {
+    mlk_invntt_smem_w32(p->coeffs, reinterpret_cast<int32_t*>(__local_mem()), tid);
+  } else {
+    mlk_ntt_smem_w32(p->coeffs, reinterpret_cast<int32_t*>(__local_mem()), tid);
+#elif defined(PQC_NTT_REG32)
+  } else if (arg->inverse) {
+    mlk_invntt_w32(p->coeffs, tid);
+  } else {
+    mlk_ntt_w32(p->coeffs, tid);
+#else
+  } else if (arg->inverse) {
+    mlk_invntt_coop(p->coeffs, lanes, tid);
+  } else {
+    mlk_ntt_coop(p->coeffs, lanes, tid);
+#endif
+  }
+  __syncthreads();
+  const uint64_t end = vx_rdcycle_sync();
+  vx_barrier(1u << 8, arg->requests);
+
+  if (tid == 0) {
     uint32_t bad = 0;
     for (unsigned i = 0; i < NTT_N; ++i) {
-      out[i] = a->coeffs[i];
-      ref[i] = b->coeffs[i];
-      if (a->coeffs[i] != b->coeffs[i]) ++bad;
+      if (arg->reference) {
+        ref[i] = p->coeffs[i];
+        if (out[i] != ref[i]) {
+          ++bad;
+        }
+      } else {
+        out[i] = p->coeffs[i];
+      }
     }
-    mism[0] = bad;
-
-    cycles[NTT_CY_COOP]  = t1 - t0;
-    cycles[NTT_CY_REF]   = t3 - t2;
-    cycles[NTT_CY_SPAN]  = span;
-    cycles[NTT_CY_STACK] = pqc_stack_watermark(sp0);
+    const uint32_t peak = pqc_stack_watermark(sp0);
+    if (arg->reference) {
+      result->ref_start = start;
+      result->ref_end = end;
+      result->mismatches = bad;
+      if (peak > result->stack_peak) {
+        result->stack_peak = peak;
+      }
+      if (span < result->stack_span) {
+        result->stack_span = span;
+      }
+    } else {
+      result->coop_start = start;
+      result->coop_end = end;
+      result->stack_span = span;
+      result->stack_peak = peak;
+    }
   }
 }

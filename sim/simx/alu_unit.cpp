@@ -34,6 +34,42 @@ static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_THREADS == 32
            && VX_CFG_SIMD_WIDTH == 32 && VX_CFG_NUM_ALU_LANES == 32,
               "KROUND25 requires RV32 and 32 threads, SIMD lanes, and ALU lanes");
 #endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+namespace {
+
+int32_t signed16(uint32_t value) {
+	int32_t result = static_cast<int32_t>(value & 0xffffu);
+	return result < 0x8000 ? result : result - 0x10000;
+}
+
+int32_t montgomery_reduce_k(int32_t a, int32_t b) {
+	constexpr uint32_t kQInv = 62209;
+	constexpr int32_t kModulus = 3329;
+	int32_t product = a * b;
+	uint32_t inverted =
+		((static_cast<uint32_t>(product) & 0xffffu) * kQInv) & 0xffffu;
+	int32_t factor = signed16(inverted);
+	int32_t difference = product - factor * kModulus;
+	return signed16(static_cast<uint32_t>(difference) >> 16);
+}
+
+int32_t barrett_reduce_k(int32_t value) {
+	constexpr int32_t kMultiplier = 20159;
+	constexpr int32_t kRounding = 1 << 25;
+	constexpr int32_t kModulus = 3329;
+	int32_t rounded = kMultiplier * value + kRounding;
+	int32_t quotient = rounded >> 26;
+	return signed16(value - quotient * kModulus);
+}
+
+bool ntt_uses_two_beats(const instr_trace_t* trace) {
+	auto ntt_type = std::get_if<NttType>(&trace->op_type);
+	return VX_CFG_NUM_ALU_LANES > 1 && ntt_type
+		&& *ntt_type != NttType::BF_CT_K;
+}
+
+}
+#endif
 
 AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 	: FuncUnit<VX_CFG_NUM_ALU_BLOCKS>(ctx, name, core)
@@ -49,8 +85,24 @@ AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
   , kround25_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 4))
 #endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  , ntt_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 1))
+#endif
 #endif
 {}
+
+void AluUnit::on_reset() {
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+  next_pe_.fill(0);
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  ntt_pipeline_.fill({});
+  ntt_second_.fill(nullptr);
+#endif
+#endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  ntt_ready_cycle_.fill(0);
+#endif
+}
 
 uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 #ifdef VX_CFG_EXT_KSG25_ENABLE
@@ -118,6 +170,10 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 		default:
 			std::abort();
 		}
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	} else if (std::get_if<NttType>(&trace->op_type)) {
+		return ntt_uses_two_beats(trace) ? 7 : 6;
+#endif
 	}
 	std::abort();
 }
@@ -722,19 +778,68 @@ void AluUnit::execute(instr_trace_t* trace) {
 			std::abort();
 		}
 		DT(3, this->name() << " execute: op=" << mdv_type << ", " << *trace);
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	} else if (std::get_if<NttType>(&trace->op_type)) {
+		auto ntt_type = std::get<NttType>(trace->op_type);
+		switch (ntt_type) {
+		case NttType::MUL_K: {
+			for (uint32_t t = thread_start; t < num_threads; ++t) {
+				if (!tmask.test(t)) continue;
+				int32_t a = signed16(rs1_data[t].u);
+				int32_t b = signed16(rs2_data[t].u);
+				rd_data[t].i = static_cast<WordI>(montgomery_reduce_k(a, b));
+			}
+		} break;
+		case NttType::BF_CT_K:
+		case NttType::BF_GS_K: {
+			auto nttArgs = std::get<IntrNttArgs>(instrArgs);
+			const uint32_t lanes = VX_CFG_NUM_ALU_LANES;
+			const uint32_t distance = 1u << nttArgs.stage;
+			if (lanes != 32 || distance >= lanes || (num_threads % lanes) != 0)
+				std::abort();
+			for (uint32_t base = 0; base < num_threads; base += lanes) {
+				for (uint32_t lo = 0; lo < lanes; ++lo) {
+					if (lo & distance) continue;
+					uint32_t low_lane = base + lo;
+					uint32_t high_lane = low_lane + distance;
+					bool low_active = tmask.test(low_lane);
+					bool high_active = tmask.test(high_lane);
+					if (low_active != high_active)
+						std::abort();
+					if (!low_active) continue;
+
+					int32_t a = signed16(rs1_data[low_lane].u);
+					int32_t b = signed16(rs1_data[high_lane].u);
+					int32_t zeta = signed16(rs2_data[low_lane].u);
+					if (ntt_type == NttType::BF_CT_K) {
+						int32_t product = montgomery_reduce_k(b, zeta);
+						rd_data[low_lane].i = static_cast<WordI>(signed16(a + product));
+						rd_data[high_lane].i = static_cast<WordI>(signed16(a - product));
+					} else {
+						int32_t sum = signed16(a + b);
+						int32_t difference = signed16(b - a);
+						rd_data[low_lane].i = static_cast<WordI>(barrett_reduce_k(sum));
+						rd_data[high_lane].i =
+							static_cast<WordI>(montgomery_reduce_k(difference, zeta));
+					}
+				}
+			}
+		} break;
+		default:
+			std::abort();
+		}
+		DT(3, this->name() << " execute: op=" << ntt_type << ", " << *trace);
+#endif
 	} else {
 		std::abort();
 	}
 }
 
-#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
-void AluUnit::on_reset() {
-  next_pe_.fill(0);
-}
-#endif
-
 void AluUnit::on_tick() {
   bool idle = true;
+#if defined(VX_CFG_EXT_PQC_ENABLE) && !defined(VX_CFG_EXT_KSG25_ENABLE) && !defined(VX_CFG_EXT_KROUND25_ENABLE)
+  const auto cycle = SimPlatform::instance().cycles();
+#endif
   for (uint32_t b = 0; b < VX_CFG_NUM_ALU_BLOCKS; ++b) {
     auto& input = Inputs.at(b);
 #if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
@@ -744,13 +849,13 @@ void AluUnit::on_tick() {
       &mdv_results_[b],
 #endif
 #ifdef VX_CFG_EXT_KSG25_ENABLE
-      &ksg25_results_[b]
-#ifdef VX_CFG_EXT_KROUND25_ENABLE
-      ,
-#endif
+      &ksg25_results_[b],
 #endif
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
-      &kround25_results_[b]
+      &kround25_results_[b],
+#endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+      &ntt_results_[b],
 #endif
     };
     auto& output = Outputs.at(b);
@@ -765,9 +870,14 @@ void AluUnit::on_tick() {
         }
       }
     }
+#ifdef VX_CFG_EXT_PQC_ENABLE
+    const bool ntt_advance = !ntt_results_[b].full();
+    instr_trace_t* ntt_accepted = nullptr;
+#endif
     if (!input.empty()) {
       auto trace = input.peek();
       uint32_t pe = 0;
+      bool unit_ready = true;
 #ifdef VX_CFG_EXT_M_ENABLE
       if (std::get_if<MdvType>(&trace->op_type)) {
         pe = 1;
@@ -783,14 +893,55 @@ void AluUnit::on_tick() {
         pe = 1 + VX_CFG_EXT_M_ENABLED + VX_CFG_EXT_KSG25_ENABLED;
       }
 #endif
-      if (!results[pe]->full() && !DispatchRelease.at(b).full()) {
+#ifdef VX_CFG_EXT_PQC_ENABLE
+      if (std::get_if<NttType>(&trace->op_type)) {
+        pe = 1 + VX_CFG_EXT_M_ENABLED + VX_CFG_EXT_KSG25_ENABLED
+               + VX_CFG_EXT_KROUND25_ENABLED;
+        unit_ready = ntt_advance && !ntt_second_[b];
+      }
+#endif
+      if (unit_ready && !results[pe]->full() && !DispatchRelease.at(b).full()) {
         this->execute(trace);
-        results[pe]->send(trace, this->latency_of(trace) - 1);
+#ifdef VX_CFG_EXT_PQC_ENABLE
+        if (std::get_if<NttType>(&trace->op_type)) {
+          ntt_accepted = trace;
+        } else
+#endif
+        {
+          results[pe]->send(trace, this->latency_of(trace) - 1);
+        }
         // Acceptance feeds back within the same core clock domain.
         DispatchRelease.at(b).send(trace->wid, 0);
         input.pop();
       }
     }
+#ifdef VX_CFG_EXT_PQC_ENABLE
+    auto& pipeline = ntt_pipeline_[b];
+    if (ntt_advance) {
+      // The final registered stage is the result channel; its stall freezes every beat.
+      const auto& last = pipeline.back();
+      if (last.trace && last.last) {
+        ntt_results_[b].send(last.trace, 1);
+      }
+      for (uint32_t i = pipeline.size() - 1; i > 0; --i) {
+        pipeline[i] = pipeline[i - 1];
+      }
+      if (ntt_second_[b]) {
+        pipeline[0] = {ntt_second_[b], true};
+        ntt_second_[b] = nullptr;
+      } else if (ntt_accepted) {
+        bool two_beats = ntt_uses_two_beats(ntt_accepted);
+        pipeline[0] = {ntt_accepted, !two_beats};
+        ntt_second_[b] = two_beats ? ntt_accepted : nullptr;
+      } else {
+        pipeline[0] = {};
+      }
+    }
+    for (const auto& beat : pipeline) {
+      idle &= (beat.trace == nullptr);
+    }
+    idle &= (ntt_second_[b] == nullptr);
+#endif
     for (auto result : results) {
       idle &= (result->size() == 0);
     }
@@ -799,15 +950,28 @@ void AluUnit::on_tick() {
       auto& output = Outputs.at(b);
       if (!output.full()) {
         auto trace = input.peek();
+#ifdef VX_CFG_EXT_PQC_ENABLE
+        if (std::get_if<NttType>(&trace->op_type)
+         && cycle < ntt_ready_cycle_.at(b)) {
+          idle = false;
+          continue;
+        }
+#endif
         this->execute(trace);
         uint32_t delay = this->latency_of(trace);
         output.send(trace, delay);
         input.pop();
+#ifdef VX_CFG_EXT_PQC_ENABLE
+        if (ntt_uses_two_beats(trace)) {
+          ntt_ready_cycle_.at(b) = cycle + 2;
+        }
+#endif
       }
     }
 #endif
     idle &= (input.size() == 0);
   }
+  // Bank deadlines need no wakeup until another request arrives.
   if (idle) {
     this->tick_sleep();
   }

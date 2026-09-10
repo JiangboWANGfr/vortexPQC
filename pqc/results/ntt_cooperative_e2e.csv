@@ -1,0 +1,9 @@
+driver,xlen,cores,warps,threads,l2,l3,keccak,ntt,requests,kem_lanes,ntt_lanes,batch_cycles,cycles_per_request,speedup_vs_library,cycle_reduction_pct,kat_requests,ntt_calls_per_request,intt_calls_per_request,kernel_sha256,log
+simx,32,1,8,32,0,0,pe,coop,1,1,1,14081418,14081418.000,0.849917,-17.658592,1,15,9,dcdba51b1954fc38c30fd5223da24b98551c50734740ca7c092b2d3785592824,build32_ntt_barrier/ntt_barrier_validation/profile_coop_m1_l1.log
+simx,32,1,8,32,0,0,pe,coop,1,1,4,9289997,9289997.000,1.288271,22.376570,1,15,9,dcdba51b1954fc38c30fd5223da24b98551c50734740ca7c092b2d3785592824,build32_ntt_barrier/ntt_barrier_validation/profile_coop_m1_l4.log
+simx,32,1,8,32,0,0,pe,coop,1,1,32,8066367,8066367.000,1.483695,32.600723,1,15,9,dcdba51b1954fc38c30fd5223da24b98551c50734740ca7c092b2d3785592824,build32_ntt_target/ntt_w32_e2e_barrier/coop_simx_m1.log
+simx,32,1,8,32,0,0,pe,coop,8,1,1,18839804,2354975.500,0.846087,-18.191120,8,15,9,dcdba51b1954fc38c30fd5223da24b98551c50734740ca7c092b2d3785592824,build32_ntt_barrier/ntt_barrier_validation/profile_coop_m8_l1.log
+simx,32,1,8,32,0,0,pe,coop,8,1,4,11958821,1494852.625,1.332917,24.976584,8,15,9,dcdba51b1954fc38c30fd5223da24b98551c50734740ca7c092b2d3785592824,build32_ntt_barrier/ntt_barrier_validation/profile_coop_m8_l4.log
+simx,32,1,8,32,0,0,pe,coop,8,1,32,11378105,1422263.125,1.400947,28.619694,8,15,9,dcdba51b1954fc38c30fd5223da24b98551c50734740ca7c092b2d3785592824,build32_ntt_target/ntt_w32_e2e_barrier/coop_simx_m8.log
+simx,32,1,8,32,0,0,pe,library,1,1,1,11968032,11968032.000,1.000000,0.000000,1,15,9,6440da901814151c006ffb14755790d9ea87bd1b4b038967d58e59b29f7d1eda,build32_ntt_target/ntt_cooperative_e2e/library/m1_l1.log
+simx,32,1,8,32,0,0,pe,library,8,1,1,15940118,1992514.750,1.000000,0.000000,8,15,9,6440da901814151c006ffb14755790d9ea87bd1b4b038967d58e59b29f7d1eda,build32_ntt_target/ntt_cooperative_e2e/library/m8_l1.log

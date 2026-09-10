@@ -3,9 +3,16 @@ include $(ROOT_DIR)/config.mk
 
 # --- master list ------------------------------------------------------
 TESTS := \
-    mlkem mlkem_microbench mlkem_profile \
+    mlkem mlkem_microbench mlkem_profile mlkem_ntt_cost mlkem_ntt_xn nttmul_k \
     mldsa mldsa_microbench mldsa_profile \
     keccak_sg5
+
+ifeq ($(XLEN),32)
+TESTS += mlkem_arith_xn
+ifeq ($(words $(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE,$(CONFIGS))),3)
+TESTS += pqc_alu_mix
+endif
+endif
 
 BACKENDS := simx rtlsim aved
 

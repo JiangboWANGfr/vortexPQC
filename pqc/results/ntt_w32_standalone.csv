@@ -1,0 +1,13 @@
+implementation,requests,lanes,direction,samples,min_cycles,median_cycles,max_cycles,checked_coefficients,mismatches,run_instrs,correctness_status,log
+shared,1,32,forward,5,8517,8537,8594,1280,0,1036555,pass,build32_ntt_barrier/ntt_barrier_validation/shared_m1.log
+shared,1,32,inverse,5,18412,18416,18662,1280,0,1036555,pass,build32_ntt_barrier/ntt_barrier_validation/shared_m1.log
+shared,8,32,forward,5,16753,16952,16994,10240,0,8292440,pass,build32_ntt_barrier/ntt_barrier_validation/shared_m8.log
+shared,8,32,inverse,5,65454,66040,66987,10240,0,8292440,pass,build32_ntt_barrier/ntt_barrier_validation/shared_m8.log
+reg32,1,32,forward,5,13775,14175,14263,1280,0,1040270,pass,build32_ntt_barrier/ntt_barrier_validation/reg32_m1.log
+reg32,1,32,inverse,5,19131,19812,19857,1280,0,1040270,pass,build32_ntt_barrier/ntt_barrier_validation/reg32_m1.log
+reg32,8,32,forward,5,52804,53025,53144,10240,0,8322160,pass,build32_ntt_barrier/ntt_barrier_validation/reg32_m8.log
+reg32,8,32,inverse,5,69248,69248,69367,10240,0,8322160,pass,build32_ntt_barrier/ntt_barrier_validation/reg32_m8.log
+smem32,1,32,forward,5,8633,8772,8781,1280,0,1034370,pass,build32_ntt_barrier/ntt_barrier_validation/smem32_m1.log
+smem32,1,32,inverse,5,13051,13429,13524,1280,0,1034370,pass,build32_ntt_barrier/ntt_barrier_validation/smem32_m1.log
+smem32,8,32,forward,5,43237,44617,44741,10240,0,8274960,pass,build32_ntt_barrier/ntt_barrier_validation/smem32_m8.log
+smem32,8,32,inverse,5,63033,63068,63169,10240,0,8274960,pass,build32_ntt_barrier/ntt_barrier_validation/smem32_m8.log

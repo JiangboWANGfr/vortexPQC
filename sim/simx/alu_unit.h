@@ -25,10 +25,8 @@ public:
   AluUnit(const SimContext& ctx, const char* name, Core*);
 
 protected:
-  void on_tick() override;
-#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
   void on_reset() override;
-#endif
+  void on_tick() override;
 
 private:
   // Per-unit functional execution. Called only from this unit's tick().
@@ -41,7 +39,8 @@ private:
 #if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
   static constexpr uint32_t kNumPEs = 1 + VX_CFG_EXT_M_ENABLED
                                        + VX_CFG_EXT_KSG25_ENABLED
-                                       + VX_CFG_EXT_KROUND25_ENABLED;
+                                       + VX_CFG_EXT_KROUND25_ENABLED
+                                       + VX_CFG_EXT_PQC_ENABLED;
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> int_results_;
 #ifdef VX_CFG_EXT_M_ENABLE
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> mdv_results_;
@@ -49,12 +48,22 @@ private:
 #ifdef VX_CFG_EXT_KSG25_ENABLE
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> ksg25_results_;
 #endif
-#endif
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> kround25_results_;
 #endif
-#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  struct NttBeat {
+    instr_trace_t* trace = nullptr;
+    bool last = false;
+  };
+  std::array<std::array<NttBeat, 4>, VX_CFG_NUM_ALU_BLOCKS> ntt_pipeline_{};
+  std::array<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS> ntt_second_{};
+  std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> ntt_results_;
+#endif
   std::array<uint32_t, VX_CFG_NUM_ALU_BLOCKS> next_pe_{};
+#endif
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  std::array<uint64_t, VX_CFG_NUM_ALU_BLOCKS> ntt_ready_cycle_{};
 #endif
 };
 

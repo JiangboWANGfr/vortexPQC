@@ -418,6 +418,18 @@ static op_string_t op_string(const Instr &instr) {
     ,[&](PqcType /*pqc_type*/)-> op_string_t {
       return {"PQC.KECCAKF", ""};
     }
+    ,[&](NttType ntt_type)-> op_string_t {
+      switch (ntt_type) {
+      case NttType::MUL_K: return {"NTTMUL.K", ""};
+      case NttType::BF_CT_K:
+      case NttType::BF_GS_K: {
+        auto nttArgs = std::get<IntrNttArgs>(instrArgs);
+        return {(ntt_type == NttType::BF_CT_K ? "NTTBF.CT.K.XOR" : "NTTBF.GS.K.XOR")
+                + std::to_string(1u << nttArgs.stage), ""};
+      }
+      default: std::abort();
+      }
+    }
 #endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
     ,[&](DxaType /*dxa_type*/)-> op_string_t {
@@ -926,31 +938,50 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
     } break;
 #endif
 #ifdef VX_CFG_EXT_PQC_ENABLE
-    case 5: { // PQC. R-type, rd = x0, rs2 = x0; rs1 is the state pointer.
-              //
-              // One funct3 and one source, because Keccak-f1600 has no
-              // parameters -- 1600 bits in, 1600 bits out, 24 rounds. See
-              // pqc/docs/proposals/keccak_ise_proposal.md S2.0. Blocking, so no
-              // handle and no destination: next_steps_recipes.md Stage 1 spells
-              // an async launch/wait triple which S3.2 of that proposal rejects,
-              // and the proposal is the later document.
-      instr->set_fu_type(FUType::SFU);
-      instr->set_args(IntrPqcArgs{});
+    case 5: { // PQC
       switch (funct3) {
-      case 0: instr->set_op_type(PqcType::KECCAKF); break;
+      case 0: { // KECCAKF. R-type, rd = x0, rs2 = x0; rs1 is the state pointer.
+        // One source, because Keccak-f1600 has no parameters -- 1600 bits in,
+        // 1600 bits out, 24 rounds. See
+        // pqc/docs/proposals/keccak_ise_proposal.md S2.0. Blocking, so no handle
+        // and no destination: next_steps_recipes.md Stage 1 spells an async
+        // launch/wait triple which S3.2 of that proposal rejects, and the
+        // proposal is the later document.
+        instr->set_fu_type(FUType::SFU);
+        instr->set_args(IntrPqcArgs{});
+        instr->set_op_type(PqcType::KECCAKF);
+        instr->set_src_reg(0, rs1, RegType::Integer);
+        // The warp must stall until the PE is done. Without this the SFU holds
+        // only its own trace: the warp keeps issuing, and its next LSU load of
+        // the state runs ahead of the PE. A trace caught the CPU's read response
+        // for lane 2 at cycle 130,783 against the PE's first read of that lane at
+        // 130,785 -- the program read the state before the engine had touched it,
+        // so it read the pre-permutation value. That is unrecoverable by any
+        // amount of draining on the PE side, because the stale word is already in
+        // a register. Every blocking op in this file does the same thing; the
+        // WctlType cases are the model.
+        instr->set_wstall(true);
+      } break;
+      case 2: { // NTTMUL.K
+        instr->set_fu_type(FUType::ALU);
+        instr->set_op_type(NttType::MUL_K);
+        instr->set_dest_reg(rd, RegType::Integer);
+        instr->set_src_reg(0, rs1, RegType::Integer);
+        instr->set_src_reg(1, rs2, RegType::Integer);
+      } break;
       default: std::abort();
       }
+    } break;
+    case 8:
+    case 9: { // NTTBF.{CT,GS}.K
+      if (funct3 > 4 || VX_CFG_NUM_ALU_LANES != 32)
+        std::abort();
+      instr->set_fu_type(FUType::ALU);
+      instr->set_op_type(funct7 == 8 ? NttType::BF_CT_K : NttType::BF_GS_K);
+      instr->set_args(IntrNttArgs{funct3});
+      instr->set_dest_reg(rd, RegType::Integer);
       instr->set_src_reg(0, rs1, RegType::Integer);
-      // The warp must stall until the PE is done. Without this the SFU holds
-      // only its own trace: the warp keeps issuing, and its next LSU load of
-      // the state runs ahead of the PE. A trace caught the CPU's read response
-      // for lane 2 at cycle 130,783 against the PE's first read of that lane at
-      // 130,785 -- the program read the state before the engine had touched it,
-      // so it read the pre-permutation value. That is unrecoverable by any
-      // amount of draining on the PE side, because the stale word is already in
-      // a register. Every blocking op in this file does the same thing; the
-      // WctlType cases are the model.
-      instr->set_wstall(true);
+      instr->set_src_reg(1, rs2, RegType::Integer);
     } break;
 #endif
 #ifdef VX_CFG_EXT_KSG25_ENABLE

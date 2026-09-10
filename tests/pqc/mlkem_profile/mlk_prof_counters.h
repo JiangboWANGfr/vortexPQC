@@ -23,16 +23,74 @@ enum {
   MLK_PROF_MULCACHE,
   MLK_PROF_BASEMUL,
   MLK_PROF_POLY_REDUCE,
+  MLK_PROF_ARM,
   MLK_PROF_COUNT
 };
 
-// Device-side only. One translation unit holds the library, both backends and
-// the kernel, so a file-scope array is enough -- no linkage, no device-memory
-// round trip on the counting path. The host includes this header for the enum
-// alone, and a definition there would be an unused variable, which this build
-// treats as an error.
+enum {
+  MLK_ARM_KECCAK_PE = 1,
+  MLK_ARM_ABLATE_KECCAK = 2,
+  MLK_ARM_ABLATE_NTT = 4,
+  MLK_ARM_NTT_COOP = 8,
+  MLK_ARM_NTT_REG32 = 16,
+  MLK_ARM_NTT_SMEM32 = 32,
+  MLK_ARM_NTTMUL_K = 64,
+  MLK_ARM_NTTBF_K = 128,
+  MLK_ARM_PROFILE_ARITH = 256,
+  MLK_ARM_ARITH_MULCACHE = 512,
+  MLK_ARM_ARITH_BASEMUL = 1024,
+  MLK_ARM_ARITH_REDUCE = 2048,
+  MLK_ARM_ARITH_NTTMUL = 4096,
+  MLK_ARM_EXPECTED =
+#if defined(PQC_ARITH_MULCACHE)
+      MLK_ARM_ARITH_MULCACHE |
+#endif
+#if defined(PQC_ARITH_BASEMUL)
+      MLK_ARM_ARITH_BASEMUL |
+#endif
+#if defined(PQC_ARITH_REDUCE)
+      MLK_ARM_ARITH_REDUCE |
+#endif
+#if defined(PQC_ARITH_NTTMUL)
+      MLK_ARM_ARITH_NTTMUL |
+#endif
+#if defined(PQC_PROFILE_ARITH)
+      MLK_ARM_PROFILE_ARITH |
+#endif
+#if defined(PQC_KECCAK_PE)
+      MLK_ARM_KECCAK_PE |
+#endif
+#if defined(PQC_ABLATE_KECCAK)
+      MLK_ARM_ABLATE_KECCAK |
+#endif
+#if defined(PQC_ABLATE_NTT)
+      MLK_ARM_ABLATE_NTT |
+#endif
+#if defined(PQC_NTT_COOP)
+      MLK_ARM_NTT_COOP |
+#endif
+#if defined(PQC_NTT_REG32)
+      MLK_ARM_NTT_REG32 |
+#endif
+#if defined(PQC_NTT_SMEM32)
+      MLK_ARM_NTT_SMEM32 |
+#endif
+#if defined(PQC_NTTMUL_K)
+      MLK_ARM_NTTMUL_K |
+#endif
+#if defined(PQC_NTTBF_K)
+      MLK_ARM_NTTBF_K |
+#endif
+      0
+};
+
 #if defined(__VORTEX__)
-static uint32_t mlk_prof_counts[MLK_PROF_COUNT];
+#include <VX_config.h>
+#include <vx_intrinsics.h>
+
+// Concurrent requests must not share their counter row.
+static uint32_t mlk_prof_counts[VX_CFG_NUM_CLUSTERS * VX_CFG_NUM_CORES *
+                                VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS][MLK_PROF_COUNT];
 #endif
 
 #endif /* MLK_PROF_COUNTERS_H */

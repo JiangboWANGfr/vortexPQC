@@ -15,9 +15,9 @@
 #define __VX_PQC_H__
 
 // Kernel-side entry point for the PQC extension, so a kernel includes one thing.
-// pqc/vx_ntt.h joins these once the NTT ISE is designed.
 
 #include "pqc/vx_pqc_defs.h"
 #include "pqc/vx_keccak.h"
+#include "pqc/vx_ntt.h"
 
 #endif // __VX_PQC_H__

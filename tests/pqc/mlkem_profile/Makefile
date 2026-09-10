@@ -34,6 +34,87 @@ else ifneq ($(KECCAK),)
 $(error KECCAK must be pe or unset -- got '$(KECCAK)')
 endif
 
+ifneq ($(ARITH),)
+ifneq ($(filter mulcache basemul reduce all,$(ARITH)),$(ARITH))
+$(error ARITH must be mulcache, basemul, reduce, all, or unset)
+endif
+ifneq ($(NTT),reg32)
+$(error ARITH requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_ARITH_COOP
+	CXXFLAGS  += -DPQC_ARITH_COOP
+ifneq ($(filter mulcache all,$(ARITH)),)
+	VX_CFLAGS += -DPQC_ARITH_MULCACHE
+	CXXFLAGS  += -DPQC_ARITH_MULCACHE
+endif
+ifneq ($(filter basemul all,$(ARITH)),)
+	VX_CFLAGS += -DPQC_ARITH_BASEMUL
+	CXXFLAGS  += -DPQC_ARITH_BASEMUL
+endif
+ifneq ($(filter reduce all,$(ARITH)),)
+	VX_CFLAGS += -DPQC_ARITH_REDUCE
+	CXXFLAGS  += -DPQC_ARITH_REDUCE
+endif
+endif
+
+ifeq ($(ARITH_MUL),ise)
+ifeq ($(filter mulcache basemul all,$(ARITH)),)
+$(error ARITH_MUL=ise requires ARITH=mulcache, basemul, or all)
+endif
+	VX_CFLAGS += -DPQC_ARITH_NTTMUL
+	CXXFLAGS  += -DPQC_ARITH_NTTMUL
+else ifneq ($(ARITH_MUL),)
+$(error ARITH_MUL must be ise or unset)
+endif
+
+ifneq ($(NTT),)
+ifneq ($(filter coop reg32 smem32,$(NTT)),$(NTT))
+$(error NTT must be coop, reg32, smem32, or unset -- got '$(NTT)')
+endif
+ifneq ($(XLEN),32)
+$(error cooperative NTT currently requires XLEN=32)
+endif
+ifneq ($(ABLATE),)
+$(error cooperative NTT requires ABLATE unset)
+endif
+	VX_CFLAGS += -DPQC_NTT_COOP
+	CXXFLAGS  += -DPQC_NTT_COOP
+ifeq ($(NTT),reg32)
+	VX_CFLAGS += -DPQC_NTT_REG32
+	CXXFLAGS  += -DPQC_NTT_REG32
+else ifeq ($(NTT),smem32)
+	VX_CFLAGS += -DPQC_NTT_SMEM32
+	CXXFLAGS  += -DPQC_NTT_SMEM32
+endif
+endif
+
+ifeq ($(NTTMUL),ise)
+ifeq ($(NTT),)
+$(error NTTMUL=ise requires a cooperative NTT layout)
+endif
+	VX_CFLAGS += -DPQC_NTTMUL_K
+	CXXFLAGS  += -DPQC_NTTMUL_K
+else ifneq ($(NTTMUL),)
+$(error NTTMUL must be ise or unset -- got '$(NTTMUL)')
+endif
+
+ifeq ($(NTTBF),ise)
+ifneq ($(NTT),reg32)
+$(error NTTBF=ise requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_NTTBF_K
+	CXXFLAGS  += -DPQC_NTTBF_K
+else ifneq ($(NTTBF),)
+$(error NTTBF must be ise or unset -- got '$(NTTBF)')
+endif
+
+ifeq ($(PROFILE_ARITH),1)
+	VX_CFLAGS += -DPQC_PROFILE_ARITH
+	CXXFLAGS  += -DPQC_PROFILE_ARITH
+else ifneq ($(PROFILE_ARITH),)
+$(error PROFILE_ARITH must be 1 or unset)
+endif
+
 ifeq ($(ABLATE),keccak)
 	ABLATE_FLAGS := -DPQC_ABLATE_KECCAK
 else ifeq ($(ABLATE),ntt)
@@ -55,6 +136,15 @@ CXXFLAGS  += $(ABLATE_FLAGS)
 HDRS := $(SRC_DIR)/common.h \
         $(SRC_DIR)/mlk_prof_counters.h \
         $(VORTEX_HOME)/tests/pqc/pqc_config.h
+VX_HDRS := $(HDRS) $(SRC_DIR)/mlk_prof_arith.h \
+           $(SRC_DIR)/mlk_prof_fips202.h $(SRC_DIR)/vortex_prof_config.h \
+           $(SRC_DIR)/mlk_arith_dispatch.h \
+           $(VORTEX_HOME)/tests/pqc/mlkem_coop_arith.h \
+           $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h \
+           $(VORTEX_HOME)/sw/kernel/include/pqc/vx_pqc_defs.h
+ifneq ($(NTT),)
+VX_HDRS += $(VORTEX_HOME)/tests/pqc/mlkem_coop_ntt.h $(SRC_DIR)/mlk_coop_dispatch.h
+endif
 
 KERNEL_LIB := vortex2
 

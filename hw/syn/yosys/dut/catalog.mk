@@ -9,7 +9,7 @@
 # synthesizes, so both gates measure the same modules and a divergence between
 # them is meaningful rather than an artefact of two DUT lists.
 
-DUTS := cache core kround25 ksg25 tcu gfx tex raster om pqc rtu dxa vm tensor vortex
+DUTS := cache core kround25 ksg25 tcu gfx tex raster om pqc pqc_ntt rtu dxa vm tensor vortex
 
 UNITTEST_DIR ?= $(VORTEX_HOME)/hw/unittest
 
@@ -91,3 +91,8 @@ vortex_CFG :=
 pqc_TOP := VX_pqc_unit_top
 pqc_INC := -I$(UNITTEST_DIR)/pqc_unit
 pqc_CFG := -DVX_CFG_EXT_PQC_ENABLE
+
+pqc_ntt_TOP := VX_pqc_ntt_top
+pqc_ntt_INC := -I$(UNITTEST_DIR)/pqc_ntt
+pqc_ntt_CFG := -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_THREADS=32 \
+               -DVX_CFG_SIMD_WIDTH=32 -DVX_CFG_NUM_ALU_LANES=32

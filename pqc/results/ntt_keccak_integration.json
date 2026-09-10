@@ -1,0 +1,668 @@
+{
+  "merge_parents": {
+    "keccak": "97c435981e344c0f56ce6940d8fdd62e4c2409bb",
+    "ntt": "f6f56180d74a4de69517ee50303a71f7e3f805e5"
+  },
+  "destination_branch": "feature/pqc",
+  "artifact_root": "build_merge_ntt_keccak_20260911",
+  "nttbf_encoding": {
+    "custom0": 11,
+    "ct_funct7": 8,
+    "gs_funct7": 9,
+    "xor_stage_funct3": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "model_parity": {
+    "configs": "-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32",
+    "tolerance_pct": 5,
+    "all_passed": true,
+    "runtime_sha256": {
+      "simx": {
+        "sw/runtime/libsimx.so": "aef76fd3c115bfe52a08e5019bd9b9eff9186ecd8a3571df4ef309c342e66434",
+        "sw/runtime/libvortex-simx.so": "20c876a60059b5f360e6bb4cff8321e2bb50f94efd9ba1c466edc1e4296671d2",
+        "sw/runtime/libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298"
+      },
+      "rtlsim": {
+        "sw/runtime/librtlsim.so": "1442f0edfc5c22c1acb58f7f2c07fe034569c89068727317766589ef07e12742",
+        "sw/runtime/libvortex-rtlsim.so": "01e9d4d1d01adde8228dbc061ada623e198f31f46a09277f3006f9d50dd897c0",
+        "sw/runtime/libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298"
+      }
+    },
+    "source_sha256": {
+      "alu_unit.cpp": "b60f1b39603cd0b0c16e10d3ba20fb3380d023eb357ec04aa5f3658062c85e2a",
+      "alu_unit.h": "e6ee416c5c89f33032b5eb99fb9cc15f93828fd18433213d412815040231ac4a",
+      "decode.cpp": "dfda114740bcb6730f412f2bdce84fca59313c1357acb414527f10dda999cbbd",
+      "sfu_unit.cpp": "c633df603f3955a97b76f742c5c8b3789f937ee2d9d43a188f89eae34d29b642",
+      "sfu_unit.h": "6d7a4cacf1b6b6e3fa09375e0b74f72465a909f7e868489b54bd695ebd8efa25",
+      "core.cpp": "6265a7d6da3f37ccbc6b030d7ce4c0c2333f7d4958554eb10cdf11567aaac87a",
+      "core.h": "e547789c33efef8df61ac274ee87cf37a25a746aa3a102dcf3b37279eea8e4d5"
+    },
+    "cases": [
+      {
+        "case": "nttmul",
+        "instrs": 43506,
+        "simx_cycles": 497748,
+        "rtlsim_cycles": 502658,
+        "signed_gap_pct": -0.9768072924334237,
+        "parity_passed": true,
+        "kernel_sha256": "5fd83a279fa2f6093934a597c642e89148562b82573a16c906b442ad51850e5f"
+      },
+      {
+        "case": "nttbf",
+        "instrs": 59534,
+        "simx_cycles": 578678,
+        "rtlsim_cycles": 571661,
+        "signed_gap_pct": 1.2274757242491718,
+        "parity_passed": true,
+        "kernel_sha256": "6f1d9df92014709881a087544badad3334217081d5b05b6a30c7c357a60a89d3"
+      },
+      {
+        "case": "sg25_stages",
+        "instrs": 90719,
+        "simx_cycles": 6819016,
+        "rtlsim_cycles": 6934263,
+        "signed_gap_pct": -1.6619934951991322,
+        "parity_passed": true,
+        "kernel_sha256": "f08fe62703a71b550581539d45ee47b818a4ff65a832d67c98e1b8a0a5253756"
+      },
+      {
+        "case": "sg25_m1",
+        "instrs": 908,
+        "simx_cycles": 18972,
+        "rtlsim_cycles": 18670,
+        "signed_gap_pct": 1.6175682913765366,
+        "parity_passed": true,
+        "kernel_sha256": "f08fe62703a71b550581539d45ee47b818a4ff65a832d67c98e1b8a0a5253756"
+      },
+      {
+        "case": "sg25_m8",
+        "instrs": 7264,
+        "simx_cycles": 98878,
+        "rtlsim_cycles": 98940,
+        "signed_gap_pct": -0.06266424095411338,
+        "parity_passed": true,
+        "kernel_sha256": "f08fe62703a71b550581539d45ee47b818a4ff65a832d67c98e1b8a0a5253756"
+      },
+      {
+        "case": "round_m1",
+        "instrs": 324,
+        "simx_cycles": 12645,
+        "rtlsim_cycles": 12690,
+        "signed_gap_pct": -0.35460992907800915,
+        "parity_passed": true,
+        "kernel_sha256": "85be8400fa86834eb595d9022f065aacbfc44c6f23101169c83a95b648d89b3a"
+      },
+      {
+        "case": "round_m8",
+        "instrs": 2592,
+        "simx_cycles": 87721,
+        "rtlsim_cycles": 87569,
+        "signed_gap_pct": 0.17357740753005668,
+        "parity_passed": true,
+        "kernel_sha256": "85be8400fa86834eb595d9022f065aacbfc44c6f23101169c83a95b648d89b3a"
+      },
+      {
+        "case": "mix",
+        "instrs": 1552,
+        "simx_cycles": 7986,
+        "rtlsim_cycles": 7817,
+        "signed_gap_pct": 2.1619547140846906,
+        "parity_passed": true,
+        "kernel_sha256": "e1800e8b9c245139d5dee60066318e3419a0105a0078d7ab0c70253bde1b4aef"
+      },
+      {
+        "case": "profile_m1",
+        "instrs": 537044,
+        "simx_cycles": 6027029,
+        "rtlsim_cycles": 6001634,
+        "signed_gap_pct": 0.42313476629864955,
+        "parity_passed": true,
+        "kernel_sha256": "9ee8e9cfdcf948d62698df81a2b7150153e55e438d0b854e1b60446eee2da31b"
+      },
+      {
+        "case": "profile_m8",
+        "instrs": 4296352,
+        "simx_cycles": 8947562,
+        "rtlsim_cycles": 8999482,
+        "signed_gap_pct": -0.5769220939605191,
+        "parity_passed": true,
+        "kernel_sha256": "9ee8e9cfdcf948d62698df81a2b7150153e55e438d0b854e1b60446eee2da31b"
+      }
+    ]
+  },
+  "xrt": [
+    {
+      "app": "pqc_alu_mix",
+      "arm": "mix",
+      "args": [],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "e1800e8b9c245139d5dee60066318e3419a0105a0078d7ab0c70253bde1b4aef",
+      "started_utc": "2026-09-10T16:24:56.970557+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:24:57.310968+00:00",
+      "case": "mix",
+      "instrs": 1552,
+      "cycles": 7805,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/mix"
+    },
+    {
+      "app": "nttbf_k",
+      "arm": "nttbf",
+      "args": [],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "6f1d9df92014709881a087544badad3334217081d5b05b6a30c7c357a60a89d3",
+      "started_utc": "2026-09-10T16:24:57.044654+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:25:13.178510+00:00",
+      "case": "nttbf",
+      "instrs": 59534,
+      "cycles": 571674,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/nttbf"
+    },
+    {
+      "app": "nttmul_k",
+      "arm": "nttmul",
+      "args": [
+        "-n",
+        "4093",
+        "-t",
+        "13",
+        "-r",
+        "17"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "5fd83a279fa2f6093934a597c642e89148562b82573a16c906b442ad51850e5f",
+      "started_utc": "2026-09-10T16:24:57.072444+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:25:07.280060+00:00",
+      "case": "nttmul",
+      "instrs": 43506,
+      "cycles": 502641,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/nttmul"
+    },
+    {
+      "app": "keccak_pe",
+      "arm": "pe",
+      "args": [
+        "-b",
+        "8",
+        "-t",
+        "1",
+        "-p",
+        "4"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "96d3e7765b619566c494798adc965e1c56bd7aacc28c3ae64812987bd6e89f62",
+      "started_utc": "2026-09-10T16:24:57.172498+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:24:57.967619+00:00",
+      "case": "pe",
+      "instrs": 13480,
+      "cycles": 30744,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/pe"
+    },
+    {
+      "app": "mlkem_arith_xn",
+      "arm": "primitive",
+      "args": [
+        "-b",
+        "1"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "ad93676464836120928f6f65d7d25e327dc24c606286ac09bf18d7cdd180a4f6",
+      "started_utc": "2026-09-10T16:24:57.123320+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:32:58.426025+00:00",
+      "case": "primitive",
+      "instrs": 1646854,
+      "cycles": 20609521,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/primitive"
+    },
+    {
+      "app": "mlkem_profile",
+      "arm": "profile",
+      "args": [
+        "-b",
+        "1",
+        "-t",
+        "32"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "9ee8e9cfdcf948d62698df81a2b7150153e55e438d0b854e1b60446eee2da31b",
+      "started_utc": "2026-09-10T16:24:57.098083+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:27:10.835478+00:00",
+      "case": "profile_m1",
+      "instrs": 537044,
+      "cycles": 6001580,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/profile_m1",
+      "kem_makespan": 5999744
+    },
+    {
+      "app": "mlkem_profile",
+      "arm": "profile",
+      "args": [
+        "-b",
+        "8",
+        "-t",
+        "32"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "9ee8e9cfdcf948d62698df81a2b7150153e55e438d0b854e1b60446eee2da31b",
+      "started_utc": "2026-09-10T16:24:57.147597+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:28:17.210827+00:00",
+      "case": "profile_m8",
+      "instrs": 4296352,
+      "cycles": 8994270,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/profile_m8",
+      "kem_makespan": 8992026
+    },
+    {
+      "app": "keccak_sg25",
+      "arm": "round",
+      "args": [
+        "-b",
+        "8"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "85be8400fa86834eb595d9022f065aacbfc44c6f23101169c83a95b648d89b3a",
+      "started_utc": "2026-09-10T16:24:56.992779+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:26:11.941124+00:00",
+      "case": "round",
+      "instrs": 103155,
+      "cycles": 3215506,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/round"
+    },
+    {
+      "app": "keccak_sg25",
+      "arm": "stage",
+      "args": [
+        "-s",
+        "-b",
+        "8"
+      ],
+      "driver": "xrt",
+      "runtime_sha256": {
+        "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "libxrtsim.so": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5"
+      },
+      "kernel_sha256": "f08fe62703a71b550581539d45ee47b818a4ff65a832d67c98e1b8a0a5253756",
+      "started_utc": "2026-09-10T16:24:57.019688+00:00",
+      "exit_code": 0,
+      "finished_utc": "2026-09-10T16:27:41.312307+00:00",
+      "case": "stage",
+      "instrs": 90719,
+      "cycles": 6845174,
+      "raw_evidence": "validation/build_merge32/evidence/xrt/stage"
+    }
+  ],
+  "canonical_mixed_ci": [
+    {
+      "command": [
+        "python3",
+        "-m",
+        "pytest",
+        "ci",
+        "-k",
+        "pqc-alu-mix and not model_parity",
+        "-m",
+        "xrtsim",
+        "-q",
+        "-s"
+      ],
+      "environment": {
+        "VX_XLEN": "32",
+        "MAKEFLAGS": "THIRD_PARTY_DIR=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/third_party MLKEM_DIR=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/pqc/third_party/mlkem-native"
+      },
+      "working_directory": "/tmp/vortexpqc-merge-ntt-20260911/build_merge32",
+      "passed": 1,
+      "exit_code": 0,
+      "log": "ci_mix_xrt.log",
+      "log_sha256": "5adaf2b17bc7fbe199b1d65ca55ea956c2c871cec0ac284c79c7288e483d582a"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "pytest",
+        "ci",
+        "-k",
+        "pqc-alu-mix",
+        "-m",
+        "simx or model_parity",
+        "-q",
+        "-s"
+      ],
+      "environment": {
+        "VX_XLEN": "32",
+        "MAKEFLAGS": "THIRD_PARTY_DIR=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/third_party MLKEM_DIR=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/pqc/third_party/mlkem-native"
+      },
+      "working_directory": "/tmp/vortexpqc-merge-ntt-20260911/build_merge32",
+      "passed": 2,
+      "exit_code": 0,
+      "log": "ci_mix_model.log",
+      "log_sha256": "9419385e86a19f9acb51c567bb2392dc4692b16331959cbc6822d3a7980bab76"
+    }
+  ],
+  "compatibility": {
+    "rv64_ntt": {
+      "raw_evidence": "validation/build_merge64/evidence/compatibility_summary.json",
+      "summary": {
+        "functional_pass": true,
+        "pass_lines": [
+          "NTTMUL.K/NTTBF.K PASSED XLEN=64 LANES=32 requests=100 CT_II1=11 GS_II2=11 NTTMUL_II2=11"
+        ],
+        "perf_lines": []
+      },
+      "configs": "-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32",
+      "source_sha256": {
+        "VX_config.toml": "2a18cdb2e3a7767b7afa40e15c85392b6b33c13390e7de4e638852bae0aa69a8",
+        "VX_types.toml": "d27c03e50ffd5652e3f5c71a13a4cefd8e1f01f7232f3ff40cb8eca2d81e6328",
+        "hw/rtl/core/VX_alu_unit.sv": "fb01bc88b0b324e5b8065da1320536fddca1567f0fbc25b01b911477889b0dd4",
+        "hw/rtl/core/VX_decode.sv": "c2830fe2494ee4913abfce9f2319e91c4c71963c1452a506f906fe82d752a9d7",
+        "hw/rtl/pqc/VX_pqc_nttmul.sv": "bcd7ff8657487aea1d9b7dffa2555d593c1b6b73d51997f19ffce583b48b47a2",
+        "hw/rtl/VX_gpu_pkg.sv": "313106bf1af1d8460198d80b838014f7d3474ff8442c395c6b846be0686b3937",
+        "sim/simx/alu_unit.cpp": "b60f1b39603cd0b0c16e10d3ba20fb3380d023eb357ec04aa5f3658062c85e2a",
+        "sim/simx/alu_unit.h": "e6ee416c5c89f33032b5eb99fb9cc15f93828fd18433213d412815040231ac4a",
+        "sim/simx/decode.cpp": "dfda114740bcb6730f412f2bdce84fca59313c1357acb414527f10dda999cbbd",
+        "sw/kernel/include/pqc/vx_pqc_defs.h": "d02708d3bfaa8bd9a8117fb15a273380a2bfcff68108b821ce056901d78daf07"
+      },
+      "status": "COMPLETED"
+    },
+    "default32": {
+      "raw_evidence": "validation/build_merge_default32/evidence/wctl_final/final_summary.json",
+      "summary": {
+        "demo": {
+          "passed": true,
+          "args": [
+            "-n64"
+          ],
+          "perf": [
+            [
+              "2444",
+              "6707"
+            ]
+          ],
+          "host_sha256": "10eea5d79093761f2e4432ceef8e89758878459be9de6da3d0394eed1a0936d2",
+          "kernel_sha256": "5adfaedba11b81dc2aa6276186440a0625b80bbc5327ef814281eb32d1c05aea"
+        },
+        "diverge": {
+          "passed": true,
+          "args": [
+            "-n16",
+            "-d8"
+          ],
+          "perf": [
+            [
+              "248436",
+              "857051"
+            ]
+          ],
+          "host_sha256": "cd3ba93348b2c72dd45ca5979867717accfe2a09f7d0139f9a9bd19b151a4098",
+          "kernel_sha256": "92ba9279474bef4a26de3324de40459ab2ac062071846bac1bfc7aef1a753149"
+        },
+        "dogfood": {
+          "passed": true,
+          "args": [
+            "-n1",
+            "-tbar"
+          ],
+          "perf": [
+            [
+              "334",
+              "2439"
+            ]
+          ],
+          "host_sha256": "c0517d49a242b9f18b63dd571ccdba1a0a46766f1995cb31ad1bfc7b6a5e17f5",
+          "kernel_sha256": "fb2bd84e7acc03f4a1160de5114d069c46c71c77b981940e028451aff18990b3"
+        }
+      },
+      "configs": "",
+      "source_sha256": {
+        "VX_config.toml": "2a18cdb2e3a7767b7afa40e15c85392b6b33c13390e7de4e638852bae0aa69a8",
+        "sim/simx/sfu_unit.cpp": "c633df603f3955a97b76f742c5c8b3789f937ee2d9d43a188f89eae34d29b642",
+        "sim/simx/sfu_unit.h": "6d7a4cacf1b6b6e3fa09375e0b74f72465a909f7e868489b54bd695ebd8efa25",
+        "sim/simx/core.cpp": "6265a7d6da3f37ccbc6b030d7ce4c0c2333f7d4958554eb10cdf11567aaac87a",
+        "sim/simx/core.h": "e547789c33efef8df61ac274ee87cf37a25a746aa3a102dcf3b37279eea8e4d5",
+        "sim/simx/alu_unit.cpp": "b60f1b39603cd0b0c16e10d3ba20fb3380d023eb357ec04aa5f3658062c85e2a",
+        "sim/simx/alu_unit.h": "e6ee416c5c89f33032b5eb99fb9cc15f93828fd18433213d412815040231ac4a",
+        "sim/common/simobject.h": "71a119f461a31af2015873c32b437f984d30b94ca67d0cd11b64a6cad77eeea3"
+      },
+      "status": "PASS"
+    },
+    "w32_without_extensions": {
+      "raw_evidence": "validation/build_merge_wctl32/evidence/wctl_final/final_summary.json",
+      "summary": {
+        "demo": {
+          "passed": true,
+          "args": [
+            "-n64"
+          ],
+          "perf": [
+            [
+              "4888",
+              "317644"
+            ]
+          ],
+          "host_sha256": "10eea5d79093761f2e4432ceef8e89758878459be9de6da3d0394eed1a0936d2",
+          "kernel_sha256": "5adfaedba11b81dc2aa6276186440a0625b80bbc5327ef814281eb32d1c05aea"
+        },
+        "diverge": {
+          "passed": true,
+          "args": [
+            "-n1",
+            "-d8"
+          ],
+          "perf": [
+            [
+              "31901",
+              "1446141"
+            ]
+          ],
+          "host_sha256": "cd3ba93348b2c72dd45ca5979867717accfe2a09f7d0139f9a9bd19b151a4098",
+          "kernel_sha256": "92ba9279474bef4a26de3324de40459ab2ac062071846bac1bfc7aef1a753149"
+        },
+        "dogfood": {
+          "passed": true,
+          "args": [
+            "-n1",
+            "-tbar"
+          ],
+          "perf": [
+            [
+              "2450",
+              "36756"
+            ]
+          ],
+          "host_sha256": "c0517d49a242b9f18b63dd571ccdba1a0a46766f1995cb31ad1bfc7b6a5e17f5",
+          "kernel_sha256": "fb2bd84e7acc03f4a1160de5114d069c46c71c77b981940e028451aff18990b3"
+        }
+      },
+      "configs": "-DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32",
+      "source_sha256": {
+        "VX_config.toml": "2a18cdb2e3a7767b7afa40e15c85392b6b33c13390e7de4e638852bae0aa69a8",
+        "sim/simx/sfu_unit.cpp": "c633df603f3955a97b76f742c5c8b3789f937ee2d9d43a188f89eae34d29b642",
+        "sim/simx/sfu_unit.h": "6d7a4cacf1b6b6e3fa09375e0b74f72465a909f7e868489b54bd695ebd8efa25",
+        "sim/simx/core.cpp": "6265a7d6da3f37ccbc6b030d7ce4c0c2333f7d4958554eb10cdf11567aaac87a",
+        "sim/simx/core.h": "e547789c33efef8df61ac274ee87cf37a25a746aa3a102dcf3b37279eea8e4d5",
+        "sim/simx/alu_unit.cpp": "b60f1b39603cd0b0c16e10d3ba20fb3380d023eb357ec04aa5f3658062c85e2a",
+        "sim/simx/alu_unit.h": "e6ee416c5c89f33032b5eb99fb9cc15f93828fd18433213d412815040231ac4a",
+        "sim/common/simobject.h": "71a119f461a31af2015873c32b437f984d30b94ca67d0cd11b64a6cad77eeea3"
+      },
+      "status": "PASS"
+    },
+    "w1t1": {
+      "raw_evidence": "validation/build_merge_wctl_t1/evidence/focused_summary.json",
+      "summary": {},
+      "configs": "-DVX_CFG_NUM_WARPS=1 -DVX_CFG_NUM_THREADS=1",
+      "source_sha256": {
+        "VX_config.toml": "2a18cdb2e3a7767b7afa40e15c85392b6b33c13390e7de4e638852bae0aa69a8",
+        "sim/simx/sfu_unit.cpp": "c633df603f3955a97b76f742c5c8b3789f937ee2d9d43a188f89eae34d29b642",
+        "sim/simx/sfu_unit.h": "6d7a4cacf1b6b6e3fa09375e0b74f72465a909f7e868489b54bd695ebd8efa25",
+        "sim/simx/core.cpp": "6265a7d6da3f37ccbc6b030d7ce4c0c2333f7d4958554eb10cdf11567aaac87a",
+        "sim/simx/core.h": "e547789c33efef8df61ac274ee87cf37a25a746aa3a102dcf3b37279eea8e4d5",
+        "sim/common/simobject.h": "71a119f461a31af2015873c32b437f984d30b94ca67d0cd11b64a6cad77eeea3",
+        "hw/rtl/core/VX_split_join.sv": "db03634d495b146ff5a5a687f76dd8d576f6145f6009f82f54bb0f7ccc5bfc3a",
+        "tests/regression/diverge/kernel.cpp": "881d0bc97b84e4ab9edbd31a2d338ea05e47e07f672639f4ab8cc3fe20f72c76"
+      },
+      "status": "PASS"
+    }
+  },
+  "recorded_runtime_artifacts": {
+    "simx": {
+      "sw/runtime/libsimx.so": {
+        "sha256": "aef76fd3c115bfe52a08e5019bd9b9eff9186ecd8a3571df4ef309c342e66434",
+        "artifact": "validation/build_merge32/sw/runtime/libsimx.so"
+      },
+      "sw/runtime/libvortex-simx.so": {
+        "sha256": "20c876a60059b5f360e6bb4cff8321e2bb50f94efd9ba1c466edc1e4296671d2",
+        "artifact": "validation/build_merge32/evidence/before_join_t1/libvortex-simx.so"
+      },
+      "sw/runtime/libvortex.so": {
+        "sha256": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/libvortex.so"
+      }
+    },
+    "rtlsim": {
+      "sw/runtime/librtlsim.so": {
+        "sha256": "1442f0edfc5c22c1acb58f7f2c07fe034569c89068727317766589ef07e12742",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/librtlsim.so"
+      },
+      "sw/runtime/libvortex-rtlsim.so": {
+        "sha256": "01e9d4d1d01adde8228dbc061ada623e198f31f46a09277f3006f9d50dd897c0",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/libvortex-rtlsim.so"
+      },
+      "sw/runtime/libvortex.so": {
+        "sha256": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/libvortex.so"
+      }
+    },
+    "xrt": {
+      "libvortex.so": {
+        "sha256": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/libvortex.so"
+      },
+      "libvortex-xrt.so": {
+        "sha256": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/libvortex-xrt.so"
+      },
+      "libxrtsim.so": {
+        "sha256": "6862d7a34a663fbdf5476ab512eed3fa3b770ffece6a15c1709edbc530208ec5",
+        "artifact": "validation/build_merge32/evidence/runtime_initial/libxrtsim.so"
+      }
+    }
+  },
+  "physical_verification": {
+    "tool": "Vivado 2025.1",
+    "device": "xcv80-lsva4737-2MHP-e-S",
+    "top": "VX_core_top",
+    "clock_mhz": 250,
+    "period_ns": 4,
+    "opt_level": 3,
+    "stage": "post-route physical optimization",
+    "wns_ns": 0.006,
+    "tns_ns": 0,
+    "whs_ns": 0.01,
+    "ths_ns": 0,
+    "wpws_ns": 1.394,
+    "tpws_ns": 0,
+    "setup_and_hold_endpoints": 664515,
+    "pulse_width_endpoints": 301024,
+    "all_timing_constraints_met": true,
+    "source_sha256": {
+      "VX_config.toml": "2a18cdb2e3a7767b7afa40e15c85392b6b33c13390e7de4e638852bae0aa69a8",
+      "hw/rtl/core/VX_alu_unit.sv": "fb01bc88b0b324e5b8065da1320536fddca1567f0fbc25b01b911477889b0dd4",
+      "hw/rtl/core/VX_decode.sv": "c2830fe2494ee4913abfce9f2319e91c4c71963c1452a506f906fe82d752a9d7",
+      "hw/rtl/pqc/VX_pqc_nttmul.sv": "bcd7ff8657487aea1d9b7dffa2555d593c1b6b73d51997f19ffce583b48b47a2",
+      "hw/rtl/core/VX_alu_ksg25.sv": "2a18efaf65d108600e72fbc0715dafd3a9f8c9dda7a244b0bffbf8a7417f904d",
+      "hw/rtl/core/VX_alu_kround25.sv": "3cbb88e4a46c189a233e792e5ffb3d68f992a3157a58ed4132b42b022d15ccf6",
+      "hw/syn/xilinx/dut/project.tcl": "fd55ede94425496d678a7a24a996065d95d7f63d030368c8c2dee1d74f97c1a6",
+      "hw/syn/xilinx/dut/project.xdc": "97ed672079dd1b6a6708fdcc3591f4ef3006d6e212c7cccc75755d6e8a5dd6e2",
+      "hw/syn/xilinx/dut/catalog.mk": "5e27dcce59b1e28090fb66f71dc61250d3f9f0d4ff77e9566d7d004fee7b1e62",
+      "hw/syn/xilinx/dut/build.mk": "812ab38b07b0a63f0babb2bbd03203d78c8ab3027287e9553eade282a1519bf0"
+    },
+    "scope": "Combined core; excludes AFU. No board run or workload-annotated power measurement.",
+    "resource_usage": {
+      "core": {
+        "lut": 348081,
+        "ff": 278850,
+        "ramb36": 113,
+        "ramb18": 40,
+        "dsp": 176,
+        "uram": 0
+      },
+      "ntt": {
+        "lut": 5127,
+        "logic_lut": 5097,
+        "srl": 30,
+        "ff": 5635,
+        "ramb36": 0,
+        "ramb18": 0,
+        "dsp": 16
+      },
+      "ksg25": {
+        "lut": 855,
+        "ff": 2025,
+        "dsp": 0
+      },
+      "kround25": {
+        "lut": 2440,
+        "ff": 6130,
+        "dsp": 0
+      }
+    },
+    "unconstrained_internal_endpoints": 0,
+    "ooc_ports_without_io_delays": {
+      "input": 1130,
+      "output": 1383
+    }
+  }
+}

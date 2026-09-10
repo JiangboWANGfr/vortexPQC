@@ -82,6 +82,8 @@ public:
   SimEventLink<GbarArrive> gbar_arrive_out;
   SimEventLink<GbarResume> gbar_resume_in;
 
+  SimEventLink<uint32_t> wctl_resume_in;
+
 #ifdef VX_CFG_EXT_RASTER_ENABLE
   // Fragment-work-distributor event links, wired core <-> raster core.
   SimEventLink<FwdArm>  fwd_arm_in;
@@ -206,6 +208,7 @@ protected:
 
 private:
   void on_gbar_resume(const GbarResume& msg);
+  void on_wctl_resume(const uint32_t& wid);
 #ifdef VX_CFG_EXT_RASTER_ENABLE
   void on_fwd_arm(const FwdArm& msg);
 #endif

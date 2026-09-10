@@ -1,0 +1,7 @@
+# Existing mlkem_ntt_xn forward NTT, same binary, one request; simx,rv32,cores=1,warps=8,threads=32,l2=0,l3=0,ext_pqc=1
+# Each lane count has its own measured reference; all 256 coefficients checked.
+# Transform microbenchmark, not end-to-end ML-KEM acceleration.
+lanes,cooperative_cycles,reference_cycles,speedup,mismatches
+1,213315,135810,0.637,0
+4,54149,135810,2.508,0
+32,7955,135811,17.072,0

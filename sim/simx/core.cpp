@@ -252,7 +252,9 @@ public:
     snprintf(sname, 100, "%s-lsu", name.c_str());
     func_units_.at((int)FUType::LSU) = SimPlatform::instance().create_object<LsuUnit>(sname, simobject_);
     snprintf(sname, 100, "%s-sfu", name.c_str());
-    func_units_.at((int)FUType::SFU) = SimPlatform::instance().create_object<SfuUnit>(sname, simobject_);
+    auto sfu_unit = SimPlatform::instance().create_object<SfuUnit>(sname, simobject_);
+    func_units_.at((int)FUType::SFU) = sfu_unit;
+    sfu_unit->warp_resume_out.bind(&simobject_->wctl_resume_in);
   #ifdef VX_CFG_EXT_TCU_ENABLE
     snprintf(sname, 100, "%s-tcu", name.c_str());
     tcu_unit_ = SimPlatform::instance().create_object<TcuUnit>(sname, simobject_);
@@ -1077,6 +1079,7 @@ Core::Core(const SimContext& ctx,
   , dcache_rsp_in(VX_CFG_DCACHE_NUM_REQS, this)
   , gbar_arrive_out(this)
   , gbar_resume_in(this)
+  , wctl_resume_in(this)
 #ifdef VX_CFG_EXT_RASTER_ENABLE
   , fwd_arm_in(this)
   , fwd_done_out(this)
@@ -1086,6 +1089,7 @@ Core::Core(const SimContext& ctx,
   , impl_(new Impl(ctx, this))
 {
   gbar_resume_in.bind(this, &Core::on_gbar_resume);
+  wctl_resume_in.bind(this, &Core::on_wctl_resume);
 #ifdef VX_CFG_EXT_RASTER_ENABLE
   fwd_arm_in.bind(this, &Core::on_fwd_arm);
 #endif
@@ -1137,6 +1141,10 @@ void Core::global_barrier_resume(uint32_t bar_id) {
 
 void Core::on_gbar_resume(const GbarResume& msg) {
   this->global_barrier_resume(msg.bar_id);
+}
+
+void Core::on_wctl_resume(const uint32_t& wid) {
+  this->resume(wid);
 }
 
 #ifdef VX_CFG_EXT_RASTER_ENABLE
