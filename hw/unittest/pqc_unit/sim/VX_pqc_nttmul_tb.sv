@@ -4,7 +4,9 @@ module VX_pqc_nttmul_tb;
     import VX_gpu_pkg::*;
 
     localparam L = `VX_CFG_NUM_ALU_LANES;
-    localparam N = 48;
+    localparam BURST = 12;
+    localparam UNSTALLED = 3 * BURST;
+    localparam N = UNSTALLED + 64;
     localparam logic [31:0] NTTMUL_K_INSTR = 32'h0a73228b;
 
     logic clk = 0;
@@ -34,11 +36,22 @@ module VX_pqc_nttmul_tb;
     commit_t expected [N];
     int cycle = 0;
     int received = 0;
-    int consecutive = 0;
-    int max_consecutive = 0;
+    int accepted = 0;
+    int accepted_cycle [N];
+    int previous_accept_cycle = 0;
+    int ct_ii_checks = 0;
+    int gs_ii_checks = 0;
+    int nttmul_ii_checks = 0;
+    int backpressure_start = -1;
+    bit [4:0] ct_stages = '0;
+    bit [4:0] gs_stages = '0;
     bit producer_done = 0;
     bit saw_input_stall = 0;
+    bit saw_output_stall = 0;
+    bit saw_pending_second_stall = 0;
     bit saw_partial_pair_mask = 0;
+    bit saw_low_half_mask = 0;
+    bit saw_high_half_mask = 0;
     bit holding_output = 0;
     commit_t held_output;
 
@@ -137,7 +150,8 @@ module VX_pqc_nttmul_tb;
     endfunction
 
     function automatic bit is_butterfly_request(input int request);
-        is_butterfly_request = (request < 30) || ((request & 1) == 0);
+        is_butterfly_request = (request < 2 * BURST)
+            || ((request >= UNSTALLED) && (request % 3 != 2));
     endfunction
 
     function automatic logic [2:0] butterfly_stage(input int request);
@@ -145,7 +159,9 @@ module VX_pqc_nttmul_tb;
     endfunction
 
     function automatic bit butterfly_is_gs(input int request);
-        butterfly_is_gs = (request & 1) != 0;
+        butterfly_is_gs = (request < UNSTALLED)
+            ? (request >= BURST && request < 2 * BURST)
+            : (request % 3 == 1);
     endfunction
 
     function automatic logic signed [15:0] pair_twiddle(
@@ -179,19 +195,32 @@ module VX_pqc_nttmul_tb;
         logic [L-1:0] mask;
         int distance;
         int pair_low;
+        int selected_pair;
+        int pair_index;
         begin
             for (int lane = 0; lane < L; ++lane) begin
                 if (is_butterfly) begin
                     distance = 1 << stage;
                     pair_low = lane & ~distance;
-                    mask[lane] = (request % 3 == 0)
-                        || (((pair_low + request) % 3) != 0);
-                end else begin
-                    case (request % 4)
+                    selected_pair = (request % L) & ~distance;
+                    pair_index = ((pair_low >> (stage + 1)) << stage)
+                               | (pair_low & (distance - 1));
+                    case ((request / 5) % 5)
                         0: mask[lane] = 1;
-                        1: mask[lane] = ((lane & 1) == 0);
-                        2: mask[lane] = (lane == (request % L));
-                        default: mask[lane] = (lane != 0 && lane != L - 1);
+                        1: mask[lane] = (pair_low == selected_pair);
+                        2: mask[lane] = (pair_low != selected_pair);
+                        3: mask[lane] = ((pair_index & 1) == (request & 1));
+                        default: mask[lane] = (pair_low == 0)
+                            || (pair_low == ((L - 1) & ~distance));
+                    endcase
+                end else begin
+                    case (request % 6)
+                        0: mask[lane] = 1;
+                        1: mask[lane] = (lane < L / 2);
+                        2: mask[lane] = (lane >= L / 2);
+                        3: mask[lane] = (lane == 0);
+                        4: mask[lane] = (lane == L - 1);
+                        default: mask[lane] = ((lane & 1) == 0);
                     endcase
                 end
             end
@@ -375,8 +404,11 @@ module VX_pqc_nttmul_tb;
 
     always @(negedge clk) begin
         if (!reset) begin
-            commit_if[0].ready = !((cycle >= 60 && cycle < 78)
-                                || (cycle > 85 && cycle % 7 == 3));
+            if (accepted >= UNSTALLED && backpressure_start < 0)
+                backpressure_start = cycle;
+            commit_if[0].ready = (backpressure_start < 0)
+                || !((cycle < backpressure_start + 18)
+                  || (cycle > backpressure_start + 24 && cycle % 7 == 3));
         end
     end
 
@@ -384,28 +416,65 @@ module VX_pqc_nttmul_tb;
         if (reset) begin
             cycle = 0;
             received = 0;
-            consecutive = 0;
-            max_consecutive = 0;
+            accepted = 0;
+            ct_ii_checks = 0;
+            gs_ii_checks = 0;
+            nttmul_ii_checks = 0;
+            ct_stages = '0;
+            gs_stages = '0;
+            saw_low_half_mask = 0;
+            saw_high_half_mask = 0;
             saw_input_stall = 0;
+            saw_output_stall = 0;
+            saw_pending_second_stall = 0;
             holding_output = 0;
         end else begin
             ++cycle;
 
-            if (dispatch_if[0].valid && dispatch_if[0].ready) begin
-                ++consecutive;
-                if (consecutive > max_consecutive)
-                    max_consecutive = consecutive;
-            end else begin
-                consecutive = 0;
+            if (dut.g_blocks[0].nttmul_unit.execute_if.valid
+             && dut.g_blocks[0].nttmul_unit.execute_if.ready) begin
+                if (accepted >= N)
+                    $fatal(1, "duplicate PQC NTT unit request");
+                if (accepted > 0 && accepted < UNSTALLED) begin
+                    int expected_ii;
+                    expected_ii = (accepted <= BURST) ? 1 : 2;
+                    if (cycle - previous_accept_cycle != expected_ii)
+                        $fatal(1, "request %0d unit II=%0d expected %0d",
+                            accepted, cycle - previous_accept_cycle, expected_ii);
+                    if (accepted < BURST)
+                        ++ct_ii_checks;
+                    else if (accepted > BURST && accepted < 2 * BURST)
+                        ++gs_ii_checks;
+                    else if (accepted > 2 * BURST)
+                        ++nttmul_ii_checks;
+                end
+                accepted_cycle[accepted] = cycle;
+                previous_accept_cycle = cycle;
+                if (is_butterfly_request(accepted)) begin
+                    if (butterfly_is_gs(accepted))
+                        gs_stages[butterfly_stage(accepted)] = 1;
+                    else
+                        ct_stages[butterfly_stage(accepted)] = 1;
+                end else begin
+                    if (dut.g_blocks[0].nttmul_unit.execute_if.data.header.tmask == 32'h0000ffff)
+                        saw_low_half_mask = 1;
+                    if (dut.g_blocks[0].nttmul_unit.execute_if.data.header.tmask == 32'hffff0000)
+                        saw_high_half_mask = 1;
+                end
+                ++accepted;
             end
             if (dispatch_if[0].valid && !dispatch_if[0].ready)
                 saw_input_stall = 1;
+            if (!dut.g_blocks[0].nttmul_unit.advance
+             && dut.g_blocks[0].nttmul_unit.pending_second)
+                saw_pending_second_stall = 1;
 
             if (holding_output) begin
                 if (!commit_if[0].valid || commit_if[0].data !== held_output)
                     $fatal(1, "result changed under backpressure");
             end
             if (commit_if[0].valid && !commit_if[0].ready) begin
+                saw_output_stall = 1;
                 held_output = commit_if[0].data;
                 holding_output = 1;
             end else begin
@@ -415,6 +484,14 @@ module VX_pqc_nttmul_tb;
             if (commit_if[0].valid && commit_if[0].ready) begin
                 if (received >= N)
                     $fatal(1, "duplicate PQC NTT ALU result");
+                if (backpressure_start < 0) begin
+                    int expected_latency;
+                    expected_latency = is_butterfly_request(received)
+                        && !butterfly_is_gs(received) ? 6 : 7;
+                    if (cycle - accepted_cycle[received] != expected_latency)
+                        $fatal(1, "request %0d ALU latency=%0d expected %0d",
+                            received, cycle - accepted_cycle[received], expected_latency);
+                end
                 if (commit_if[0].data.uuid !== expected[received].uuid
                  || commit_if[0].data.wid !== expected[received].wid
                  || commit_if[0].data.cta_id !== expected[received].cta_id
@@ -459,12 +536,19 @@ module VX_pqc_nttmul_tb;
         send_requests();
         wait (received == N);
         repeat (4) @(negedge clk);
-        if (!producer_done || max_consecutive < 4 || !saw_input_stall
-         || !saw_partial_pair_mask)
-            $fatal(1, "missing throughput/backpressure/mask coverage consecutive=%0d stall=%0d partial=%0d",
-                max_consecutive, saw_input_stall, saw_partial_pair_mask);
-        $display("NTTMUL.K/NTTBF.K PASSED XLEN=%0d LANES=%0d requests=%0d consecutive=%0d",
-            `VX_CFG_XLEN, L, received, max_consecutive);
+        if (!producer_done || accepted != N || ct_ii_checks != BURST - 1
+         || gs_ii_checks != BURST - 1 || nttmul_ii_checks != BURST - 1
+         || !saw_input_stall || !saw_output_stall || !saw_partial_pair_mask
+         || !saw_pending_second_stall
+         || !saw_low_half_mask || !saw_high_half_mask
+         || ct_stages != '1 || gs_stages != '1)
+            $fatal(1, "missing II/backpressure/mask coverage accepted=%0d ct=%0d gs=%0d mul=%0d in_stall=%0d out_stall=%0d pending_stall=%0d partial=%0d low=%0d high=%0d ct_stages=%b gs_stages=%b",
+                accepted, ct_ii_checks, gs_ii_checks, nttmul_ii_checks,
+                saw_input_stall, saw_output_stall, saw_pending_second_stall,
+                saw_partial_pair_mask,
+                saw_low_half_mask, saw_high_half_mask, ct_stages, gs_stages);
+        $display("NTTMUL.K/NTTBF.K PASSED XLEN=%0d LANES=%0d requests=%0d CT_II1=%0d GS_II2=%0d NTTMUL_II2=%0d",
+            `VX_CFG_XLEN, L, received, ct_ii_checks, gs_ii_checks, nttmul_ii_checks);
         $finish;
     end
 

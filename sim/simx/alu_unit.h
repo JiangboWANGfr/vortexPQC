@@ -22,6 +22,7 @@ public:
   AluUnit(const SimContext& ctx, const char* name, Core*);
 
 protected:
+  void on_reset() override;
   void on_tick() override;
 
 private:
@@ -31,6 +32,10 @@ private:
   void execute(instr_trace_t* trace);
 
   uint32_t latency_of(const instr_trace_t* trace) const;
+
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  std::array<uint64_t, VX_CFG_NUM_ALU_BLOCKS> ntt_ready_cycle_{};
+#endif
 };
 
 }

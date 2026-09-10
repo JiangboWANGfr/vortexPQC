@@ -5,9 +5,10 @@ and whether a scalar modular-multiply instruction covers enough of that work.
 The measurements below complete that characterization for ML-KEM-768 and
 validate both `NTTMUL.K` and a cross-lane SG2 butterfly. On the measured W32
 configuration, register-resident `SG2+NTTMUL.K` is now the selected functional
-and performance prototype. V80 post-route results show that the current
-per-lane implementation meets 250 MHz after registering its reduction and
-result stages. Its area now defines the baseline for a half-width SG2 bank.
+and performance prototype. The half-width multiplier bank with static XOR-stage
+routing closes 250 MHz on V80, reduces the NTT hierarchy to 5,079 LUT and
+16 DSP, and preserves measured complete-KEM performance. It is the selected
+implementation baseline for the remaining arithmetic paths.
 
 ## Matched end-to-end experiment
 
@@ -382,7 +383,12 @@ request rows, and `build_manifest.json` are under
 logs remain under `build32_ntt_parity/ntt_barrier_e2e/baseline/old_fence/` and
 `build32_ntt_rtl/ntt_rtl_validation/`.
 
-## Implemented `NTTMUL.K` baseline
+## Implemented `NTTMUL.K` full-bank baseline
+
+Unless explicitly marked as legacy below, the NTTMUL/SG2 implementation and
+measurements through the V80 PPA section describe the 32-multiplier full-bank
+design preserved in commit `9e8284986`. Its SimX NTT latency is six cycles and
+its ready/valid path accepts one request per cycle.
 
 `NTTMUL.K` uses an R-type encoding in `CUSTOM-0` (`opcode=0x0b`,
 `funct7=0x05`, `funct3=0x2`). Its fixed match value is `0x0a00200b` with
@@ -496,7 +502,7 @@ blocker evidence are under `build64_nttmul/nttmul_rv64_validation/`. No
 synthesis-only measurement isolates `NTTMUL.K`; the post-route result below
 measures the combined NTTMUL/SG2 unit integrated into the full core.
 
-## Implemented W32 cross-lane SG2 butterfly
+## Implemented full-bank W32 cross-lane SG2 butterfly
 
 `NTTBF.CT.K.XORs` and `NTTBF.GS.K.XORs` use `CUSTOM-0` with
 `funct7=0x06` and `0x07`. `funct3=s` selects XOR distance `2^s` for
@@ -529,39 +535,43 @@ retire 59,534 instructions. Their run cycles are 578,255 and 571,661, a
 backpressure, result headers, pair-low twiddle selection, and paired masks at
 XLEN=32 and XLEN=64.
 
-The direct transform ablation uses medians over the same five input patterns:
+The direct transform ablation uses medians over the same five input patterns.
+The `SG2+C` rows marked `legacy latency 4` predate the registered reduction and
+result pipeline. They remain useful correctness evidence, but their cycles are
+excluded from comparisons with the six-cycle full-bank rows.
 
 | W32 implementation | M1 forward | M1 inverse | M8 forward | M8 inverse |
 | --- | ---: | ---: | ---: | ---: |
 | `reg32+SHFL+C` | 14,175 | 19,812 | 53,025 | 69,248 |
 | `reg32+SHFL+NTTMUL.K` | 10,368 | 16,156 | 38,749 | 59,052 |
-| `reg32+SG2+C` | 4,012 | 9,073 | **13,370** | 37,981 |
-| `reg32+SG2+NTTMUL.K` | **3,648** | **6,213** | 15,499 | **22,803** |
+| `reg32+SG2+C` (legacy latency 4) | 4,012 | 9,073 | 13,370 | 37,981 |
+| `reg32+SG2+NTTMUL.K` | **3,648** | **6,213** | **15,499** | **22,803** |
 | `smem32+NTTMUL.K` | 4,992 | 10,276 | 23,758 | 53,621 |
 
 All 115,200 coefficient checks represented by these 20 rows match upstream C.
-SG2 removes 71.70% and 74.79% of the M1 and M8 forward intervals relative to
-software shuffle when both retain C arithmetic. The combined SG2/NTTMUL path
-wins three of four direct cells. Its M8 forward interval is slower than SG2
-with C arithmetic, so the isolated transform data does not justify treating
-every NTTMUL substitution as free under contention.
+Within the six-cycle full-bank measurements, the combined SG2/NTTMUL path is
+the fastest instruction-enabled arm in all four direct cells. The legacy row
+cannot establish the incremental cost or benefit of replacing its C arithmetic
+with NTTMUL.
 
-The complete KECCAKF-assisted ML-KEM-768 ablation resolves that ambiguity:
+The complete KECCAKF-assisted ML-KEM-768 ablation is:
 
 | SimX W32 arm | M1 KEM cycles | Reduction vs `SHFL+C` | M8 batch cycles | Reduction vs `SHFL+C` |
 | --- | ---: | ---: | ---: | ---: |
 | `reg32+SHFL+C` | 8,074,507 | 0.000% | 11,392,888 | 0.000% |
 | `reg32+SHFL+NTTMUL.K` | 7,977,927 | 1.196% | 10,999,052 | 3.457% |
-| `reg32+SG2+C` | 7,803,698 | 3.354% | 10,234,674 | 10.166% |
+| `reg32+SG2+C` (legacy latency 4) | 7,803,698 | legacy | 10,234,674 | legacy |
 | `reg32+SG2+NTTMUL.K` | **7,773,390** | **3.729%** | **10,093,661** | **11.404%** |
 | `smem32+NTTMUL.K` | 7,849,906 | 2.782% | 10,616,622 | 6.814% |
 
-SG2 is the larger contribution: replacing shuffle with SG2 while keeping C
-arithmetic removes 3.354% at M1 and 10.166% at M8. Adding NTTMUL to SG2 removes
-another 0.388% and 1.378%. The combination is nevertheless the fastest complete
-arm at both request counts. All 45 requests across the five SimX arms match
-`pk`, `sk`, `ct`, `ss_enc`, and `ss_dec`, and every request records 15 NTT and
-nine INTT calls.
+The legacy `SG2+C` rows are excluded from contribution decomposition. In the
+matched six-cycle data, adding SG2 to `SHFL+NTTMUL.K` reduces complete KEM
+cycles by 2.564% at M1 and 8.232% at M8. NTTMUL alone over `SHFL+C` reduces
+them by 1.196% and 3.457%, respectively. This paired comparison identifies SG2
+as the larger contribution without mixing timing models. The combined arm is
+the fastest complete arm at both request counts. All 45 requests across the
+five SimX arms match `pk`, `sk`, `ct`, `ss_enc`, and `ss_dec`, and every
+request records 15 NTT and nine INTT calls.
 
 The final combination also passes RTL and XRT/xrtsim:
 
@@ -585,7 +595,8 @@ reports 696 cases in 36 categories. The focused smoke cases, M8 full parity,
 direct transform, and XRT case pass; the standalone gap is 1.15%, M1 KEM gap
 0.80%, and M8 KEM gap 3.71%.
 
-The current RTL still instantiates one signed 16-by-16 multiplier per ALU lane.
+The full-bank RTL preserved in `9e8284986` instantiates one signed 16-by-16
+multiplier per ALU lane.
 CT gives only the pair-low multiplier useful work, while GS uses the pair-high
 multiplier for its Barrett constant product. The implementation establishes
 collective semantics and performance, but it does not yet realize a half-width
@@ -597,7 +608,7 @@ Current standalone logs are under `build32_nttmul/nttbf_validation/`; direct,
 complete KEM, RTL, and XRT logs and matching binaries are under
 `build32_nttmul/sg2_validation/`.
 
-## V80 post-route PPA
+## V80 post-route PPA of the full-bank baseline
 
 The combined NTTMUL/SG2 RTL was implemented as part of the complete RV32 core
 on `xcv80-lsva4737-2MHP-e-S` with Vivado 2025.1. All measurements use one
@@ -664,11 +675,10 @@ failed intermediate structures remain in their separately named directories.
 The measured W32 software route is register-resident state plus SG2, with
 `NTTMUL.K` retained for the three lane-local levels and inverse scaling. SG2 is
 the main performance contribution, while NTTMUL is the smaller reusable
-arithmetic contribution. The post-route result shows that the current per-lane
-physical organization meets the timing target and provides a valid
-implementation baseline. Its measured area leaves a concrete reason to test a
-half-width multiplier bank next. The measurements do not justify jumping
-directly to a multi-level radix or pointer-based full-NTT engine.
+arithmetic contribution. The half-width experiment below preserves complete
+KEM performance and closes 250 MHz with 5,079 LUT and 16 DSP inside the NTT
+hierarchy. It is the preferred implementation baseline. Any subsequent
+SG4/8/32 fusion should be justified by profiling this lower-area baseline.
 
 1. **Complete:** add the cooperative inverse transform and verify every
    coefficient against upstream C at 1, 4, and 32 lanes, including independent
@@ -702,9 +712,10 @@ directly to a multi-level radix or pointer-based full-NTT engine.
    cycles, and repeat unit, standalone, direct-transform, M1/M8 complete KAT,
    RTL/XRT parity, and matched V80 implementation. The full core closes
    250 MHz with WNS 0.000 ns.
-10. **Pending:** statically bank each XOR stage and evaluate a half-width SG2
-   multiplier bank against the measured 15,480-LUT, 32-DSP NTT hierarchy.
-   Only then should a fused SG4/8/32 radix be considered.
+10. **Complete:** statically bank each XOR stage and evaluate the half-width
+   SG2 multiplier bank. The NTT hierarchy falls from 15,480 to 5,079 LUT and
+   from 32 to 16 DSP; the complete core retains 250 MHz timing closure and
+   complete-KEM cycles change by at most 0.041% across the matched backends.
 
 These ML-KEM results do not yet characterize ML-DSA's different coefficient
 width and modulus. An instruction intended for both needs that second data
@@ -796,3 +807,120 @@ invalid lane widths, and mismatched host/kernel arms. The deliberately corrupted
 arithmetic and inverse-output kernels also fail their expected comparisons.
 Those checks were not rerun for this synchronization-only refresh and are not
 counted as current BAR CI coverage.
+
+## Half-width multiplier-bank experiment
+
+The full-bank implementation is preserved in local commit `9e8284986`. The
+half-width implementation shares 16 signed 16×16 multipliers across W32. CT
+uses one beat; GS uses one Montgomery beat and one Barrett-constant beat;
+NTTMUL uses one beat per half warp. Static five-way XOR-stage routing replaces
+general lane indexing. One saved second beat and one partial-result register
+preserve operation order; output backpressure freezes both with the arithmetic
+and header pipelines. Instruction encodings and arithmetic are unchanged.
+
+| Operation | Full bank latency / II | Half bank latency / II |
+| --- | ---: | ---: |
+| W32 CT | 6 / 1 | 6 / 1 |
+| W32 GS | 6 / 1 | 7 / 2 |
+| W32 NTTMUL | 6 / 1 | 7 / 2 |
+| Physical single-lane NTTMUL | 6 / 1 | 6 / 1 |
+
+SimX reserves the second beat separately for each ALU block, without blocking
+other ALU PEs solely because the NTT bank is busy. The W32 integrated ALU unit
+test now checks 100 mixed requests at both XLEN=32 and XLEN=64. It verifies
+CT II=1, GS/NTTMUL II=2, latency 6/7, paired and half-warp masks, complete
+headers, and stable outputs under backpressure. A coverage assertion requires
+backpressure to occur while `pending_second` is set. Build-local scalar-only
+checks also pass 48 requests each with physical one- and four-lane ALUs.
+These tests do not establish full-system RV64 support.
+
+The dependent RAW64 probe, running one active lane on the physical W32 bank,
+increases from 920/917 SimX/RTL cycles to 984/981. Both retire 146 instructions;
+the exact 64-cycle increase confirms the extra cycle for each NTTMUL. The
+4,093-pair arithmetic program and 334,080-output butterfly program retain zero
+mismatches and their previous instruction counts. Their SimX/RTL cycle gaps
+remain 0.978% and 1.153%.
+
+Direct transform intervals are medians of five input patterns:
+
+| Implementation | M1 forward | M1 inverse | M8 forward | M8 inverse |
+| --- | ---: | ---: | ---: | ---: |
+| Full bank SG2+NTTMUL | 3,648 | 6,213 | 15,499 | 22,803 |
+| Half bank SG2+NTTMUL | 3,648 | 6,213 | 15,486 | 22,934 |
+| Half bank SG2+C | 3,999 | 8,976 | 13,423 | 38,222 |
+
+The combined half-bank arm changes M8 forward/inverse by -0.084%/+0.574%
+relative to the full bank. Within the half-bank model, C arithmetic still wins
+the M8 forward-only interval; NTTMUL wins the other three cells. Thus physical
+bank savings and the software choice of where to use NTTMUL are separate
+questions. The new SG2+C row uses the same CT6/II1 and GS7/II2 model as the new
+combined row; it supersedes the legacy latency-four row for this comparison.
+
+Complete KECCAKF-assisted KEM tests use an identical combined-arm kernel binary
+in the full- and half-bank runs (SHA-256
+`aacef153910fdd99e9d87392011f90ed4242f9bd8fd19bbee09324f026a0bf47`).
+The current half-bank SimX/RTL runs match every byte of pk/sk/ct/ss_enc/ss_dec
+at M1 and M8. Both retire 728,166 instructions at M1 and 5,825,328 at M8;
+cycle agreement is 0.799% and 3.724%, inside the unchanged 5% gate.
+
+The complete-KEM results are:
+
+| Arm / backend | M1 makespan | M8 makespan |
+| --- | ---: | ---: |
+| Full bank SG2+NTTMUL / SimX | 7,773,390 | 10,093,661 |
+| Half bank SG2+NTTMUL / SimX | 7,773,392 | 10,091,206 |
+| Full bank SG2+NTTMUL / RTL | 7,711,801 | 10,482,710 |
+| Half bank SG2+NTTMUL / RTL | 7,711,801 | 10,481,554 |
+| Full bank SG2+NTTMUL / XRT | 7,711,455 | 10,522,959 |
+| Half bank SG2+NTTMUL / XRT | 7,711,455 | 10,518,691 |
+| Half bank SG2+C / SimX | 7,803,698 | 10,229,210 |
+
+All listed half-bank KATs pass. XRT/RTL makespan differences are -0.004487%
+at M1 and +0.354308% at M8. The half bank has effectively unchanged complete
+KEM performance: its largest absolute change from the matching full-bank run
+is 0.041%. Within the half-bank model, adding NTTMUL to SG2+C reduces KEM
+cycles by 0.388% at M1 and 1.349% at M8.
+
+Data: [half-bank functional comparison](../../pqc/results/ntt_halfbank_validation.csv).
+
+Vivado 2025.1 post-route physical optimization closes the half-bank design on
+`xcv80-lsva4737-2MHP-e-S` with the same 250 MHz constraint, configuration, and
+optimization strategy as the full-bank baseline. Final setup WNS/TNS are
+0.000/0.000 ns and hold WHS/THS are +0.010/0.000 ns. The implementation has
+zero failed, unrouted, partially routed, or overlapping nets.
+
+| Resource | Full bank | Half bank | Change |
+| --- | ---: | ---: | ---: |
+| Complete-core LUT | 356,447 | 341,680 | -14,767 (-4.143%) |
+| Complete-core FF | 272,430 | 270,865 | -1,565 (-0.574%) |
+| Complete-core DSP | 192 | 176 | -16 (-8.333%) |
+| Complete-core RAMB36 / RAMB18 | 113 / 40 | 113 / 40 | unchanged |
+| NTT hierarchy LUT | 15,480 | 5,079 | -10,401 (-67.190%) |
+| NTT hierarchy FF | 6,319 | 5,040 | -1,279 (-20.241%) |
+| NTT hierarchy DSP | 32 | 16 | -16 (-50.000%) |
+
+These savings reflect both multiplier sharing and static XOR-stage routing.
+The whole-core delta includes integration and placement effects. Relative to
+the Keccak/PQC core without NTT instructions, the half-bank design adds 6,763
+LUT (+2.019%), 5,678 FF (+2.141%), 16 DSP (+10%), and no BRAM. All reported
+PPA covers the single-core DUT. The frequency result establishes closure at
+the 250 MHz target; it is not a maximum-frequency sweep.
+
+None of the final 100 worst setup paths traverses `nttmul_unit`, compared
+with 20 paths in the full-bank report. The global first path runs from the
+Keccak PQC AGU base register to the LSU scheduler request RAM and has 3.913 ns
+data delay. The report does not separately measure the NTT-specific worst path.
+
+Vectorless dynamic power is 8.297 W, down 0.655 W (-7.317%) from the full bank;
+total on-chip power is 30.332 W, down 0.657 W (-2.120%). These are relative
+estimates from the same flow without a workload activity file. Final data is
+in [V80 post-route PPA](../../pqc/results/ntt_v80_ppa.csv).
+
+The half-width bank with static stage routing is retained as the implementation
+baseline: it materially reduces resources, preserves 250 MHz timing closure,
+and leaves measured complete-KEM performance effectively unchanged.
+
+Functional logs, binaries, source hashes, and the exact working-tree patch are
+under `build32_nttmul/halfbank_validation/`. The separate scalar RTL checks are
+under `build32_ntt_bank_audit/scalar_l{1,4}_rtl.log`. The new physical reports
+are under `build32_ntt_vivado/hw/syn/xilinx/dut/v80_ntt_halfbank_250_core/`.

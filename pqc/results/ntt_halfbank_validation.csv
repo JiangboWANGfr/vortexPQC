@@ -1,0 +1,38 @@
+# W32 fullbank32 baseline: CT/GS/NTTMUL latency6 II1, commit 9e8284986.
+# W32 halfbank16: CT latency6 II1; GS and NTTMUL latency7 II2. Source hashes and patch: build32_nttmul/halfbank_validation/manifest.json and source.patch.
+# measured_cycles: KEM batch makespan, direct median of five patterns, RAW64 dependent-chain interval, arithmetic full run. run_cycles always includes launch/completion overhead.
+# Raw64 uses one active lane on the physical W32 ALU; physical ALU_LANES=1 retains latency6 II1.
+# Unit XLEN32/64: 100 mixed requests each, CT II1/GS II2/NTTMUL II2, masks, headers, backpressure including a stalled pending second beat; unit{32,64}_pending_stall.log.
+measurement,variant,bank_multipliers,driver,xlen,warps,threads,requests,active_lanes,direction,measured_cycles,run_cycles,instructions,reference_cycles,status,log
+kem,reg32_sg2_nttmul,32,simx,32,8,32,1,32,,7773390,7775418,728166,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/e2e/reg32_sg2_nttmul_lat6/rv32_simx_m1.log
+kem,reg32_sg2_nttmul,16,simx,32,8,32,1,32,,7773392,7775420,728166,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_simx_m1.log
+kem,reg32_sg2_nttmul,32,rtlsim,32,8,32,1,32,,7711801,7713631,728166,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/e2e/reg32_sg2_nttmul_lat6/rv32_rtlsim_m1.log
+kem,reg32_sg2_nttmul,16,rtlsim,32,8,32,1,32,,7711801,7713631,728166,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_rtlsim_m1.log
+kem,reg32_sg2_nttmul,32,xrt,32,8,32,1,32,,7711455,7713290,728166,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/xrt/reg32_sg2_nttmul_lat6/rv32_xrt_m1.log
+kem,reg32_sg2_nttmul,16,xrt,32,8,32,1,32,,7711455,7713290,728166,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_xrt_m1.log
+kem,reg32_sg2_c,16,simx,32,8,32,1,32,,7803698,7805747,730215,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_sg2_c_simx_m1.log
+direct,reg32_sg2_nttmul,32,simx,32,8,32,1,32,forward,3648,12613637,1031965,136009,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/direct/reg32_sg2_nttmul_lat6/rv32_simx_m1.log
+direct,reg32_sg2_nttmul,32,simx,32,8,32,1,32,inverse,6213,12613637,1031965,256320,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/direct/reg32_sg2_nttmul_lat6/rv32_simx_m1.log
+direct,reg32_sg2_nttmul,16,simx,32,8,32,1,32,forward,3648,12613637,1031965,136009,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_simx_m1.log
+direct,reg32_sg2_nttmul,16,simx,32,8,32,1,32,inverse,6213,12613637,1031965,256320,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_simx_m1.log
+direct,reg32_sg2_c,16,simx,32,8,32,1,32,forward,3999,12630044,1032880,136009,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_sg2_c_simx_m1.log
+direct,reg32_sg2_c,16,simx,32,8,32,1,32,inverse,8976,12630044,1032880,256321,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_sg2_c_simx_m1.log
+kem,reg32_sg2_nttmul,32,simx,32,8,32,8,32,,10093661,10096044,5825328,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/e2e/reg32_sg2_nttmul_lat6/rv32_simx_m8.log
+kem,reg32_sg2_nttmul,16,simx,32,8,32,8,32,,10091206,10093589,5825328,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_simx_m8.log
+kem,reg32_sg2_nttmul,32,rtlsim,32,8,32,8,32,,10482710,10484965,5825328,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/e2e/reg32_sg2_nttmul_lat6/rv32_rtlsim_m8.log
+kem,reg32_sg2_nttmul,16,rtlsim,32,8,32,8,32,,10481554,10483809,5825328,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_rtlsim_m8.log
+kem,reg32_sg2_nttmul,32,xrt,32,8,32,8,32,,10522959,10525312,5825328,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/xrt/reg32_sg2_nttmul_lat6/rv32_xrt_m8.log
+kem,reg32_sg2_nttmul,16,xrt,32,8,32,8,32,,10518691,10521044,5825328,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_xrt_m8.log
+kem,reg32_sg2_c,16,simx,32,8,32,8,32,,10229210,10231470,5841720,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/profile_sg2_c_simx_m8.log
+direct,reg32_sg2_nttmul,32,simx,32,8,32,8,32,forward,15499,16140802,8255720,194012,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/direct/reg32_sg2_nttmul_lat6/rv32_simx_m8.log
+direct,reg32_sg2_nttmul,32,simx,32,8,32,8,32,inverse,22803,16140802,8255720,395945,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/sg2_validation/direct/reg32_sg2_nttmul_lat6/rv32_simx_m8.log
+direct,reg32_sg2_nttmul,16,simx,32,8,32,8,32,forward,15486,16141398,8255720,194012,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_simx_m8.log
+direct,reg32_sg2_nttmul,16,simx,32,8,32,8,32,inverse,22934,16141398,8255720,395945,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_simx_m8.log
+direct,reg32_sg2_c,16,simx,32,8,32,8,32,forward,13423,16193612,8263040,193542,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_sg2_c_simx_m8.log
+direct,reg32_sg2_c,16,simx,32,8,32,8,32,inverse,38222,16193612,8263040,395105,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/direct_sg2_c_simx_m8.log
+arithmetic,nttmul_k,16,simx,32,8,32,1,13,,497744,497744,43506,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/nttmul_simx.log
+arithmetic,nttbf_k,16,simx,32,8,32,1,32,,578255,578255,59534,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/nttbf_simx.log
+raw64,nttmul_k,16,simx,32,8,32,1,1,,984,2149,146,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/nttmul_raw64_simx.log
+arithmetic,nttmul_k,16,rtlsim,32,8,32,1,13,,502658,502658,43506,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/nttmul_rtlsim.log
+arithmetic,nttbf_k,16,rtlsim,32,8,32,1,32,,571661,571661,59534,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/nttbf_rtlsim.log
+raw64,nttmul_k,16,rtlsim,32,8,32,1,1,,981,2066,146,,pass,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_nttmul/halfbank_validation/nttmul_raw64_rtlsim.log

@@ -3,18 +3,20 @@
 # Keccak AGU, a 250 MHz constraint, and the aggressive performance flow.
 # The baseline RTL is unchanged between 36c2441fd and d82b2a24f. The NTT rows
 # are d82b2a24f plus successive NTTMUL.K/NTTBF.K working-tree implementations.
+# The halfbank row uses 9e8284986 plus the patch and hashes in build32_nttmul/halfbank_validation/.
 variant,date,stage,constraint_mhz,warps,threads,total_luts,logic_luts,lutrams,srls,ffs,ramb36,ramb18,uram,dsps,wns_ns,fmax_mhz,vectorless_dynamic_w,total_onchip_w,status,report_dir
 keccak_pe_static_agu,2026-09-09,post_route_phys_opt,250,8,32,334917,322561,8286,4070,265187,113,40,0,160,0.000,250.0,8.251,30.286,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-codex-agu/build32/hw/syn/xilinx/dut/routing_v80_static_32_250_core
 keccak_pe_static_agu_nttmul_sg2,2026-09-10,post_route_phys_opt,250,8,32,355302,342946,8286,4070,271944,113,40,0,224,-0.669,214.2,8.615,30.651,setup_failed,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_ntt_vivado/hw/syn/xilinx/dut/v80_ntt_full_250_core
 keccak_pe_static_agu_nttmul_sg2_shiftadd,2026-09-10,post_route_phys_opt,250,8,32,356768,344412,8286,4070,270242,113,40,0,192,-0.481,223.2,9.122,31.159,setup_failed,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_ntt_vivado/hw/syn/xilinx/dut/v80_ntt_shiftadd_250_core
 keccak_pe_static_agu_nttmul_sg2_reducepipe,2026-09-10,post_route_phys_opt,250,8,32,356447,344061,8286,4100,272430,113,40,0,192,0.000,250.0,8.952,30.989,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_ntt_vivado/hw/syn/xilinx/dut/v80_ntt_reducepipe_250_core
+keccak_pe_static_agu_nttmul_sg2_halfbank,2026-09-10,post_route_phys_opt,250,8,32,341680,329294,8286,4100,270865,113,40,0,176,0.000,250.0,8.297,30.332,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC-ntt/build32_ntt_vivado/hw/syn/xilinx/dut/v80_ntt_halfbank_250_core
 # The original NTT row adds 20,385 LUT (+6.087%), 6,757 FF (+2.548%), and
 # 64 DSP (+40.000%) over the matched baseline. Its NTT hierarchy is 14,884 LUT,
 # 5,115 FF, and 64 DSP; the worst path crosses the unregistered Barrett DSP.
 # Replacing quotient*3329 with the exact 1+2^8+2^10+2^11 shift-add removes all
 # 32 Barrett constant-multiply DSPs. Adding registered reduction and result
 # stages then closes the integrated design at 250 MHz with WNS 0.000 ns.
-# The final design adds 21,530 LUT (+6.428%), 7,243 FF (+2.731%), no BRAM, and
+# The fullbank registered-reduction design adds 21,530 LUT (+6.428%), 7,243 FF (+2.731%), no BRAM, and
 # 32 DSP (+20.000%) over the baseline. Its NTT hierarchy is 15,480 LUT, 6,319 FF,
 # and 32 DSP. Of the final 100 worst setup paths, 20 traverse nttmul_unit, 38
 # local memory, 26 dispatcher, 8 pqc_agu, and 4 csr; categories may overlap.
@@ -22,3 +24,14 @@ keccak_pe_static_agu_nttmul_sg2_reducepipe,2026-09-10,post_route_phys_opt,250,8,
 # data delay. NTT no longer monopolizes the core timing endpoints.
 # Power is Vivado vectorless estimation; no environmental constraints or workload
 # activity file were supplied, so only the matched relative delta is used.
+# The halfbank shares 16 multipliers and statically routes the five XOR stages.
+# CT latency/II stays 6/1; GS and NTTMUL become 7/2. Full KEM cycles change
+# by at most 0.041% across matched SimX/RTL/XRT runs. Kernel binaries match.
+# Relative to fullbank: -14,767 LUT (-4.143%), -1,565 FF (-0.574%), -16 DSP
+# (-8.333%), unchanged BRAM, and the same 250 MHz timing closure.
+# Halfbank NTT hierarchy: 5,079 LUT (5,049 logic + 30 SRL), 5,040 FF, 16 DSP;
+# changes are -67.190% LUT, -20.241% FF, -50% DSP. No NTT path appears in
+# the 100 worst setup paths. Global first path is PQC AGU to LSU scheduler,
+# with 3.913 ns data delay. Final WNS/TNS=0/0, WHS/THS=0.010/0 ns.
+# Halfbank vectorless dynamic/total power drops 0.655/0.657 W from fullbank.
+# These power estimates use no workload activity file and are flow-relative.

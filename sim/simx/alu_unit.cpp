@@ -24,6 +24,7 @@
 
 using namespace vortex;
 
+#ifdef VX_CFG_EXT_PQC_ENABLE
 namespace {
 
 int32_t signed16(uint32_t value) {
@@ -51,11 +52,24 @@ int32_t barrett_reduce_k(int32_t value) {
 	return signed16(value - quotient * kModulus);
 }
 
+bool ntt_uses_two_beats(const instr_trace_t* trace) {
+	auto ntt_type = std::get_if<NttType>(&trace->op_type);
+	return VX_CFG_NUM_ALU_LANES > 1 && ntt_type
+		&& *ntt_type != NttType::BF_CT_K;
 }
+
+}
+#endif
 
 AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 	: FuncUnit<VX_CFG_NUM_ALU_BLOCKS>(ctx, name, core)
 {}
+
+void AluUnit::on_reset() {
+#ifdef VX_CFG_EXT_PQC_ENABLE
+	ntt_ready_cycle_.fill(0);
+#endif
+}
 
 uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 	if (std::get_if<AluType>(&trace->op_type)) {
@@ -115,7 +129,7 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 		}
 #ifdef VX_CFG_EXT_PQC_ENABLE
 	} else if (std::get_if<NttType>(&trace->op_type)) {
-		return 6;
+		return ntt_uses_two_beats(trace) ? 7 : 6;
 #endif
 	}
 	std::abort();
@@ -640,21 +654,35 @@ void AluUnit::execute(instr_trace_t* trace) {
 
 void AluUnit::on_tick() {
   bool idle = true;
+#ifdef VX_CFG_EXT_PQC_ENABLE
+  const auto cycle = SimPlatform::instance().cycles();
+#endif
   for (uint32_t b = 0; b < VX_CFG_NUM_ALU_BLOCKS; ++b) {
     auto& input = Inputs.at(b);
     if (!input.empty()) {
       auto& output = Outputs.at(b);
       if (!output.full()) {
         auto trace = input.peek();
+#ifdef VX_CFG_EXT_PQC_ENABLE
+        if (std::get_if<NttType>(&trace->op_type)
+         && cycle < ntt_ready_cycle_.at(b)) {
+          idle = false;
+          continue;
+        }
+#endif
         this->execute(trace);
         uint32_t delay = this->latency_of(trace);
         output.send(trace, delay);
         input.pop();
+#ifdef VX_CFG_EXT_PQC_ENABLE
+        if (ntt_uses_two_beats(trace))
+          ntt_ready_cycle_.at(b) = cycle + 2;
+#endif
       }
     }
     idle &= (input.size() == 0);
   }
-  // no cross-tick state: sleep until a new trace is reserved toward an input.
+  // Bank deadlines need no wakeup until another request arrives.
   if (idle) {
     this->tick_sleep();
   }
