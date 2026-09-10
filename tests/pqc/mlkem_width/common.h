@@ -5,9 +5,8 @@
 #include "mlk_width_counters.h"
 
 // Sliced per request: each CTA gets its own scratch, status, cycles and probe.
-// The lanes WITHIN a CTA still share that CTA's slice -- they run the whole KEM
-// redundantly and write identical bytes -- which is what makes this a lane-width
-// instrument. What was wrong before was sharing across CTAs.
+// The lanes within a CTA share that slice. SG25 uses them as one cooperative
+// subgroup; the other backends retain their lane-width experiment mapping.
 typedef struct {
   uint64_t scratch_addr;  // in/out : requests * P_SCRATCH_LEN
   uint64_t counts_addr;   // out    : requests * MLKW_COUNT * uint32_t

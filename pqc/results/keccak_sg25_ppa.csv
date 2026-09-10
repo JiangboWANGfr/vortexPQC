@@ -1,0 +1,71 @@
+# Isolated-unit rows compare implementation cost and omit register-file, issue,
+# writeback, and LSU effects. Full-core rows use RV32, one core, 8 warps x 32
+# threads, SIMD/ALU width 32, and matched target constraints. The pointer PE
+# performs a complete permutation, whereas KSG25 implements one of six stage
+# instructions per issue, so isolated rows are not a latency comparison.
+technology,target,tool,design,stage,target_mhz,lut,ff,bram,uram,dsp,wns_ns,fmax_mhz,cell_area_um2,seq_area_um2,cell_count
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,pointer_keccakf,post_route,300,3223,1607,0,0,0,0.619,368.4,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,sg25_stage_unit,post_route,300,2821,2101,0,0,0,0.244,323.7,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,sg25_round_unit,post_route,300,2610,6282,0,0,0,0.552,359.6,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,base_core_8w32,post_route_phys_opt,300,325407,269344,,,160,-0.066,294.2,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,sg25_core_8w32,post_route_phys_opt,300,328403,272309,133,0,160,-0.096,291.6,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,kround25_core_8w32,post_route_phys_opt,300,327816,276308,133,0,160,-0.058,294.9,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,base_core_8w32,post_route_phys_opt,250,323072,263116,,,160,0.015,250.9,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,sg25_core_8w32,post_route_phys_opt,250,325288,265015,133,0,160,0.033,252.1,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,kround25_core_8w32,post_route_phys_opt,250,325832,269371,133,0,160,0.000,250.0,,,
+fpga,xcv80-lsva4737-2MHP-e-S,Vivado_2025.1,pointer_core_8w32,post_route_phys_opt,250,334917,,,,,0.000,250.0,,,
+asic,ASAP7_RVT_TT_1p00V_25C,Yosys_0.57_OpenSTA_2.7.0,pointer_keccakf,mapped_sta,500,,,,,,,2187.227,1723.254,470.642,15786
+asic,ASAP7_RVT_TT_1p00V_25C,Yosys_0.57_OpenSTA_2.7.0,sg25_stage_unit,mapped_sta,500,,,,,,,1882.885,1832.123,612.943,17616
+asic,ASAP7_RVT_TT_1p00V_25C,Yosys_0.57_OpenSTA_2.7.0,sg25_round_unit,mapped_sta,500,,,,,,,2041.233,3889.186,1831.831,33889
+#
+# At the 500 MHz ASIC mapping point, KSG25 uses 6.32% more total cell area,
+# 30.24% more sequential area, and 11.59% more mapped cells than the pointer PE.
+# On V80, KSG25 uses 12.47% fewer LUTs and 30.74% more FFs; its isolated Fmax is
+# 12.13% lower but still closes the 300 MHz constraint. The KSG25 critical path
+# is 92.34% routing delay and two LUT levels from the parity buffer to the result
+# buffer. Vectorless power is omitted because it is not workload activity.
+#
+# In the 300 MHz full-core pair, KSG25 adds 2,996 LUTs (0.921%) and 2,965 FFs
+# (1.101%); achieved Fmax changes from 294.2 to 291.6 MHz (-0.884%). At the
+# common 250 MHz operating point it adds 2,216 LUTs (0.686%) and 1,899 FFs
+# (0.722%) and closes with +0.033 ns WNS. The KSG25 hierarchy itself is
+# 869 LUT/2,025 FF at 250 MHz; the critical path is in local memory, not KSG25.
+# The pointer full core adds 11,845 LUTs (3.7%) at 250 MHz and closes with zero
+# margin; its integration overhead is therefore 5.35x KSG25's LUT overhead.
+# KROUND25 adds 2,760 LUTs (0.854%) and 6,255 FFs (2.377%) over the base at
+# 250 MHz. Its hierarchy is 2,483 LUT/6,130 FF, and the worst path remains in
+# issue-to-integer-ALU routing. Against KSG25 it adds 544 full-core LUTs and
+# 4,356 FFs. At the common 250 MHz point its measured eight-warp permutation
+# throughput per full-core LUT is 4.086x KSG25 and 52.36x software.
+# At the 300 MHz target KROUND25 adds 2,409 LUTs (0.740%) and 6,964 FFs
+# (2.586%) over the matched base. Against KSG25 it uses 587 fewer LUTs and
+# 3,999 more FFs; achieved Fmax is 294.9 MHz versus 291.6 MHz. Its hierarchy is
+# 2,428 LUT/6,131 FF, and none of the 100 reported worst paths enters KROUND25.
+# Including achieved Fmax and full-core LUT gives 4.146x throughput/LUT over
+# KSG25, consistent with the constraint-independent 4.086x result at 250 MHz.
+#
+# Reproduce the V80 KSG25 row from a configured RV32 build:
+#   source /data/Xilinx/2025.1/Vivado/settings64.sh
+#   cd build32_ksg25/hw/syn/xilinx/dut
+#   DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=300 make ksg25 PREFIX=<tag>
+# Reproduce the isolated KROUND25 row from the same generated build tree:
+#   DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=300 make kround25 PREFIX=<tag>
+# Reproduce the full-core KSG25 row by replacing `ksg25` with `core` and adding:
+#   CONFIGS="-DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+# Reproduce the full-core KROUND25 row with:
+#   CLK_FREQ_MHZ=<250|300> CONFIGS="-DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32" make core PREFIX=<tag>
+# Reproduce the matched ASAP7 rows from build32_ksg25/hw/syn/yosys/dut:
+#   make ksg25 CLOCK_FREQ=500 PREFIX=<tag>
+#   make kround25 CLOCK_FREQ=500 PREFIX=<tag>
+# The ASAP7 sweep used the yosys DUT `ksg25` with the RVT TT liberty at
+# 1.00 V/25 C. Runs at 500, 1000, 1500, 1800, 2000, 2200, and 2300 MHz met
+# timing; the 2400 MHz run failed with WNS -0.0063 ns. That sweep estimates the
+# isolated KSG25 boundary at about 2.36 GHz, but the matched 500 MHz rows above
+# are the area comparison.
+#
+# KROUND25's four-stage pipeline uses 7.48% fewer V80 LUTs but 2.990x the FFs
+# of KSG25 and closes 300 MHz with 0.552 ns slack. At the matched 500 MHz ASAP7
+# point, it uses 2.123x the total cell area, 2.989x the sequential area, and
+# 1.924x the mapped cells. The full-core result above shows that most of the
+# isolated sequential-area difference remains visible as FF rather than LUT
+# overhead after integration.

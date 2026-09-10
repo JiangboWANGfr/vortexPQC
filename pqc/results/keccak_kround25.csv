@@ -1,0 +1,19 @@
+# RV32, one core, 8 warps x 32 threads, SIMD/ALU width 32, L2/L3 disabled.
+# Each row checks final states against mlkem-native. Timed spans exclude state
+# I/O and include 64 dependent permutations per state. KSG25 issues six stage
+# instructions per round from a loop; KROUND25 uses two single-writeback
+# instructions per round and encodes the literal round in funct7.
+driver,design,batch_warps,permutations_per_state,collective_issues_per_round,direct_unit_latency,span_cycles,cycles_per_completed_permutation,instrs,cycles,elf_sha256,result
+simx,sg25_stages,1,64,6,2,133076,2079.312,12788,143604,ef7b6cf88bab7cba0cfa907f8370f3abea96af537e8d22ba846f37e8382c5393,PASS
+simx,sg25_stages,8,64,6,2,245485,479.463,102304,328859,ef7b6cf88bab7cba0cfa907f8370f3abea96af537e8d22ba846f37e8382c5393,PASS
+rtlsim,sg25_stages,1,64,6,2,131342,2052.219,12788,141670,ef7b6cf88bab7cba0cfa907f8370f3abea96af537e8d22ba846f37e8382c5393,PASS
+rtlsim,sg25_stages,8,64,6,2,246612,481.664,102304,330060,ef7b6cf88bab7cba0cfa907f8370f3abea96af537e8d22ba846f37e8382c5393,PASS
+simx,kround25,1,64,2,4,32154,502.406,3444,42599,4952b86b17c4d52cf2b0e70372a3802753b9f34fd6c421687f06c450dff6d34,PASS
+simx,kround25,8,64,2,4,62324,121.727,27552,146022,4952b86b17c4d52cf2b0e70372a3802753b9f34fd6c421687f06c450dff6d34,PASS
+rtlsim,kround25,1,64,2,4,31953,499.266,3444,42450,4952b86b17c4d52cf2b0e70372a3802753b9f34fd6c421687f06c450dff6d34,PASS
+rtlsim,kround25,8,64,2,4,60259,117.693,27552,143909,4952b86b17c4d52cf2b0e70372a3802753b9f34fd6c421687f06c450dff6d34,PASS
+#
+# On SimX, KROUND25 improves dependent-chain latency by 4.139x and eight-warp
+# completed-permutation throughput by 3.939x over the stage design. RTL gives
+# 4.110x and 4.093x. The difference includes the required literal-round
+# expansion of KROUND25 and the loop control retained by the stage kernel.

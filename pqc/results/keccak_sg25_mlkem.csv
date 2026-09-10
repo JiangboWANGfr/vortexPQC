@@ -1,0 +1,52 @@
+# ML-KEM-768 full keypair/encaps/decaps round trip on SimX, RV32, one core,
+# 8 warps x 32 threads, SIMD/ALU/LSU width 32, L2/L3 disabled. All rows use
+# mlkem-native's serial FIPS-202 path, fixed coins, and pass return-code,
+# shared-secret, and pk/sk/ct/ss checksum checks. Cycles are whole launches;
+# phase and request intervals exclude host transfers.
+arm,blocks,lanes,enabled_extensions,permutations_per_request,keypair_cycles_request0,encaps_cycles_request0,decaps_cycles_request0,phase_total_request0,request_min_cycles,request_max_cycles,device_cycles,retired_instructions,ipc,lsu_loads,lsu_stores,stack_peak_bytes,arena_peak_bytes,arena_fail,vxbin_sha256,result
+sg1_serial,1,1,KSG25,143,9837744,11037860,13318269,34193873,34193873,34193873,34688954,3530891,0.102,628039,512165,1912,19232,0,bb25eecd97cc7444f5ba978e3642031bd00deba405d710157755a55675a13a58,PASS
+sg25_sw,1,32,KSG25,143,3579531,4638603,5622144,13840278,13840278,13840278,14320553,1343338,0.094,521343,189538,2184,19232,0,07b36e1f3f2363c9b32558749be13ecbfd00f3f05d464c6a1abc1fe1f4471ba7,PASS
+sg25_redundant,1,32,KSG25,143,7990610,8924353,10141078,27056041,27056041,27056041,28684047,1157483,0.040,3994787,3929398,1868,19232,0,9bb88e342b8f3695178c79ebe3ecd693b629991c252d2ca71567d459fca37e70,PASS
+sg25_leader,1,32,KSG25,143,2788976,3830022,4648599,11267597,11267597,11267597,11749447,1093915,0.093,164422,162082,2156,19232,0,b997d0f4f1974192c19a609a21ea40371cf89114f9742b2173d1e92f355e2a8b,PASS
+kround25,1,32,KROUND25,143,2721735,3761746,4567125,11050606,11050606,11050606,11532487,1073037,0.093,164422,162082,2156,19232,0,c98c18e937d48621f24c931deafa180cb8edf47141d9a4c64e614acd774bb3d2,PASS
+pointer_keccakf,1,1,PQC+KSG25,143,2981355,4026765,4899254,11907374,11907374,11907374,12430412,1189675,0.096,152797,136038,1420,19232,0,eca9f3a04e9e9fb1d743968764eccec4d21429369fff9437496a812f438a457a,PASS
+sg1_serial,8,1,KSG25,143,15602723,16645311,19853492,52101526,51874265,52670360,53176031,28247128,0.531,,,1912,19232,0,bb25eecd97cc7444f5ba978e3642031bd00deba405d710157755a55675a13a58,PASS
+sg25_sw,8,32,KSG25,143,6808114,8657984,9976833,25442931,25442931,26088370,26588208,10746704,0.404,4170744,1516304,2184,19232,0,07b36e1f3f2363c9b32558749be13ecbfd00f3f05d464c6a1abc1fe1f4471ba7,PASS
+sg25_redundant,8,32,KSG25,143,49302540,48591006,52716443,150609989,148532601,152850194,160039011,9259864,0.058,,,1868,19232,0,9bb88e342b8f3695178c79ebe3ecd693b629991c252d2ca71567d459fca37e70,PASS
+sg25_leader,8,32,KSG25,143,4644141,6232220,7336604,18212965,18212965,18731836,19228330,8751320,0.455,1315376,1296656,2156,19232,0,b997d0f4f1974192c19a609a21ea40371cf89114f9742b2173d1e92f355e2a8b,PASS
+kround25,8,32,KROUND25,143,4638843,6172091,7270425,18081359,18081359,18489988,18989395,8584296,0.452,,,2156,19232,0,c98c18e937d48621f24c931deafa180cb8edf47141d9a4c64e614acd774bb3d2,PASS
+pointer_keccakf,8,1,PQC+KSG25,143,3945970,5486726,6692161,16124857,16124857,16467141,17013577,9517400,0.559,,,1420,19232,0,eca9f3a04e9e9fb1d743968764eccec4d21429369fff9437496a812f438a457a,PASS
+#
+# Whole-launch speedup versus SG1 is 2.422x for SG25 software, 2.952x for SG25
+# instructions, 3.008x for KROUND25, and 2.791x for the pointer PE at one request.
+# At eight requests it is 2.000x, 2.766x, 2.800x, and 3.125x, respectively. Batch scaling, computed as
+# 8*C(M=1)/C(M=8), is 5.219x for SG1, 4.309x for SG25 software, 4.888x for SG25
+# instructions, 4.859x for KROUND25, and 5.845x for the pointer PE.
+# Single-request MPM class 1 counts show 164,422 loads and 162,082 stores for
+# SG25 leader, versus 628,039/512,165 for SG1 and 152,797/136,038 for the
+# pointer PE. The all-instruction permutation loop itself has no loads or stores.
+# Against the identical SG25 mapping with shuffle-only rounds, the six stage
+# instructions improve whole-launch cycles by 1.219x at one request and 1.383x
+# at eight requests.
+# KROUND25 improves the same launch by another 1.019x and 1.013x. It retires
+# 1.91% fewer instructions at one request, showing that ML-KEM is already
+# dominated by work outside the six-instruction permutation stages.
+#
+# The redundant rows preserve the correctness-first implementation in which all
+# 32 lanes ran the whole ML-KEM request. The leader implementation runs ML-KEM
+# on lane 0 and uses TMC/noinline worker boundaries to activate all lanes only
+# for FIPS-202. This cuts single-request loads and stores by about 24.3x and
+# makes SG25 1.058x faster than the pointer PE at one request. The pointer PE
+# remains 1.130x faster for the saturated eight-request launch.
+#
+# Reproduce from build32_ksg25/tests/pqc/mlkem_width. Use the generated build
+# tree and clean between backend changes:
+#   SG25_CONFIGS="-DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+#   make clean && make CONFIGS="$SG25_CONFIGS" SERIAL=1 run-simx OPTS="-t 1 -b <1|8>"
+#   make clean && make CONFIGS="$SG25_CONFIGS" KECCAK=sg25_sw run-simx OPTS="-t 32 -b <1|8>"
+#   make clean && make CONFIGS="$SG25_CONFIGS" KECCAK=sg25 run-simx OPTS="-t 32 -b <1|8>"
+# For KROUND25 replace the extension in SG25_CONFIGS with
+# -DVX_CFG_EXT_KROUND25_ENABLE and use KECCAK=kround.
+# For pointer rows add -DVX_CFG_EXT_PQC_ENABLE to SG25_CONFIGS and use
+# SERIAL=1 KECCAK=pe. Reproduce the load/store columns through blackbox.sh with
+# --perf=1, which selects MPM class 1 in addition to enabling the counters.

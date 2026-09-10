@@ -14,20 +14,19 @@
 // anyway only because harts 1..N-1 were idle and absorbed the overflow -- see
 // tests/pqc/pqc_stack.h, whose probe now fails the test instead.
 //
-// One arena per hart, indexed by mhartid, because the whole point of the fix
-// is to make more than one lane runnable. A single shared arena would trade a
-// stack race for an arena race.
+// SG25 is an exception to the per-hart layout: lane 0 runs one logical request
+// and temporarily activates the warp only inside FIPS-202, so it uses one arena
+// per warp. Other builds retain one arena per hart.
 //
 // Freeing is a no-op: the library does not release in LIFO order, and one
 // operation is short enough that growing to the peak and resetting between
 // operations is simpler and costs nothing measurable. The consequence is that
 // the high-water mark is the SUM of an operation's live allocations, not its
-// maximum nesting depth -- decaps sums to 19,232 bytes, which is the figure a
-// hardware design has to budget per lane.
+// maximum nesting depth -- decaps sums to 19,232 bytes, which is the figure to
+// budget per arena (one hart normally, one warp for SG25).
 //
-// .bss cost is MLK_HARTS * MLK_ARENA_BYTES, zero-filled by the loader at every
-// launch: 384 KB at 1 cluster / 1 core / 4 warps / 4 threads. Wider configs
-// scale it linearly, which is worth watching in a warp sweep.
+// .bss cost is MLK_ARENA_SLOTS * MLK_ARENA_BYTES, zero-filled by the loader at
+// every launch. Slots are harts normally and warps for SG25.
 
 #ifndef MLK_VORTEX_ALLOC_H
 #define MLK_VORTEX_ALLOC_H
@@ -40,6 +39,11 @@
 // projected into the build by the config system.
 #define MLK_HARTS (VX_CFG_NUM_CLUSTERS * VX_CFG_NUM_CORES * \
                    VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS)
+#if defined(PQC_KECCAK_SG25)
+#define MLK_ARENA_SLOTS (MLK_HARTS / VX_CFG_NUM_THREADS)
+#else
+#define MLK_ARENA_SLOTS MLK_HARTS
+#endif
 
 // Measured peak is 19,232 bytes (decaps); sized with headroom, and the reported
 // peak is checked against this so a parameter-set change cannot silently
@@ -54,19 +58,28 @@
 #include <VX_config.h>
 #include <vx_intrinsics.h>
 
-static uint8_t mlk_arena[MLK_HARTS][MLK_ARENA_BYTES]
+static uint8_t mlk_arena[MLK_ARENA_SLOTS][MLK_ARENA_BYTES]
     __attribute__((aligned(MLK_ARENA_ALIGN)));
-static uint32_t mlk_arena_top[MLK_HARTS];
-static uint32_t mlk_arena_peak[MLK_HARTS];
-static uint32_t mlk_arena_fail[MLK_HARTS];
+static uint32_t mlk_arena_top[MLK_ARENA_SLOTS];
+static uint32_t mlk_arena_peak[MLK_ARENA_SLOTS];
+static uint32_t mlk_arena_fail[MLK_ARENA_SLOTS];
+
+static inline uint32_t mlk_arena_index(void)
+{
+#if defined(PQC_KECCAK_SG25)
+  return (uint32_t)vx_hart_id() / VX_CFG_NUM_THREADS;
+#else
+  return (uint32_t)vx_hart_id();
+#endif
+}
 
 static inline void *mlk_arena_alloc(uint32_t bytes)
 {
-  const uint32_t t = (uint32_t)vx_hart_id();
+  const uint32_t t = mlk_arena_index();
   uint32_t base;
   // Out-of-range would alias another hart's arena, which is the bug this
   // header exists to prevent; fail instead.
-  if (t >= MLK_HARTS)
+  if (t >= MLK_ARENA_SLOTS)
     return NULL;
   base = (mlk_arena_top[t] + (MLK_ARENA_ALIGN - 1u)) & ~(MLK_ARENA_ALIGN - 1u);
   if (base + bytes > MLK_ARENA_BYTES)
@@ -85,8 +98,8 @@ static inline void *mlk_arena_alloc(uint32_t bytes)
 
 static inline void mlk_arena_reset(void)
 {
-  const uint32_t t = (uint32_t)vx_hart_id();
-  if (t < MLK_HARTS)
+  const uint32_t t = mlk_arena_index();
+  if (t < MLK_ARENA_SLOTS)
     mlk_arena_top[t] = 0;
 }
 

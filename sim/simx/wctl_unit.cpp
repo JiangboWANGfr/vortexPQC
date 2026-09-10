@@ -44,7 +44,7 @@ bool WctlUnit::process(instr_trace_t* trace) {
   case WctlType::TMC: {
     ThreadMask next_tmask(num_threads);
     for (uint32_t t = 0; t < num_threads; ++t) {
-      next_tmask.set(t, rs1_data.at(thread_last).u & (1 << t));
+      next_tmask.set(t, rs1_data.at(thread_last).u & (Word(1) << t));
     }
     if (trace->eop) {
       release_warp = core_->setTmask(trace->wid, next_tmask);

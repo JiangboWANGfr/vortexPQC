@@ -329,6 +329,7 @@ proc run_report {} {
     set bram   [_util_used $u "Block RAM Tile"]
     set uram   [_util_used $u "URAM"]
     set dsp    [_util_used $u "DSPs"]
+    if {$dsp == 0} { set dsp [_util_used $u "DSP Slices"] }
     set clk    [get_clocks -quiet core_clock]
     set period [get_property -quiet PERIOD $clk]
     set wns    [get_property -quiet SLACK [lindex [get_timing_paths -quiet -max_paths 1 -setup] 0]]

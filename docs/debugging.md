@@ -53,6 +53,28 @@ before switching to a timed build for cycle-level analysis. Cycle counts in
 a functional run are non-physical: never use them for performance
 comparisons, `perf_gate`, or `model_parity`.
 
+## Kernel divergence lowering
+
+The current Vortex LLVM divergence pipeline has a default 100-basic-block
+guard per function. Large functions, including those enlarged by automatic
+loop unrolling, can exceed it: compilation succeeds while the compiler
+silently skips structurization and split/join insertion. Lane-dependent
+branches then execute without the required masks and may corrupt results.
+
+Inspect the freshly rebuilt `kernel.dump` around lane-dependent branches for
+`vx_split`/`vx_split_n` and `vx_join`, or equivalent predicated code. An absence
+of split/join alone is not a failure if optimization removed the branch.
+Keep diagnostic loops rolled with `#pragma clang loop unroll(disable)` when
+unrolling adds no value. For intentionally large control-flow graphs, set the
+supported per-app `-mllvm -vortex-divergence-max-bbs=<bound>` consciously;
+[`libgfx_sw.mk`](../sw/gfx/libgfx_sw.mk) has an existing example. The guard limits
+potentially exponential compiler work, so raising it has a compilation cost.
+
+Rebuild and inspect the result, then require a multi-lane known-answer
+regression with distinct lane inputs. Changing the loop shape or compiler
+bound does not establish correctness by itself, nor fix the compiler's
+underlying silent-skip behavior.
+
 ## RTL Debugging
 
 To debug the processor RTL, you need to use VLSIM or RTLSIM driver. VLSIM simulates the full processor including the AFU command processor (using `/rtl/afu/opae/vortex_afu.sv` as top module). RTLSIM simulates the Vortex processor only (using `/rtl/Vortex.v` as top module).

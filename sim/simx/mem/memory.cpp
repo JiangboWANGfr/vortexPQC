@@ -45,11 +45,11 @@ private:
 	Memory::PreSendHook pre_send_hook_;
 	mutable PerfStats perf_stats_;
 	struct DramCallbackArgs {
-		Memory::Impl* memsim;
 		MemReq request;
-		uint32_t bank_id;
 		std::shared_ptr<mem_block_t> rsp_data;  // captured at request time for reads
+		bool ready;
 	};
+	std::vector<std::queue<std::shared_ptr<DramCallbackArgs>>> pending_reqs_;
 
 public:
 	Impl(Memory* simobject, const Config& config)
@@ -57,6 +57,7 @@ public:
 		, config_(config)
 		, dram_sim_(config.num_banks, config.block_size, config.clock_ratio)
 		, ram_(nullptr)
+		, pending_reqs_(config.num_banks)
 	{
 		char sname[100];
 		snprintf(sname, 100, "%s-xbar", simobject->name().c_str());
@@ -80,10 +81,31 @@ public:
 
 	void reset() {
 		dram_sim_.reset();
+		for (auto& queue : pending_reqs_) {
+			queue = {};
+		}
 	}
 
 	void tick() {
 		dram_sim_.tick();
+
+		// The device memory bus retires requests in order within each bank.
+		for (uint32_t i = 0; i < config_.num_banks; ++i) {
+			auto& queue = pending_reqs_.at(i);
+			if (queue.empty() || !queue.front()->ready || mem_xbar_->RspIn.at(i).full()) {
+				continue;
+			}
+			const auto& args = queue.front();
+			if (!args->request.is_write()) {
+				MemRsp mem_rsp{args->request.tag, args->request.hart_id, args->request.uuid};
+				mem_rsp.data = args->rsp_data;
+				if (!mem_xbar_->RspIn.at(i).try_send(mem_rsp, RSP_BOUNDARY_DELAY)) {
+					continue;
+				}
+				DT(3, simobject_->name() << " mem-rsp" << i << ": " << mem_rsp);
+			}
+			queue.pop();
+		}
 
 		for (uint32_t i = 0; i < config_.num_banks; ++i) {
 			if (mem_xbar_->ReqOut.at(i).empty())
@@ -125,27 +147,16 @@ public:
 			}
 
 			// enqueue the request to the memory system
-			auto req_args = new DramCallbackArgs{this, mem_req, i, rsp_data};
+			auto req_args = std::make_shared<DramCallbackArgs>(DramCallbackArgs{mem_req, rsp_data, false});
+			pending_reqs_.at(i).push(req_args);
 			dram_sim_.send_request(
 				mem_req.addr,
 				mem_req.is_write(),
-				[](void* arg)->bool {
-					auto rsp_args = reinterpret_cast<const DramCallbackArgs*>(arg);
-					if (rsp_args->request.is_write()) {
-						delete rsp_args;
-						return true;
-					} else {
-								MemRsp mem_rsp{rsp_args->request.tag, rsp_args->request.hart_id, rsp_args->request.uuid};
-						mem_rsp.data = rsp_args->rsp_data;
-						if (rsp_args->memsim->mem_xbar_->RspIn.at(rsp_args->bank_id).try_send(mem_rsp, RSP_BOUNDARY_DELAY)) {
-							DT(3, rsp_args->memsim->simobject_->name() << " mem-rsp" << rsp_args->bank_id << ": " << mem_rsp);
-							delete rsp_args;
-							return true;
-						}
-					}
-					return false; // stall
+				[req_args](void*)->bool {
+					req_args->ready = true;
+					return true;
 				},
-				req_args
+				nullptr
 			);
 
 			DT(3, simobject_->name() << " mem-req" << i << ": " << mem_req);

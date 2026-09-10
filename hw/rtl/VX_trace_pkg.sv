@@ -105,7 +105,21 @@ package VX_trace_pkg;
                     end
                 end
                 ALU_TYPE_OTHER: begin
-                    if (op_type[3]) begin
+                    if (op_type == INST_OP_BITS'(INST_KROUND)) begin
+                        `TRACE(level, (op_args.alu.imm20[5] ? "KROUND.H.SG25" : "KROUND.L.SG25"))
+                    end else if (op_type == INST_OP_BITS'(INST_KTHETA_L)) begin
+                        `TRACE(level, ("KTHETA.L.SG25"))
+                    end else if (op_type == INST_OP_BITS'(INST_KTHETA_H)) begin
+                        `TRACE(level, ("KTHETA.H.SG25"))
+                    end else if (op_type == INST_OP_BITS'(INST_KRHOPI_L)) begin
+                        `TRACE(level, ("KRHOPI.L.SG25"))
+                    end else if (op_type == INST_OP_BITS'(INST_KRHOPI_H)) begin
+                        `TRACE(level, ("KRHOPI.H.SG25"))
+                    end else if (op_type == INST_OP_BITS'(INST_KCHII_L)) begin
+                        `TRACE(level, ("KCHII.L.SG25"))
+                    end else if (op_type == INST_OP_BITS'(INST_KCHII_H)) begin
+                        `TRACE(level, ("KCHII.H.SG25"))
+                    end else if (op_type[3]) begin
                         `TRACE(level, ("WGATHER"))
                     end else if (op_type[2]) begin
                         case (INST_SHFL_BITS'(op_type))

@@ -24,11 +24,45 @@
 
 using namespace vortex;
 
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_THREADS == 32
+           && VX_CFG_SIMD_WIDTH == 32 && VX_CFG_NUM_ALU_LANES == 32,
+              "KSG25 requires RV32 and 32 threads, SIMD lanes, and ALU lanes");
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_THREADS == 32
+           && VX_CFG_SIMD_WIDTH == 32 && VX_CFG_NUM_ALU_LANES == 32,
+              "KROUND25 requires RV32 and 32 threads, SIMD lanes, and ALU lanes");
+#endif
+
 AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 	: FuncUnit<VX_CFG_NUM_ALU_BLOCKS>(ctx, name, core)
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+  , DispatchRelease(make_sim_channels<uint32_t, VX_CFG_NUM_ALU_BLOCKS>(this))
+  , int_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 1))
+#ifdef VX_CFG_EXT_M_ENABLE
+  , mdv_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 1))
+#endif
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+  , ksg25_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 2))
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+  , kround25_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 4))
+#endif
+#endif
 {}
 
 uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+  if (std::get_if<Ksg25Type>(&trace->op_type)) {
+    return 3;
+  }
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+  if (std::get_if<Kround25Type>(&trace->op_type)) {
+    return 5;
+  }
+#endif
 	if (std::get_if<AluType>(&trace->op_type)) {
 		auto alu_type = std::get<AluType>(trace->op_type);
 		switch (alu_type) {
@@ -89,6 +123,146 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 }
 
 void AluUnit::execute(instr_trace_t* trace) {
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+  if (auto type = std::get_if<Kround25Type>(&trace->op_type)) {
+    if (trace->tmask.size() != 32 || !trace->tmask.all()) {
+      std::cerr << *type << " requires a full 32-lane mask, wid="
+                << trace->wid << ", PC=0x" << std::hex << trace->PC
+                << std::dec << ", mask=" << trace->tmask << std::endl;
+      std::abort();
+    }
+    static const uint8_t rho[25] = {
+      0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43,
+      25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14,
+    };
+    static const uint64_t round_constants[24] = {
+      0x0000000000000001ULL, 0x0000000000008082ULL,
+      0x800000000000808aULL, 0x8000000080008000ULL,
+      0x000000000000808bULL, 0x0000000080000001ULL,
+      0x8000000080008081ULL, 0x8000000000008009ULL,
+      0x000000000000008aULL, 0x0000000000000088ULL,
+      0x0000000080008009ULL, 0x000000008000000aULL,
+      0x000000008000808bULL, 0x800000000000008bULL,
+      0x8000000000008089ULL, 0x8000000000008003ULL,
+      0x8000000000008002ULL, 0x8000000000000080ULL,
+      0x000000000000800aULL, 0x800000008000000aULL,
+      0x8000000080008081ULL, 0x8000000000008080ULL,
+      0x0000000080000001ULL, 0x8000000080008008ULL,
+    };
+    uint32_t round = std::get<IntrAluArgs>(trace->instr_ptr->get_args()).imm;
+    if (round >= 24) {
+      std::cerr << *type << " requires a round in 0..23" << std::endl;
+      std::abort();
+    }
+    std::array<uint64_t, 25> state{}, rhopi{};
+    std::array<uint64_t, 5> parity{};
+    for (uint32_t t = 0; t < 25; ++t) {
+      state[t] = (uint64_t(trace->src_data[1][t].u32) << 32)
+               | trace->src_data[0][t].u32;
+      parity[t % 5] ^= state[t];
+    }
+    for (uint32_t t = 0; t < 25; ++t) {
+      uint32_t x = t % 5;
+      uint64_t next = parity[(x + 1) % 5];
+      state[t] ^= parity[(x + 4) % 5];
+      state[t] ^= (next << 1) | (next >> 63);
+    }
+    for (uint32_t t = 0; t < 25; ++t) {
+      uint32_t x = t % 5, y = t / 5;
+      uint32_t dst = y + 5 * ((2 * x + 3 * y) % 5);
+      uint32_t shift = rho[t];
+      rhopi[dst] = (state[t] << shift) | (state[t] >> ((64 - shift) & 63));
+    }
+    trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
+    for (uint32_t t = 0; t < 25; ++t) {
+      uint32_t x = t % 5, row = 5 * (t / 5);
+      uint64_t value = rhopi[t]
+                     ^ (~rhopi[row + (x + 1) % 5] & rhopi[row + (x + 2) % 5]);
+      if (t == 0) {
+        value ^= round_constants[round];
+      }
+      trace->dst_data[t].u32 = (*type == Kround25Type::ROUND_L)
+                            ? uint32_t(value) : uint32_t(value >> 32);
+    }
+    DT(3, this->name() << " execute: op=" << *type << ", " << *trace);
+    return;
+  }
+#endif
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+  if (auto type = std::get_if<Ksg25Type>(&trace->op_type)) {
+    if (trace->tmask.size() != 32 || !trace->tmask.all()) {
+      std::cerr << *type << " requires a full 32-lane mask, wid="
+                << trace->wid << ", PC=0x" << std::hex << trace->PC
+                << std::dec << ", mask=" << trace->tmask << std::endl;
+      std::abort();
+    }
+    const auto& lo = trace->src_data[0];
+    const auto& hi = trace->src_data[1];
+    if (*type == Ksg25Type::RHOPI_L || *type == Ksg25Type::RHOPI_H) {
+      static const uint8_t rho[25] = {
+        0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43,
+        25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14,
+      };
+      trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
+      for (uint32_t t = 0; t < 25; ++t) {
+        uint32_t source = ((t % 5 + 3 * (t / 5)) % 5) + 5 * (t % 5);
+        uint64_t word = (uint64_t(hi[source].u32) << 32) | lo[source].u32;
+        uint32_t shift = rho[source];
+        uint64_t value = (word << shift) | (word >> ((64 - shift) & 63));
+        trace->dst_data[t].u32 = (*type == Ksg25Type::RHOPI_L)
+                              ? uint32_t(value) : uint32_t(value >> 32);
+      }
+      return;
+    }
+    if (*type == Ksg25Type::CHII_L || *type == Ksg25Type::CHII_H) {
+      static const uint64_t round_constants[24] = {
+        0x0000000000000001ULL, 0x0000000000008082ULL,
+        0x800000000000808aULL, 0x8000000080008000ULL,
+        0x000000000000808bULL, 0x0000000080000001ULL,
+        0x8000000080008081ULL, 0x8000000000008009ULL,
+        0x000000000000008aULL, 0x0000000000000088ULL,
+        0x0000000080008009ULL, 0x000000008000000aULL,
+        0x000000008000808bULL, 0x800000000000008bULL,
+        0x8000000000008089ULL, 0x8000000000008003ULL,
+        0x8000000000008002ULL, 0x8000000000000080ULL,
+        0x000000000000800aULL, 0x800000008000000aULL,
+        0x8000000080008081ULL, 0x8000000000008080ULL,
+        0x0000000080000001ULL, 0x8000000080008008ULL,
+      };
+      uint32_t round = hi[0].u32;
+      for (uint32_t t = 0; t < 32; ++t) {
+        if (round >= 24 || hi[t].u32 != round) {
+          std::cerr << *type << " requires a uniform round in 0..23" << std::endl;
+          std::abort();
+        }
+      }
+      trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
+      for (uint32_t t = 0; t < 25; ++t) {
+        uint32_t row = 5 * (t / 5), x = t % 5;
+        trace->dst_data[t].u32 = lo[t].u32 ^ (~lo[row + (x+1)%5].u32 & lo[row + (x+2)%5].u32);
+      }
+      trace->dst_data[0].u32 ^= (*type == Ksg25Type::CHII_L)
+                            ? uint32_t(round_constants[round]) : uint32_t(round_constants[round] >> 32);
+      return;
+    }
+    std::array<uint64_t, 5> parity{};
+    for (uint32_t t = 0; t < 25; ++t) {
+      parity[t % 5] ^= (uint64_t(hi[t].u32) << 32) | lo[t].u32;
+    }
+    trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
+    for (uint32_t t = 0; t < 25; ++t) {
+      uint32_t x = t % 5;
+      uint64_t next = parity[(x + 1) % 5];
+      uint64_t state = (uint64_t(hi[t].u32) << 32) | lo[t].u32;
+      uint64_t value = state ^ parity[(x + 4) % 5]
+                    ^ ((next << 1) | (next >> 63));
+      trace->dst_data[t].u32 = (*type == Ksg25Type::THETA_L)
+                            ? uint32_t(value) : uint32_t(value >> 32);
+    }
+    DT(3, this->name() << " execute: op=" << *type << ", " << *trace);
+    return;
+  }
+#endif
 	auto& sched = core_->scheduler();
 	auto& warp = sched.warp(trace->wid);
 	// Use trace->tmask captured at issue for per-thread active checks.
@@ -553,10 +727,74 @@ void AluUnit::execute(instr_trace_t* trace) {
 	}
 }
 
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+void AluUnit::on_reset() {
+  next_pe_.fill(0);
+}
+#endif
+
 void AluUnit::on_tick() {
   bool idle = true;
   for (uint32_t b = 0; b < VX_CFG_NUM_ALU_BLOCKS; ++b) {
     auto& input = Inputs.at(b);
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+    std::array<SimChannel<instr_trace_t*>*, kNumPEs> results = {
+      &int_results_[b],
+#ifdef VX_CFG_EXT_M_ENABLE
+      &mdv_results_[b],
+#endif
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+      &ksg25_results_[b]
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+      ,
+#endif
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+      &kround25_results_[b]
+#endif
+    };
+    auto& output = Outputs.at(b);
+    if (!output.full()) {
+      for (uint32_t i = 0; i < kNumPEs; ++i) {
+        uint32_t pe = (next_pe_[b] + i) % kNumPEs;
+        if (!results[pe]->empty()) {
+          output.send(results[pe]->peek(), 1);
+          results[pe]->pop();
+          next_pe_[b] = (pe + 1) % kNumPEs;
+          break;
+        }
+      }
+    }
+    if (!input.empty()) {
+      auto trace = input.peek();
+      uint32_t pe = 0;
+#ifdef VX_CFG_EXT_M_ENABLE
+      if (std::get_if<MdvType>(&trace->op_type)) {
+        pe = 1;
+      }
+#endif
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+      if (std::get_if<Ksg25Type>(&trace->op_type)) {
+        pe = 1 + VX_CFG_EXT_M_ENABLED;
+      }
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+      if (std::get_if<Kround25Type>(&trace->op_type)) {
+        pe = 1 + VX_CFG_EXT_M_ENABLED + VX_CFG_EXT_KSG25_ENABLED;
+      }
+#endif
+      if (!results[pe]->full() && !DispatchRelease.at(b).full()) {
+        this->execute(trace);
+        results[pe]->send(trace, this->latency_of(trace) - 1);
+        // Acceptance feeds back within the same core clock domain.
+        DispatchRelease.at(b).send(trace->wid, 0);
+        input.pop();
+      }
+    }
+    for (auto result : results) {
+      idle &= (result->size() == 0);
+    }
+#else
     if (!input.empty()) {
       auto& output = Outputs.at(b);
       if (!output.full()) {
@@ -567,9 +805,9 @@ void AluUnit::on_tick() {
         input.pop();
       }
     }
+#endif
     idle &= (input.size() == 0);
   }
-  // no cross-tick state: sleep until a new trace is reserved toward an input.
   if (idle) {
     this->tick_sleep();
   }

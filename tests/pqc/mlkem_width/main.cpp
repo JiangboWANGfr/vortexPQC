@@ -19,7 +19,11 @@
 
 int main(int argc, char** argv) {
     const char* kernel_file = "kernel.vxbin";
+#if defined(PQC_KECCAK_SG25)
+    uint32_t lanes = 32, blocks = 1;
+#else
     uint32_t lanes = 1, blocks = 1;
+#endif
     int c;
     while ((c = getopt(argc, argv, "k:t:b:h")) != -1) {
         if (c == 'k') kernel_file = optarg;
@@ -28,14 +32,26 @@ int main(int argc, char** argv) {
         else { std::cout << "Usage: [-k kernel] [-t lanes]" << std::endl; std::exit(c == 'h' ? 0 : -1); }
     }
 
-    // Lanes within a CTA still share that CTA's scratch -- they run the whole
-    // KEM redundantly and write identical bytes, which is what makes this a lane
-    // width instrument. Each CTA now has its own slice, so independent requests
-    // no longer share a working set the way they did when -b was refused here.
+#if defined(PQC_KECCAK_SG25)
+    if (lanes != 32) {
+        std::fprintf(stderr, "FAIL: SG25 requires exactly 32 lanes\n");
+        return 1;
+    }
+#endif
+
+    // Each CTA owns one scratch slice. SG25 treats its lanes as one subgroup;
+    // the other backends use the requested lane-width mapping.
     vx_device_h dev = nullptr;
     CHECK(vx_device_open(0, &dev));
     const pqc::config cfg = pqc::print_config(dev, blocks, lanes);
     if (pqc::require_slots(cfg, blocks, lanes) != 0) { vx_device_release(dev); return -1; }
+#if defined(PQC_KECCAK_KROUND25)
+    if ((cfg.isa_flags & VX_ISA_EXT_KROUND25) == 0) {
+        std::fprintf(stderr, "KROUND SG25 requires a device with KROUND25 enabled\n");
+        vx_device_release(dev);
+        return 1;
+    }
+#endif
     vx_queue_info_t qi = { sizeof(qi), nullptr, VX_QUEUE_PRIORITY_NORMAL, 0 };
     vx_queue_h q = nullptr;
     CHECK(vx_queue_create(dev, &qi, &q));
@@ -141,18 +157,30 @@ int main(int argc, char** argv) {
     }
 
     const uint64_t total = h_cyc[0] + h_cyc[1] + h_cyc[2];
+#if defined(PQC_KECCAK_SG25)
+    std::printf("BLOCKS %u WIDTH %u  sg25_permutations=%u slots=%u  stack_peak=%u/%u  arena_peak=%u fail=%u\n",
+                blocks, lanes, h_cnt[MLKW_KECCAK_X1], h_cnt[MLKW_SLOTS],
+                h_stk[0], h_stk[1], h_stk[2], h_stk[3]);
+#else
     std::printf("BLOCKS %u WIDTH %u  keccak_x1=%u keccak_x4=%u slots=%u  stack_peak=%u/%u  arena_peak=%u fail=%u\n",
                 blocks, lanes, h_cnt[MLKW_KECCAK_X1], h_cnt[MLKW_KECCAK_X4],
                 h_cnt[MLKW_SLOTS], h_stk[0], h_stk[1], h_stk[2], h_stk[3]);
+#endif
     if (blocks > 1)
         std::printf("REQUESTS: n=%u  per-request total min=%llu max=%llu  spread=%.1f%%\n",
                     blocks, (unsigned long long)cmin, (unsigned long long)cmax,
                     100.0 * (double)(cmax - cmin) / (double)cmin);
+#if defined(PQC_KECCAK_SG25)
+    std::printf("PHASE permutations: kp=%u enc=%u dec=%u\n",
+                h_cnt[MLKW_X1_KP], h_cnt[MLKW_X1_ENC]-h_cnt[MLKW_X1_KP],
+                h_cnt[MLKW_X1_DEC]-h_cnt[MLKW_X1_ENC]);
+#else
     std::printf("PHASE x1: kp=%u enc=%u dec=%u   x4: kp=%u enc=%u dec=%u\n",
                 h_cnt[MLKW_X1_KP], h_cnt[MLKW_X1_ENC]-h_cnt[MLKW_X1_KP],
                 h_cnt[MLKW_X1_DEC]-h_cnt[MLKW_X1_ENC],
                 h_cnt[MLKW_X4_KP], h_cnt[MLKW_X4_ENC]-h_cnt[MLKW_X4_KP],
                 h_cnt[MLKW_X4_DEC]-h_cnt[MLKW_X4_ENC]);
+#endif
     std::printf("CYCLES: keypair=%llu encaps=%llu decaps=%llu total=%llu\n",
                 (unsigned long long)h_cyc[0], (unsigned long long)h_cyc[1],
                 (unsigned long long)h_cyc[2], (unsigned long long)total);

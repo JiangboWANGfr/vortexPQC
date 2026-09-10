@@ -67,7 +67,7 @@ private:
 		auto req_type = req.is_write ? Ramulator::Request::Type::Write : Ramulator::Request::Type::Read;
 		std::function<void(Ramulator::Request&)> callback = nullptr;
 		if (req.callback) {
-			callback = [this, req_callback = std::move(req.callback), req_arg = std::move(req.arg)](Ramulator::Request& /*dram_req*/) {
+			callback = [this, req_callback = req.callback, req_arg = req.arg](Ramulator::Request& /*dram_req*/) {
 				this->pending_rsps_.push({req_callback, req_arg});
 			};
 		}

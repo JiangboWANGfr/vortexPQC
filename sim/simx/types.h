@@ -14,6 +14,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <algorithm>
 #include <array>
 #include <bitset>
 #include <memory>
@@ -323,6 +324,47 @@ inline std::ostream &operator<<(std::ostream &os, const ShflType& shfl) {
   }
   return os;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+enum class Ksg25Type {
+  THETA_L,
+  THETA_H,
+  RHOPI_L,
+  RHOPI_H,
+  CHII_L,
+  CHII_H
+};
+
+inline std::ostream &operator<<(std::ostream &os, const Ksg25Type& type) {
+  switch (type) {
+  case Ksg25Type::THETA_L: os << "KTHETA.L.SG25"; break;
+  case Ksg25Type::THETA_H: os << "KTHETA.H.SG25"; break;
+  case Ksg25Type::RHOPI_L: os << "KRHOPI.L.SG25"; break;
+  case Ksg25Type::RHOPI_H: os << "KRHOPI.H.SG25"; break;
+  case Ksg25Type::CHII_L: os << "KCHII.L.SG25"; break;
+  case Ksg25Type::CHII_H: os << "KCHII.H.SG25"; break;
+  default:
+    std::abort();
+  }
+  return os;
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////
+
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+enum class Kround25Type {
+  ROUND_L,
+  ROUND_H
+};
+
+inline std::ostream &operator<<(std::ostream &os, const Kround25Type& type) {
+  os << (type == Kround25Type::ROUND_L ? "KROUND.L.SG25" : "KROUND.H.SG25");
+  return os;
+}
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -834,6 +876,12 @@ using OpType = std::variant<
 , VoteType
 , ShflType
 , WgatherType
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+, Ksg25Type
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+, Kround25Type
+#endif
 , WctlType
 #ifdef VX_CFG_EXT_PQC_ENABLE
 , PqcType
@@ -934,6 +982,55 @@ inline std::ostream &operator<<(std::ostream &os, const ArbiterType& type) {
   }
   return os;
 }
+
+class IssueArbiter {
+public:
+  explicit IssueArbiter(uint32_t size)
+    : size_(size)
+    , priority_(size > 8 ? size : 0) {
+    this->reset();
+  }
+
+  uint32_t grant(const BitVector<>& requests) const {
+    assert(requests.size() == size_);
+    if (last_grant_ < size_ && requests.test(last_grant_)) {
+      return last_grant_;
+    }
+    for (uint32_t i = 0; i < size_; ++i) {
+      auto index = priority_.empty()
+        ? ((last_grant_ == uint32_t(-1) ? 0 : last_grant_ + 1) + i) % size_
+        : priority_.at(i);
+      if (requests.test(index)) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  void accept(uint32_t index) {
+    assert(index < size_);
+    if (last_grant_ == index) {
+      return;
+    }
+    if (!priority_.empty()) {
+      auto it = std::find(priority_.begin(), priority_.end(), index);
+      std::rotate(it, it + 1, priority_.end());
+    }
+    last_grant_ = index;
+  }
+
+  void reset() {
+    last_grant_ = -1;
+    for (uint32_t i = 0; i < priority_.size(); ++i) {
+      priority_.at(i) = size_ - i - 1;
+    }
+  }
+
+private:
+  uint32_t size_;
+  uint32_t last_grant_;
+  std::vector<uint32_t> priority_;
+};
 
 class IArbiterImpl {
 public:

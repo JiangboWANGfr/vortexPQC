@@ -31,10 +31,18 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
     localparam BLOCK_SIZE   = `VX_CFG_NUM_ALU_BLOCKS;
     localparam NUM_LANES    = `VX_CFG_NUM_ALU_LANES;
     localparam PARTIAL_BW   = (BLOCK_SIZE != `VX_CFG_ISSUE_WIDTH) || (NUM_LANES != `VX_CFG_SIMD_WIDTH);
-    localparam PE_COUNT     = 1 + `VX_CFG_EXT_M_ENABLED;
+    localparam PE_COUNT     = 1 + `VX_CFG_EXT_M_ENABLED + `VX_CFG_EXT_KSG25_ENABLED
+                                + `VX_CFG_EXT_KROUND25_ENABLED;
     localparam PE_SEL_BITS  = `CLOG2(PE_COUNT);
     localparam PE_IDX_INT   = 0;
     localparam PE_IDX_MDV   = PE_IDX_INT + `VX_CFG_EXT_M_ENABLED;
+`ifdef VX_CFG_EXT_KSG25_ENABLE
+    localparam PE_IDX_KSG25 = PE_IDX_MDV + `VX_CFG_EXT_KSG25_ENABLED;
+`endif
+`ifdef VX_CFG_EXT_KROUND25_ENABLE
+    localparam PE_IDX_KROUND25 = PE_IDX_MDV + `VX_CFG_EXT_KSG25_ENABLED
+                                           + `VX_CFG_EXT_KROUND25_ENABLED;
+`endif
 
     VX_execute_if #(
         .data_t (alu_execute_t)
@@ -68,8 +76,22 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
         reg [`UP(PE_SEL_BITS)-1:0] pe_select;
         always @(*) begin
             pe_select = PE_IDX_INT;
-            if (`VX_CFG_EXT_M_ENABLED && (per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_MULDIV))
+            if (`VX_CFG_EXT_M_ENABLED && (per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_MULDIV)) begin
                 pe_select = PE_IDX_MDV;
+            end
+        `ifdef VX_CFG_EXT_KSG25_ENABLE
+            if (per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_OTHER
+             && per_block_execute_if[block_idx].data.op_type >= INST_OP_BITS'(INST_KTHETA_L)
+             && per_block_execute_if[block_idx].data.op_type <= INST_OP_BITS'(INST_KCHII_H)) begin
+                pe_select = PE_IDX_KSG25;
+            end
+        `endif
+        `ifdef VX_CFG_EXT_KROUND25_ENABLE
+            if (per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_OTHER
+             && per_block_execute_if[block_idx].data.op_type == INST_OP_BITS'(INST_KROUND)) begin
+                pe_select = PE_IDX_KROUND25;
+            end
+        `endif
         end
 
         VX_pe_switch #(
@@ -109,6 +131,26 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
             .reset      (reset),
             .execute_if (pe_execute_if[PE_IDX_MDV]),
             .result_if  (pe_result_if[PE_IDX_MDV])
+        );
+    `endif
+    `ifdef VX_CFG_EXT_KSG25_ENABLE
+        VX_alu_ksg25 #(
+            .INSTANCE_ID (`SFORMATF(("%s-ksg25%0d", INSTANCE_ID, block_idx)))
+        ) ksg25_unit (
+            .clk        (clk),
+            .reset      (reset),
+            .execute_if (pe_execute_if[PE_IDX_KSG25]),
+            .result_if  (pe_result_if[PE_IDX_KSG25])
+        );
+    `endif
+    `ifdef VX_CFG_EXT_KROUND25_ENABLE
+        VX_alu_kround25 #(
+            .INSTANCE_ID (`SFORMATF(("%s-kround25%0d", INSTANCE_ID, block_idx)))
+        ) kround25_unit (
+            .clk        (clk),
+            .reset      (reset),
+            .execute_if (pe_execute_if[PE_IDX_KROUND25]),
+            .result_if  (pe_result_if[PE_IDX_KROUND25])
         );
     `endif
     end

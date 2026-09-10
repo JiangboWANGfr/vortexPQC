@@ -21,13 +21,14 @@ endif
 PROJECT           = $($(DUT)_PRJ)
 TOP_LEVEL_ENTITY  = $(PROJECT)
 SRC_FILE          = $(PROJECT).sv
-FPU_IP            = $($(DUT)_IP)
+FPU_IP           := $($(DUT)_IP)
 override CONFIGS += $($(DUT)_CFG)
 
 include ../common.mk
 
 RTL_INCLUDE = $($(DUT)_INC)
 RTL_PKGS   += $($(DUT)_PKG)
+RTL_SRCS   += $($(DUT)_SRC)
 
 ifeq ($($(DUT)_EXT),1)
 include $(VORTEX_HOME)/hw/syn/extensions.mk

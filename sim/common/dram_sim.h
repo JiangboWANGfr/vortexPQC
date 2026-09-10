@@ -12,12 +12,13 @@
 // limitations under the License.
 
 #include <stdint.h>
+#include <functional>
 
 namespace vortex {
 
 class DramSim {
 public:
-  typedef bool (*ResponseCallback)(void *arg);
+  using ResponseCallback = std::function<bool(void*)>;
 
   DramSim(uint32_t num_channels, uint32_t channel_size, float clock_ratio);
   ~DramSim();

@@ -745,6 +745,22 @@ module VX_decode import
                         endcase
                     end
                 `endif
+                `ifdef VX_CFG_EXT_KSG25_ENABLE
+                    7'h06: begin
+                        case (funct3)
+                            3'h0, 3'h1, 3'h2, 3'h3, 3'h4, 3'h5: begin
+                                ex_type = EX_ALU;
+                                op_args.alu.xtype = ALU_TYPE_OTHER;
+                                op_args.alu.is_w = 0;
+                                op_type = INST_OP_BITS'(INST_KTHETA_L) + INST_OP_BITS'(funct3);
+                                `USED_IREG (rd);
+                                `USED_IREG (rs1);
+                                `USED_IREG (rs2);
+                            end
+                            default:;
+                        endcase
+                    end
+                `endif
                     7'h04: begin // Load packing: vx_packlb_f / vx_packlh_f
                         case (funct3)
                             3'h1: begin // vx_packlb_f — pack 4 strided bytes into float
@@ -896,6 +912,20 @@ module VX_decode import
                 default:;
                 endcase
             end
+        `ifdef VX_CFG_EXT_KROUND25_ENABLE
+            INST_EXT3: begin
+                if (funct7 < 24 && funct3 < 2) begin
+                    ex_type = EX_ALU;
+                    op_type = INST_OP_BITS'(INST_KROUND);
+                    op_args.alu.xtype = ALU_TYPE_OTHER;
+                    op_args.alu.is_w = 0;
+                    op_args.alu.imm20 = {14'b0, funct3[0], funct7[4:0]};
+                    `USED_IREG (rd);
+                    `USED_IREG (rs1);
+                    `USED_IREG (rs2);
+                end
+            end
+        `endif
             default:;
         endcase
     end

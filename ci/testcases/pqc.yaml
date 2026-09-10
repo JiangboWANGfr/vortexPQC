@@ -1,4 +1,4 @@
-# Test cases for the PQC extension: one instruction, KECCAKF.
+# Test cases for pointer Keccak and the staged and whole-round SG25 extensions.
 #
 # The vehicle is tests/pqc/keccak_pe, and it is deliberately NOT keccak_sg5.
 # sg5 has no warp axis -- its -t is lanes inside one warp -- so its twenty
@@ -20,6 +20,158 @@ defaults:
   configs: "-DVX_CFG_EXT_PQC_ENABLE"
   touches: [hw/rtl/pqc, hw/rtl/core/VX_sfu_unit.sv, hw/rtl/core/VX_scoreboard.sv, sim/simx/pqc, sim/simx/core.cpp, sw/kernel/include/pqc, tests/pqc]
 tests:
+# --- shuffle-only SG25 software oracle ----------------------------------
+- id: keccak_sg25-target
+  via: blackbox
+  tier: full
+  drivers: [simx]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8
+  env: {THETA: "0", RHOPI: "0", CHII: "0"}
+- id: ksg25-unit
+  via: script
+  run: "make -C hw/unittest/ksg25 run"
+  touches: [hw/rtl/core/VX_alu_ksg25.sv, hw/unittest/ksg25]
+- id: ksg25-watchdog
+  via: script
+  run: 'make -C hw/unittest/issue run-watchdog PARAMS="-UVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_THREADS=32"'
+  touches: [VX_config.toml, hw/rtl/core/VX_scoreboard.sv, hw/unittest/issue]
+- id: kround25-unit
+  via: script
+  run: "make -C hw/unittest/kround25 run"
+  touches: [hw/rtl/core/VX_alu_kround25.sv, hw/unittest/kround25]
+- id: kround25-watchdog
+  via: script
+  run: 'make -C hw/unittest/issue run-watchdog PARAMS="-UVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_THREADS=32"'
+  touches: [VX_config.toml, hw/rtl/core/VX_scoreboard.sv, hw/unittest/issue]
+- id: ktheta-stage
+  via: blackbox
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -s -b 8
+  env: {THETA: "1", RHOPI: "0", CHII: "0"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25, sw/kernel/include/pqc/vx_ksg25.h]
+- id: ktheta-shake
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8
+  env: {THETA: "1", RHOPI: "0", CHII: "0"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25, sw/kernel/include/pqc/vx_ksg25.h]
+- id: model_parity-ktheta-1warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 1
+  env: {THETA: "1", RHOPI: "0", CHII: "0"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: model_parity-ktheta-8warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 8
+  env: {THETA: "1", RHOPI: "0", CHII: "0"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: ksg25-stages
+  via: blackbox
+  tier: smoke
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -s -b 8
+  env: {THETA: "1", RHOPI: "1", CHII: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25, sw/kernel/include/pqc/vx_ksg25.h]
+- id: ksg25-shake
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8
+  env: {THETA: "1", RHOPI: "1", CHII: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25, sw/kernel/include/pqc/vx_ksg25.h]
+- id: mlkem-sg25
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/mlkem_width
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -t 32 -b 1
+  env: {KECCAK: "sg25"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/mlkem, tests/pqc/mlkem_width, sw/kernel/include/pqc/vx_ksg25.h]
+- id: mlkem-sg25-sw
+  via: blackbox
+  tier: full
+  drivers: [simx]
+  app: pqc/mlkem_width
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -t 32 -b 1
+  env: {KECCAK: "sg25_sw"}
+  touches: [sim/simx, tests/pqc/mlkem, tests/pqc/mlkem_width]
+- id: kround25-shake
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8
+  env: {KROUND: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25, sw/kernel/include/pqc/vx_kround25.h]
+- id: mlkem-kround25
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/mlkem_width
+  configs: -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -t 32 -b 1
+  env: {KECCAK: "kround"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/mlkem, tests/pqc/mlkem_width, sw/kernel/include/pqc/vx_kround25.h]
+- id: model_parity-kround25-1warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 1
+  env: {KROUND: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: model_parity-kround25-8warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 8
+  env: {KROUND: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: model_parity-ksg25-1warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 1
+  env: {THETA: "1", RHOPI: "1", CHII: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: model_parity-ksg25-8warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 8
+  env: {THETA: "1", RHOPI: "1", CHII: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: model_parity-krhopi-8warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 8
+  env: {THETA: "0", RHOPI: "1", CHII: "0"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
+- id: model_parity-kchii-8warp
+  check: model_parity
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -p 4 -b 8
+  env: {THETA: "0", RHOPI: "0", CHII: "1"}
+  touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
 # --- functional, both drivers -------------------------------------------
 - id: keccak_pe-1warp
   via: blackbox

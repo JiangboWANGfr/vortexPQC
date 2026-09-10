@@ -407,6 +407,14 @@ package VX_gpu_pkg;
     // Warp-Level Lane Gather Extension
     localparam INST_WGATHER =    4'h8; // ALU_TYPE_OTHER, alu_op[3]=1
 
+    localparam INST_KTHETA_L =   4'h9;
+    localparam INST_KTHETA_H =   4'ha;
+    localparam INST_KRHOPI_L =   4'hb;
+    localparam INST_KRHOPI_H =   4'hc;
+    localparam INST_KCHII_L =   4'hd;
+    localparam INST_KCHII_H =   4'he;
+    localparam INST_KROUND =    4'hf;
+
     ///////////////////////////////////////////////////////////////////////////
 
     localparam INST_M_MUL =      3'b000;

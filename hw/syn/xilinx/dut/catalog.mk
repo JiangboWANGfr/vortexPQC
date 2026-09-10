@@ -10,7 +10,7 @@
 # Add a DUT: append its name to DUTS and define the five variables. No new
 # directory, no dispatcher edit.
 
-DUTS := cache core cp dxa fpu gfx issue lmem mem_unit om pqc raster rtu \
+DUTS := cache core cp dxa fpu gfx issue kround25 ksg25 lmem mem_unit om pqc raster rtu \
         scope tcu tensor tex top unittest vm vortex
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ TCU_PKG = $(if $(filter -DVX_CFG_TCU_TYPE_FPNEW,$(XCONFIGS)),\
 
 # ---------------------------------------------------------------------------
 # per-DUT: _PRJ top module, _IP FPU IP, _CFG defines, _INC includes, _PKG pkgs,
-#          _EXT=1 to include extensions.mk
+#          _SRC explicit sources, _EXT=1 to include extensions.mk
 # ---------------------------------------------------------------------------
 
 cache_PRJ := VX_cache_top
@@ -79,6 +79,20 @@ gfx_PKG  = $(RTL_DIR)/fpu/VX_fpu_pkg.sv $(RTL_DIR)/dxa/VX_dxa_pkg.sv $(RTL_DIR)/
 # is a no-op, so it is listed once here.
 issue_PRJ := VX_issue_top
 issue_INC  = $(BASE_INC) -I$(RTL_DIR)/core -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm $(FPU_INC) -I$(UNITTEST_DIR)/issue
+
+kround25_PRJ := VX_alu_kround25_top
+kround25_CFG := -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 \
+                -DVX_CFG_NUM_THREADS=32 -DVX_CFG_SIMD_WIDTH=32 \
+                -DVX_CFG_NUM_ALU_LANES=32
+kround25_INC  = $(BASE_INC) -I$(RTL_DIR)/vm $(FPU_INC) -I$(UNITTEST_DIR)/kround25
+kround25_SRC  = $(RTL_DIR)/core/VX_alu_kround25.sv
+
+ksg25_PRJ := VX_alu_ksg25_top
+ksg25_CFG := -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 \
+             -DVX_CFG_NUM_THREADS=32 -DVX_CFG_SIMD_WIDTH=32 \
+             -DVX_CFG_NUM_ALU_LANES=32
+ksg25_INC  = $(BASE_INC) -I$(RTL_DIR)/vm $(FPU_INC) -I$(UNITTEST_DIR)/ksg25
+ksg25_SRC  = $(RTL_DIR)/core/VX_alu_ksg25.sv
 
 lmem_PRJ := VX_local_mem_top
 lmem_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/cache -I$(UNITTEST_DIR)/local_mem

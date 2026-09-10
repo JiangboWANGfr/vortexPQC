@@ -9,7 +9,7 @@
 # synthesizes, so both gates measure the same modules and a divergence between
 # them is meaningful rather than an artefact of two DUT lists.
 
-DUTS := cache core tcu gfx tex raster om pqc rtu dxa vm tensor vortex
+DUTS := cache core kround25 ksg25 tcu gfx tex raster om pqc rtu dxa vm tensor vortex
 
 UNITTEST_DIR ?= $(VORTEX_HOME)/hw/unittest
 
@@ -20,6 +20,18 @@ cache_CFG := -DVX_CFG_EXT_A_ENABLE
 core_TOP := VX_core_top
 core_INC := -I$(UNITTEST_DIR)/core
 core_CFG := -DVX_CFG_NUM_THREADS=16 -DVX_CFG_NUM_WARPS=16 -DVX_CFG_EXT_C_ENABLE -DVX_CFG_EXT_A_ENABLE
+
+kround25_TOP := VX_alu_kround25_top
+kround25_INC := -I$(UNITTEST_DIR)/kround25
+kround25_CFG := -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 \
+                -DVX_CFG_NUM_THREADS=32 -DVX_CFG_SIMD_WIDTH=32 \
+                -DVX_CFG_NUM_ALU_LANES=32
+
+ksg25_TOP := VX_alu_ksg25_top
+ksg25_INC := -I$(UNITTEST_DIR)/ksg25
+ksg25_CFG := -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 \
+             -DVX_CFG_NUM_THREADS=32 -DVX_CFG_SIMD_WIDTH=32 \
+             -DVX_CFG_NUM_ALU_LANES=32
 
 tcu_TOP := VX_tcu_unit_top
 tcu_INC := -I$(UNITTEST_DIR)/tcu_unit

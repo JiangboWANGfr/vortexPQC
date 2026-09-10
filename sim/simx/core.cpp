@@ -63,12 +63,15 @@ public:
     , operands_(VX_CFG_ISSUE_WIDTH)
     , dispatchers_((uint32_t)FUType::Count)
     , func_units_((uint32_t)FUType::Count)
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+    , alu_dispatch_release_(make_sim_channels<uint32_t, VX_CFG_NUM_ALU_BLOCKS>(simobject))
+#endif
     , lmem_switch_(VX_CFG_NUM_LSU_BLOCKS)
     , mem_coalescers_(VX_CFG_NUM_LSU_BLOCKS)
     , fetch_latch_(ctx, "fetch_latch", 2, 2)
     , decode_latch_(ctx, "decode_latch", 1, 2)
     , pending_icache_(VX_CFG_NUM_WARPS)
-    , ibuffer_arbs_(VX_CFG_ISSUE_WIDTH, {ArbiterType::GTO, PER_ISSUE_WARPS})
+    , ibuffer_arbs_(VX_CFG_ISSUE_WIDTH, IssueArbiter(PER_ISSUE_WARPS))
     , fu_locked_(VX_CFG_ISSUE_WIDTH, BitVector<>((uint32_t)FUType::Count, 0))
     , fu_credits_(VX_CFG_ISSUE_WIDTH, std::vector<uint32_t>((uint32_t)FUType::Count, 0))
     , ibuf_inflight_(VX_CFG_NUM_WARPS, 0)
@@ -237,7 +240,13 @@ public:
 
     // initialize execute units
     snprintf(sname, 100, "%s-alu", name.c_str());
-    func_units_.at((int)FUType::ALU) = SimPlatform::instance().create_object<AluUnit>(sname, simobject_);
+    auto alu_unit = SimPlatform::instance().create_object<AluUnit>(sname, simobject_);
+    func_units_.at((int)FUType::ALU) = alu_unit;
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+    for (uint32_t b = 0; b < VX_CFG_NUM_ALU_BLOCKS; ++b) {
+      alu_unit->DispatchRelease.at(b).bind(&alu_dispatch_release_.at(b));
+    }
+#endif
     snprintf(sname, 100, "%s-fpu", name.c_str());
     func_units_.at((int)FUType::FPU) = SimPlatform::instance().create_object<FpuUnit>(sname, simobject_);
     snprintf(sname, 100, "%s-lsu", name.c_str());
@@ -610,6 +619,7 @@ public:
 
         // to operand stage
         if (operands_.at(iw)->Input.try_send(uop_trace)) {
+          ibuffer_arbs_.at(iw).accept(w);
           // capture register operands at issue (Operands owns regfile)
           operands_.at(iw)->fetch_operands(uop_trace);
           // spend a dispatch credit for the target FU
@@ -667,6 +677,18 @@ public:
   }
 
   void execute() {
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+    // Full-width ALU issues have one packet; credit returns on PE acceptance.
+    for (auto& release : alu_dispatch_release_) {
+      if (!release.empty()) {
+        auto iw = release.peek() % VX_CFG_ISSUE_WIDTH;
+        auto& credits = fu_credits_.at(iw).at((int)FUType::ALU);
+        assert(credits > 0);
+        --credits;
+        release.pop();
+      }
+    }
+#endif
     // Dispatcher.Outputs are sized per FU's NUM_*_BLOCKS; FU.Inputs match.
     // Per-block 1:1 forward (the dispatcher already handled IW→NB aggregation).
     for (uint32_t fu = 0; fu < (uint32_t)FUType::Count; ++fu) {
@@ -679,6 +701,11 @@ public:
         auto trace = dispatch->Outputs.at(b).peek();
         if (func_unit->input(b).try_send(trace)) {
           dispatch->Outputs.at(b).pop();
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+          if (fu == (uint32_t)FUType::ALU) {
+            continue;
+          }
+#endif
           // return the dispatch credit on FU accept
           uint32_t iw = trace->wid % VX_CFG_ISSUE_WIDTH;
           if (fu_credits_.at(iw).at(fu) > 0)
@@ -995,6 +1022,9 @@ private:
   std::vector<Operands::Ptr> operands_;
   std::vector<Dispatcher::Ptr> dispatchers_;
   std::vector<std::shared_ptr<FuncUnitBase>> func_units_;
+#if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
+  std::array<SimChannel<uint32_t>, VX_CFG_NUM_ALU_BLOCKS> alu_dispatch_release_;
+#endif
   LocalMem::Ptr local_mem_;
   std::vector<LocalMemSwitch::Ptr> lmem_switch_;
   std::vector<MemCoalescer::Ptr> mem_coalescers_;
@@ -1013,7 +1043,7 @@ private:
   // before retirement; commit() grants among them fixed-priority.
   std::vector<std::vector<std::unique_ptr<SimChannel<instr_trace_t*>>>> commit_queues_;
 
-  std::vector<Arbiter> ibuffer_arbs_;
+  std::vector<IssueArbiter> ibuffer_arbs_;
 
   std::vector<BitVector<>> fu_locked_;
   std::vector<std::vector<uint32_t>> fu_credits_; // [iw][fu] in-flight dispatch credits

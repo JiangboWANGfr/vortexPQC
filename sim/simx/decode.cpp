@@ -141,6 +141,27 @@ static op_string_t op_string(const Instr &instr) {
     [&](WgatherType)-> op_string_t {
       return {"WGATHER", ""};
     },
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+    [&](Ksg25Type type)-> op_string_t {
+      switch (type) {
+      case Ksg25Type::THETA_L: return {"KTHETA.L.SG25", ""};
+      case Ksg25Type::THETA_H: return {"KTHETA.H.SG25", ""};
+      case Ksg25Type::RHOPI_L: return {"KRHOPI.L.SG25", ""};
+      case Ksg25Type::RHOPI_H: return {"KRHOPI.H.SG25", ""};
+      case Ksg25Type::CHII_L: return {"KCHII.L.SG25", ""};
+      case Ksg25Type::CHII_H: return {"KCHII.H.SG25", ""};
+      default:
+        std::abort();
+      }
+    },
+#endif
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+    [&](Kround25Type type)-> op_string_t {
+      auto aluArgs = std::get<IntrAluArgs>(instrArgs);
+      return {type == Kround25Type::ROUND_L ? "KROUND.L.SG25" : "KROUND.H.SG25",
+              std::to_string(aluArgs.imm)};
+    },
+#endif
     [&](BrType br_type)-> op_string_t {
       auto brArgs = std::get<IntrBrArgs>(instrArgs);
       switch (br_type) {
@@ -932,6 +953,24 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
       instr->set_wstall(true);
     } break;
 #endif
+#ifdef VX_CFG_EXT_KSG25_ENABLE
+    case 6: {
+      instr->set_fu_type(FUType::ALU);
+      switch (funct3) {
+      case 0: instr->set_op_type(Ksg25Type::THETA_L); break;
+      case 1: instr->set_op_type(Ksg25Type::THETA_H); break;
+      case 2: instr->set_op_type(Ksg25Type::RHOPI_L); break;
+      case 3: instr->set_op_type(Ksg25Type::RHOPI_H); break;
+      case 4: instr->set_op_type(Ksg25Type::CHII_L); break;
+      case 5: instr->set_op_type(Ksg25Type::CHII_H); break;
+      default:
+        std::abort();
+      }
+      instr->set_dest_reg(rd, RegType::Integer);
+      instr->set_src_reg(0, rs1, RegType::Integer);
+      instr->set_src_reg(1, rs2, RegType::Integer);
+    } break;
+#endif
   #ifdef VX_CFG_EXT_TCU_ENABLE
     case 2: {
       instr->set_fu_type(FUType::TCU);
@@ -1099,9 +1138,9 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
         if (args.count > 1) {                      // windowed (RTU) -> macro-op
           instr->set_macro_op();
           instr->set_wstall(true);
-        }
-      } break;
-      default:
+    }
+  } break;
+  default:
         std::abort();
       }
     } break;
@@ -1156,6 +1195,20 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
     // known-violation handoff class, checked against its decoded destination.
     gfx_doctrine::check(*instr);
   } break;
+#ifdef VX_CFG_EXT_KROUND25_ENABLE
+  case Opcode::EXT3: {
+    if (funct7 >= 24 || funct3 >= 2) {
+      std::abort();
+    }
+    instr->set_fu_type(FUType::ALU);
+    instr->set_op_type(funct3 == 0 ? Kround25Type::ROUND_L
+                                   : Kround25Type::ROUND_H);
+    instr->set_args(IntrAluArgs{0, 0, funct7});
+    instr->set_dest_reg(rd, RegType::Integer);
+    instr->set_src_reg(0, rs1, RegType::Integer);
+    instr->set_src_reg(1, rs2, RegType::Integer);
+  } break;
+#endif
   default:
     std::abort();
   }

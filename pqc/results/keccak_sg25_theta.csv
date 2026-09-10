@@ -1,0 +1,27 @@
+# SimX and RTL simulation; one core, 8 warps x 32 threads; L2/L3 off.
+# KSG25 enabled in both arms; THETA=0/1 selects only the software use.
+# One state per warp; final states checked against mlkem-native.
+# span_cycles = max(end) - min(start), measured around permutation chains.
+# Includes loop/call/constant-load overhead; each warp excludes its own state loads/stores.
+# Batch span includes scheduling skew and possible overlap with other warps' setup/teardown.
+# Marginal cycles/completed permutation = (span_p8-span_p4)/(4*batch_warps).
+# Only batch_warps=1 measures single-state latency. No FPGA frequency or PPA measured.
+# sw kernel.elf sha256: 09439dd0242ad4e08264e842653c0655748b27fa1c709d26c3731135919dddda
+# theta kernel.elf sha256: 5064addaff7327f54f5c38e0be7456fc614af3fc5779f8e5abde79579cd86c36
+driver,arm,xlen,cores,warps,threads,batch_warps,permutations_per_state,span_cycles,instrs,cycles,passed
+rtlsim,sw,32,1,8,32,1,4,77669,7874,86710,1
+rtlsim,sw,32,1,8,32,1,8,154896,15642,163945,1
+rtlsim,sw,32,1,8,32,8,4,242191,62992,284131,1
+rtlsim,sw,32,1,8,32,8,8,451758,125136,490365,1
+rtlsim,theta,32,1,8,32,1,4,48717,5323,57695,1
+rtlsim,theta,32,1,8,32,1,8,97021,10539,105996,1
+rtlsim,theta,32,1,8,32,8,4,134422,42584,172821,1
+rtlsim,theta,32,1,8,32,8,8,234750,84312,273149,1
+simx,sw,32,1,8,32,1,4,77557,7874,86614,1
+simx,sw,32,1,8,32,1,8,154679,15642,163746,1
+simx,sw,32,1,8,32,8,4,242315,62992,288899,1
+simx,sw,32,1,8,32,8,8,459122,125136,497322,1
+simx,theta,32,1,8,32,1,4,48949,5323,57988,1
+simx,theta,32,1,8,32,1,8,97453,10539,106492,1
+simx,theta,32,1,8,32,8,4,133930,42584,173990,1
+simx,theta,32,1,8,32,8,8,234654,84312,272886,1

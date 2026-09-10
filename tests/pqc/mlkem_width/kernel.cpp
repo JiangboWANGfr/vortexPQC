@@ -1,14 +1,17 @@
-// ML-KEM-768 round trip with the x4 Keccak batch spread over W warp lanes.
-//
-// W is the launch's block size, not a compile-time constant, so every arm of
-// the sweep is the same binary and the same instruction stream; the only thing
-// that changes is how many lanes the batch lands on. Every active lane runs
-// the whole KEM on the same data, so the non-Keccak 28% is perfectly
-// convergent and costs what it costs on one lane; the Keccak batch is the only
-// place the lanes do different work.
+// ML-KEM-768 round trip used by the SIMT-width and SG25 tests. The default and
+// pointer backends spread an x4 Keccak batch over the launch block's lanes.
+// SG25 runs the surrounding KEM on lane 0 and activates the warp inside each
+// FIPS-202 call, where one state is distributed across 25 lanes.
 
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
+
+#if defined(PQC_KECCAK_SG25)
+static_assert(VX_CFG_XLEN == 32, "SG25 requires RV32");
+static_assert(VX_CFG_NUM_THREADS == 32 && VX_CFG_SIMD_WIDTH == 32 &&
+              VX_CFG_NUM_ALU_LANES == 32,
+              "SG25 requires a complete 32-lane ALU vector");
+#endif
 
 extern "C" {
 #include "src/common.h"
@@ -20,9 +23,11 @@ extern "C" {
 #include "src/poly_k.c"
 #include "src/sampling.c"
 #include "src/verify.c"
+#if !defined(PQC_KECCAK_SG25)
 #include "src/fips202/fips202.c"
 #include "src/fips202/fips202x4.c"
 #include "src/fips202/keccakf1600.c"
+#endif
 #include "mlkem_native.h"
 }
 
@@ -35,6 +40,9 @@ static inline uint32_t read_sp() {
 }
 
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
+#if defined(PQC_KECCAK_SG25)
+  vx_tmc_one();
+#endif
   const unsigned req = blockIdx.x;
   if (req >= arg->requests)
     return;
@@ -45,8 +53,10 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto stack  = reinterpret_cast<uint32_t*>(arg->stack_addr)  + req * 4;
   const unsigned wid = (unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1);
 
+#if !defined(PQC_KECCAK_SG25)
   // Same value from every lane, so the shared location settles on it.
   mlkw_lanes = arg->lanes;
+#endif
   for (int i = 0; i < MLKW_COUNT; ++i)
     mlkw_counts[wid][i] = 0;
 
@@ -97,8 +107,8 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
     stack[0] = sp0 - low;              // peak depth below entry sp
     stack[1] = sp0 - floor_addr;       // paintable span; equality means the
                                        // slab is full and the number is a floor
-    const uint32_t h = (uint32_t)vx_hart_id();
-    stack[2] = mlk_arena_peak[h];   // shared per-hart arena, see
+    const uint32_t h = mlk_arena_index();
+    stack[2] = mlk_arena_peak[h];   // arena index comes from
     stack[3] = mlk_arena_fail[h];   // tests/pqc/mlkem/mlk_vortex_alloc.h
   }
 
