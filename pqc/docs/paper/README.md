@@ -8,6 +8,8 @@
 
 论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。这次工作整理已有实验，没有重新执行硬件实验。
 
+[Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
+
 ## 1. 论文主线与贡献
 
 论文按“软件基线和瓶颈 → SG25 软件映射 → 三阶段 ISE → GPR 型 KROUND 比较器 → pointer PE → 端到端与实现成本”展开。

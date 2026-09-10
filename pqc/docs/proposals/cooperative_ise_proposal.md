@@ -16,10 +16,17 @@ layout's correctness (§2.4).
 
 | | what the instruction sees | where the state lives |
 |---|---|---|
-| **A** Zbb/Zbkb/Zknh, Bolat et al. | one lane's GPRs | GPRs |
-| **B** private crypto register file | a PE-private file | **new architectural state** |
-| **C** [`keccak_ise_proposal.md`](keccak_ise_proposal.md), RISQ-V, HORCRUX | memory, via a pointer | memory |
+| **A** scalar bit/crypto instructions: Zbb/Zbkb/Zknh | explicit scalar register operands | CPU registers |
+| **A** register-coupled rounds: RISQ-V | the full, implicitly selected PQR | existing CPU FPRs and GPRs |
+| **B** dedicated crypto state: Bolat et al., HORCRUX | execution-unit state or an accelerator register file | dedicated state registers |
+| **C** [`keccak_ise_proposal.md`](keccak_ise_proposal.md) | memory, via a pointer | memory between invocations; PE buffers during execution |
 | **D** *this document* | **the same register name across N lanes** | **ordinary GPRs, distributed** |
+
+RISQ-V is not a pointer interface: its `keccak.f1600` selects a round and
+updates state held in 32 FPRs and 18 GPRs. HORCRUX instead exposes an internal
+50-word register file, and Bolat et al. retain 200 bytes inside their execution
+unit. See the [source-checked interface comparison](../paper/keccak_related_work.md)
+for citations and memory-coupled precedents.
 
 D is the only one of the four that does not exist on a scalar RISC-V core. That
 is its entire claim to novelty, and §6 states how narrow that claim actually is.
