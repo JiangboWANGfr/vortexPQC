@@ -165,6 +165,15 @@ including six scalar reference-clock ports renamed to single-bit buses by
 implementation. A wrong-package-pin control is rejected by the checker.
 Final PQC RM timing and DFX compatibility checks remain required.
 
+Final RM linking exposed nine NoC boundary mismatches in the compute template:
+`M04_INI` through `M11_INI` advertised two extra address windows, and the QDMA
+window differed from the implemented compute shell. SLASH `3e97b088` matches
+these declarations to the existing static boundary. A regression compares all
+86 boundary declarations and rejects the original nine differences; all 140
+linker tests pass. The corrected Vivado run reaches logic optimization without
+the previous `ModularNoC 90-3` merge failure. The active GPU/staging mappings and
+RV32 stack coverage also pass again; final routing and DFX checks remain pending.
+
 AVED simulation's in-process C API does not execute the hardware C++ VRT
 staging code. A separate `TARGET=sim` run using an actual simulation vbin and
 VRT, including `VORTEX_AVED_FORCE_STAGE=1`, is queued to cover that path
