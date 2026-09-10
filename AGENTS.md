@@ -152,6 +152,7 @@ See [docs/coding_guidelines_cpp.md](docs/coding_guidelines_cpp.md) and [docs/cod
 - **Never reference the current task, PR, caller, issue number, or fix.** Those belong in the commit message and rot in code. Don't write `// used by foo()`, `// added for the X flow`, `// handles issue #123`.
 - **`RTL_PKGS` is for `VX_*_pkg.sv` only.** Verilog interfaces are illegal there. If an interface isn't being discovered, fix it via include paths or file naming — not by stuffing it into `RTL_PKGS`.
 - **Library RTL defaults to `TRACING_OFF`.** Modules under `hw/rtl/libs/` are excluded from VCD by default to keep waveform size manageable. Toggle per-file with `TRACING_ON`/`TRACING_OFF`, or globally with `CONFIGS="-DTRACING_ALL"`.
+- **AXI arbitration must hold an unaccepted address offer stable.** `STICKY` can retain a previously accepted grant without locking a newly stalled request. Verify AR/AW payload stability when a higher-priority source arrives during backpressure; always-ready simulation can hide this bug.
 - **No multi-paragraph docstrings or multi-line block comments** for trivial code. One short line is the ceiling unless the logic genuinely needs more.
 - **No `// removed code` or stale-rename breadcrumbs.** If something is unused, delete it.
 

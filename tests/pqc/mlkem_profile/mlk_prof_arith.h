@@ -5,8 +5,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// Counting arithmetic backend. Same contract as the FIPS202 one: record and
-// return MLK_NATIVE_FUNC_FALLBACK, so the library runs its own C code.
+// Counting arithmetic backend with optional cooperative paths and cycle probes.
 //
 // Only the hooks a PQC unit would plausibly take over are counted. The
 // compress/decompress and tobytes/frombytes hooks are left unset; they are
@@ -21,6 +20,13 @@
 // include path instead.
 #include "src/native/api.h"
 #include "mlk_prof_counters.h"
+
+#if defined(PQC_PROFILE_ARITH) || defined(PQC_ARITH_COOP)
+void mlk_profile_reduce(int16_t* p);
+void mlk_profile_mulcache(int16_t* x, const int16_t* a);
+void mlk_profile_basemul(int16_t* r, const int16_t* a,
+                         const int16_t* b, const int16_t* cache);
+#endif
 
 #if defined(PQC_NTT_COOP)
 void mlk_profile_ntt(int16_t* p, unsigned inverse);
@@ -67,7 +73,12 @@ static MLK_INLINE int mlk_poly_reduce_native(int16_t p[MLKEM_N])
 {
   (void)p;
   mlk_prof_counts[vx_hart_id()][MLK_PROF_POLY_REDUCE]++;
+#if defined(PQC_PROFILE_ARITH) || defined(PQC_ARITH_REDUCE)
+  mlk_profile_reduce(p);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#else
   return MLK_NATIVE_FUNC_FALLBACK;
+#endif
 }
 
 #define MLK_USE_NATIVE_POLY_MULCACHE_COMPUTE
@@ -76,7 +87,12 @@ static MLK_INLINE int mlk_poly_mulcache_compute_native(
 {
   (void)x; (void)a;
   mlk_prof_counts[vx_hart_id()][MLK_PROF_MULCACHE]++;
+#if defined(PQC_PROFILE_ARITH) || defined(PQC_ARITH_MULCACHE)
+  mlk_profile_mulcache(x, a);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#else
   return MLK_NATIVE_FUNC_FALLBACK;
+#endif
 }
 
 // Only the k=3 variant is defined: MLK_CONFIG_PARAMETER_SET is 768, and the
@@ -88,7 +104,12 @@ static MLK_INLINE int mlk_polyvec_basemul_acc_montgomery_cached_k3_native(
 {
   (void)r; (void)a; (void)b; (void)b_cache;
   mlk_prof_counts[vx_hart_id()][MLK_PROF_BASEMUL]++;
+#if defined(PQC_PROFILE_ARITH) || defined(PQC_ARITH_BASEMUL)
+  mlk_profile_basemul(r, a, b, b_cache);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#else
   return MLK_NATIVE_FUNC_FALLBACK;
+#endif
 }
 
 #define MLK_USE_NATIVE_REJ_UNIFORM

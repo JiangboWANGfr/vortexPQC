@@ -298,13 +298,12 @@ module VX_mm_axi_arb #(
         // The top SEL_WIDTH bits of the AXI ID carry the source index; masters
         // must leave them free. Reads are fully concurrent; write bursts serialize
         // on the shared W channel (AW gated until the prior burst's WLAST) while B
-        // responses stay concurrent. Sticky arbitration holds the granted addr/id
-        // stable until the handshake completes (AXI stability requirement).
+        // responses stay concurrent. Address offers lock their source while stalled.
         localparam LOW_ID = ID_WIDTH - SEL_WIDTH;   // source's own low ID bits
         `STATIC_ASSERT((ID_WIDTH > SEL_WIDTH),
             ("VX_mm_axi_arb MULTI_OUT: ID_WIDTH must exceed LOG2UP(NUM_INPUTS) to carry the source index"))
 
-        // ---- Read: sticky RR grant, tag arid, demux R by rid ----
+        // ---- Read: tag arid, demux R by rid ----
         wire [SEL_WIDTH-1:0] ar_pick;
         wire                 ar_any;
         if (NUM_INPUTS == 1) begin : g_ar_single
@@ -312,12 +311,28 @@ module VX_mm_axi_arb #(
             assign ar_any  = s_arvalid[0];
         end else begin : g_ar_arb
             wire ar_fire = c_arvalid && c_arready;
+            reg ar_locked;
+            reg [SEL_WIDTH-1:0] ar_owner;
+            wire [NUM_INPUTS-1:0] ar_requests = ar_locked
+                ? (s_arvalid & (NUM_INPUTS'(1) << ar_owner)) : s_arvalid;
+            // STICKY retains an accepted grant; AXI also locks an unaccepted offer.
+            always @(posedge clk) begin
+                if (reset) begin
+                    ar_locked <= 1'b0;
+                    ar_owner <= '0;
+                end else if (ar_fire) begin
+                    ar_locked <= 1'b0;
+                end else if (c_arvalid && !c_arready) begin
+                    ar_locked <= 1'b1;
+                    ar_owner <= ar_pick;
+                end
+            end
             VX_generic_arbiter #(
                 .NUM_REQS (NUM_INPUTS),
                 .TYPE     (ARBITER),
-                .STICKY   (1)   // hold grant stable until AR fires (AXI stability)
+                .STICKY   (1)
             ) ar_arb (
-                .clk (clk), .reset (reset), .requests (s_arvalid),
+                .clk (clk), .reset (reset), .requests (ar_requests),
                 .grant_index (ar_pick), `UNUSED_PIN (grant_onehot),
                 .grant_valid (ar_any), .grant_ready (ar_fire)
             );
@@ -340,7 +355,7 @@ module VX_mm_axi_arb #(
         end
         assign c_rready = s_rready[r_src];
 
-        // ---- Write: sticky RR grant gated on W-drain, tag awid, demux B by bid ----
+        // ---- Write: grant gated on W-drain, tag awid, demux B by bid ----
         reg                 w_active;
         reg [SEL_WIDTH-1:0] w_route;
         wire [SEL_WIDTH-1:0] aw_pick;
@@ -350,12 +365,27 @@ module VX_mm_axi_arb #(
             assign aw_pick = '0;
             assign aw_any  = s_awvalid[0];
         end else begin : g_aw_arb
+            reg aw_locked;
+            reg [SEL_WIDTH-1:0] aw_owner;
+            wire [NUM_INPUTS-1:0] aw_requests = aw_locked
+                ? (s_awvalid & (NUM_INPUTS'(1) << aw_owner)) : s_awvalid;
+            always @(posedge clk) begin
+                if (reset) begin
+                    aw_locked <= 1'b0;
+                    aw_owner <= '0;
+                end else if (aw_fire) begin
+                    aw_locked <= 1'b0;
+                end else if (c_awvalid && !c_awready) begin
+                    aw_locked <= 1'b1;
+                    aw_owner <= aw_pick;
+                end
+            end
             VX_generic_arbiter #(
                 .NUM_REQS (NUM_INPUTS),
                 .TYPE     (ARBITER),
                 .STICKY   (1)
             ) aw_arb (
-                .clk (clk), .reset (reset), .requests (s_awvalid),
+                .clk (clk), .reset (reset), .requests (aw_requests),
                 .grant_index (aw_pick), `UNUSED_PIN (grant_onehot),
                 .grant_valid (aw_any), .grant_ready (aw_fire)
             );

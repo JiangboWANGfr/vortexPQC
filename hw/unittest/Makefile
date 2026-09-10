@@ -20,6 +20,7 @@ all:
 	$(MAKE) -C afu_axil_demux
 	$(MAKE) -C afu_reset_seq
 	$(MAKE) -C cp_axi_path
+	$(MAKE) -C mm_axi_arb
 	$(MAKE) -C cp_dma
 	$(MAKE) -C cp_core
 	$(MAKE) -C fma_unit
@@ -50,6 +51,7 @@ run:
 	$(MAKE) -C afu_axil_demux run
 	$(MAKE) -C afu_reset_seq run
 	$(MAKE) -C cp_axi_path run
+	$(MAKE) -C mm_axi_arb run
 	$(MAKE) -C cp_dma run
 	$(MAKE) -C cp_core run
 	$(MAKE) -C fma_unit run
@@ -144,6 +146,7 @@ clean:
 	$(MAKE) -C cp_unpack clean
 	$(MAKE) -C cp_axil_regfile clean
 	$(MAKE) -C cp_axi_path clean
+	$(MAKE) -C mm_axi_arb clean
 	$(MAKE) -C cp_dma clean
 	$(MAKE) -C cp_core clean
 	$(MAKE) -C fma_unit clean

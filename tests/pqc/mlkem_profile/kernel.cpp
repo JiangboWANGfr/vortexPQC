@@ -1,10 +1,4 @@
-// Exact primitive call counts for one ML-KEM-768 round trip.
-//
-// The library is configured with two counting backends (see
-// vortex_prof_config.h): each hook records the call and returns
-// MLK_NATIVE_FUNC_FALLBACK, so the C implementation still does the work. The
-// run is therefore the baseline run, with counters attached -- not a different
-// build that happens to resemble it.
+// Primitive call counts and optional cooperative paths for an ML-KEM-768 round trip.
 //
 // Sources are included per-file rather than through mlkem_native.c so the
 // counter array stays reachable; see tests/pqc/mlkem_microbench/kernel.cpp for why
@@ -33,6 +27,10 @@ extern "C" {
 #include <vx_intrinsics.h>
 #include "common.h"
 
+#if defined(PQC_PROFILE_ARITH) || defined(PQC_ARITH_COOP)
+#include "mlk_arith_dispatch.h"
+#endif
+
 #if defined(PQC_NTT_COOP)
 #include "mlkem_coop_ntt.h"
 #include "mlk_coop_dispatch.h"
@@ -55,6 +53,12 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
     local_counts[i] = 0;
   }
   local_counts[MLK_PROF_ARM] = MLK_ARM_EXPECTED;
+
+#if defined(PQC_PROFILE_ARITH)
+  for (unsigned i = 0; i < 3; ++i) {
+    mlk_arith_cycles[vx_warp_id()][i] = 0;
+  }
+#endif
 
 #if defined(PQC_NTT_COOP)
   mlk_coop_args[vx_warp_id()].lanes = arg->ntt_lanes;
@@ -81,6 +85,12 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[P_CYCLE_DECAPS] = t3 - t2;
   cycles[P_CYCLE_START] = t0;
   cycles[P_CYCLE_END] = t3;
+
+#if defined(PQC_PROFILE_ARITH)
+  for (unsigned i = 0; i < 3; ++i) {
+    cycles[P_CYCLE_MULCACHE + i] = mlk_arith_cycles[vx_warp_id()][i];
+  }
+#endif
 
   for (int i = 0; i < MLK_PROF_COUNT; ++i) {
     counts[i] = local_counts[i];

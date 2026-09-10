@@ -204,6 +204,14 @@ int main(int argc, char** argv) {
                     (arm & MLK_ARM_ABLATE_NTT) ? "ntt" :
                     (arm & MLK_ARM_ABLATE_KECCAK) ? "keccak" : "none",
                     ntt, (arm & MLK_ARM_NTTMUL_K) ? "k" : "c", nttbf, arm);
+#if defined(PQC_ARITH_COOP) || defined(PQC_PROFILE_ARITH)
+        std::printf("ARITH_ARM: id=%u mulcache=%s basemul=%s reduce=%s mul=%s profile=%u\n",
+                    req, (arm & MLK_ARM_ARITH_MULCACHE) ? "w32" : "c",
+                    (arm & MLK_ARM_ARITH_BASEMUL) ? "w32" : "c",
+                    (arm & MLK_ARM_ARITH_REDUCE) ? "w32" : "c",
+                    (arm & MLK_ARM_ARITH_NTTMUL) ? "ise" : "c",
+                    (unsigned)((arm & MLK_ARM_PROFILE_ARITH) != 0));
+#endif
         if (arm != MLK_ARM_EXPECTED) {
             std::printf("*** request %u: kernel arm differs from host: expected %u\n",
                         req, MLK_ARM_EXPECTED);
@@ -242,6 +250,7 @@ int main(int argc, char** argv) {
                     counts[MLK_PROF_NTT], counts[MLK_PROF_INTT],
                     counts[MLK_PROF_REJ_UNIFORM], counts[MLK_PROF_MULCACHE],
                     counts[MLK_PROF_BASEMUL], counts[MLK_PROF_POLY_REDUCE]);
+        std::printf("REFERENCE C MICROBENCH ESTIMATES (not measured attribution):\n");
         std::printf("%-18s %10s %14s\n", "primitive", "calls", "est_cycles");
         double attributed = 0;
         for (int i = 0; i < MLK_PROF_ARM; ++i) {
@@ -268,7 +277,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        std::printf("attributed cycles: %.0f\n", attributed);
+        std::printf("reference estimate total: %.0f\n", attributed);
         for (int i = 0; i < 3; ++i) {
             if (cycles[i] == 0) {
                 std::printf("*** request %u: phase %d measured zero cycles\n", req, i);
@@ -276,6 +285,20 @@ int main(int argc, char** argv) {
             }
         }
         const uint64_t total = cycles[0] + cycles[1] + cycles[2];
+#if defined(PQC_PROFILE_ARITH)
+        for (unsigned i = 0; i < 3; ++i) {
+            const unsigned index = MLK_PROF_MULCACHE + i;
+            const uint64_t elapsed = cycles[P_CYCLE_MULCACHE + i];
+            std::printf("ARITH_PROFILE: id=%u primitive=%s calls=%u cycles=%llu "
+                        "per_request_elapsed_pct=%.3f\n", req, kCost[index].name,
+                        counts[index], (unsigned long long)elapsed,
+                        100.0 * elapsed / total);
+            if (counts[index] == 0 || elapsed == 0 || elapsed > total) {
+                std::printf("*** request %u: invalid %s timing\n", req, kCost[index].name);
+                ++errors;
+            }
+        }
+#endif
         const uint64_t start = cycles[P_CYCLE_START], end = cycles[P_CYCLE_END];
         if (end <= start || end - start != total) {
             std::printf("*** request %u: timestamps disagree with phase cycles\n", req);

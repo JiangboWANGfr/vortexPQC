@@ -10,6 +10,14 @@ routing closes 250 MHz on V80, reduces the NTT hierarchy to 5,079 LUT and
 16 DSP, and preserves measured complete-KEM performance. It is the selected
 implementation baseline for the remaining arithmetic paths.
 
+The subsequent W32 software arithmetic experiment completes cooperative
+mulcache, cached k3 basemul, and canonical reduction in the KEM prototype.
+With matched denominators on the corrected AFU, XRT KEM cycles fall by
+22.20% at M1 with all three paths enabled and by 15.34% at M8 with basemul
+and reduction enabled. The final section records the separate C/ISE
+comparisons and verification; the
+[AFU proposal](afu_bank0_concurrency_proposal.md) records the timing correction.
+
 ## Matched end-to-end experiment
 
 Measured on 2026-09-09 from `d82b2a24f` plus the profiling changes in this
@@ -924,3 +932,172 @@ Functional logs, binaries, source hashes, and the exact working-tree patch are
 under `build32_nttmul/halfbank_validation/`. The separate scalar RTL checks are
 under `build32_ntt_bank_audit/scalar_l{1,4}_rtl.log`. The new physical reports
 are under `build32_ntt_vivado/hw/syn/xilinx/dut/v80_ntt_halfbank_250_core/`.
+
+## W32 ML-KEM arithmetic after the half-bank NTT
+
+The next software experiment starts from half-bank commit `2d6b9b8a9` and
+keeps RV32, one core, W8/T32, KECCAKF, register NTT, SG2, and NTTMUL fixed.
+Rebuilding the NTT-only arm reproduces its archived kernel SHA-256
+`aacef153910fdd99e9d87392011f90ed4242f9bd8fd19bbee09324f026a0bf47`
+and the exact previous SimX instruction and cycle counts. The original
+arithmetic measurements use frozen hardware binaries without RTL, SimX
+timing-model, clock-constraint, or physical-design changes. The subsequent
+AFU correction is recorded separately below and in the
+[bank-0 concurrency proposal](afu_bank0_concurrency_proposal.md).
+
+`PROFILE_ARITH=1` measures the actual mulcache, cached k3 basemul, and
+poly_reduce function intervals inside each KEM request. Compiler barriers
+bound the cycle reads without inserting cache-flushing fences. The values
+include scheduling and memory waits in the instrumented run; concurrent
+request intervals must not be summed into a batch attribution. The original
+C microbenchmark estimates remain explicitly labeled as reference estimates.
+
+| Function, 12 / 12 / 18 calls per request | Scalar baseline M1 cycles | W32 + ISE M1 cycles | Baseline / accelerated request share |
+| --- | ---: | ---: | ---: |
+| mulcache | 207,517 | 59,627 | 2.645% / 0.979% |
+| basemul | 777,100 | 86,507 | 9.903% / 1.421% |
+| poly_reduce | 1,029,706 | 109,041 | 13.123% / 1.791% |
+
+Baseline profiling changes M1/M8 makespan from 7,773,392/10,091,206 to
+7,846,793/10,187,265, or +0.94%/+0.95%. All end-to-end speed comparisons
+below disable `PROFILE_ARITH`. The smaller accelerated profiling overhead
+also means the function interval ratios are observations from instrumented
+programs, not exact fractions removed from the uninstrumented baseline.
+
+The cooperative helpers assign each lane adjacent pairs of int16 outputs.
+mulcache distributes 64 twiddle groups across 32 lanes. basemul distributes
+128 coefficient pairs; it accumulates the six raw products for each output
+in int32 and performs exactly one final Montgomery reduction, preserving
+the upstream k3 representation. poly_reduce applies Barrett reduction and
+the conversion to unsigned canonical `[0, 3328]` to all 256 coefficients.
+The KEM wrappers publish per-warp arguments, expand to the initialized 32
+lanes, synchronize completion, and restore the leader-only continuation.
+
+`ARITH_MUL=ise` reuses NTTMUL.K for mulcache. For basemul, let
+`lo = (int16_t)T`. The final reduction is implemented exactly as
+`NTTMUL.K(lo, 1) + ((T - lo) >> 16)`, since the Montgomery correction depends
+only on the low 16 bits. With the upstream contract `0 <= a <= 4095` and
+signed16 `b`/cache, every partial sum has absolute value at most 805,109,760;
+the high-word restoration is also safely within int32. This does not replace
+the raw products with individually reduced products. poly_reduce uses the
+same C arithmetic in both W32 arms.
+
+SimX complete-KEM makespans, with all other build options fixed:
+
+| Cooperative arithmetic | M1 cycles | M8 cycles |
+| --- | ---: | ---: |
+| None: half-bank NTT-only baseline | 7,773,392 | 10,091,206 |
+| poly_reduce only | 6,899,114 | 9,281,501 |
+| mulcache, C | 7,617,548 | 10,149,829 |
+| mulcache, ISE | 7,615,421 | 10,135,192 |
+| basemul, C | 7,080,984 | 9,302,088 |
+| basemul, ISE | 7,081,850 | 9,309,362 |
+| basemul + poly_reduce, C | 6,218,791 | 8,510,996 |
+| basemul + poly_reduce, ISE | 6,219,772 | 8,528,247 |
+| All three, C | 6,076,783 | 8,607,401 |
+| All three, ISE | 6,072,313 | 8,602,650 |
+
+The all-three ISE arm reduces cycles by 21.88% at M1 and 14.75% at M8.
+Compared with all-three W32 C, its additional reduction is only
+0.074%/0.055%. The main gain is cooperative execution. mulcache alone slows
+M8 slightly, and leaving it scalar is faster in the combined M8 SimX run;
+the best combination depends on the operating point. basemul's ISE final
+reduction is functionally reusable but does not by itself establish a speed
+advantage over W32 C.
+
+Reproduce an arm from the configured `build32_nttmul` tree after `configure`:
+
+```bash
+export CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+make -C tests/pqc/mlkem_profile clean
+make -C tests/pqc/mlkem_profile KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise
+make -C tests/pqc/mlkem_profile run-simx KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise OPTS="-b 8 -t 32"
+```
+
+Leave `ARITH` unset for the denominator, select `mulcache`, `basemul`, or
+`reduce` for a single replacement, or use `ARITH="basemul reduce"` for the
+two-function arm. Leave `ARITH_MUL` unset for C arithmetic. Clean and rebuild
+the app when changing an arm; keep its host and kernel together. Profiling
+adds `PROFILE_ARITH=1` on both the build and run command.
+
+Full-path KEM validation uses the exact same uninstrumented kernel on SimX,
+RTL, and XRT. The following XRT measurements precede the AFU correction.
+Every request passes the upstream known-answer comparison of
+all pk/sk/ct/ss_enc/ss_dec bytes and the expected primitive call counts.
+
+| Backend / arithmetic | M1 makespan | M8 makespan |
+| --- | ---: | ---: |
+| RTL / NTT-only denominator | 7,711,801 | 10,481,554 |
+| RTL / all three, ISE | 5,999,796 | 8,997,339 |
+| RTL / basemul + reduce, C | not run | 8,842,015 |
+| XRT / NTT-only denominator | 7,711,455 | 10,518,691 |
+| XRT / all three, ISE | 5,999,759 | 9,019,802 |
+| XRT / basemul + reduce, C | not run | 8,868,774 |
+
+The all-three arm retires exactly 537,044 instructions at M1 and 4,296,352
+at M8 on both SimX and RTL. Their full-run cycle gaps are 1.212% and 4.383%,
+inside the unchanged 5% parity criterion. The M8 basemul+reduce C arm retires
+4,450,936 instructions in each model with a 3.745% cycle gap. XRT/RTL KEM
+makespan differences at M8 are 0.250% for all-three and 0.303% for the
+two-function arm.
+
+Within the tested arms, all-three ISE is retained for M1, and basemul+reduce
+C is the faster M8 choice. Relative to their matching XRT NTT-only
+denominators before the AFU correction, the reductions are 22.197% and
+15.686%. With the corrected AFU and newly measured denominators, these
+become 22.197% and 15.341%. These are build-time
+experiment choices, not a new runtime policy. The NTT instruction selection
+stays SG2+NTTMUL in both cases. No additional arithmetic instruction or
+hardware datapath was needed.
+
+`mlkem_arith_xn` independently checks scalar C, W32 C, and W32 ISE with eight
+input patterns: pseudorandom, positive/negative limits, alternating signs,
+sparse k contributions, and artificial signed16 cache limits. It checks
+10,240 coefficients per request across the two cooperative arms, preserves
+mulcache output guards, and separately checks all 65,536 signed16 values
+against a host mathematical oracle for canonical reduction. SimX M1/M8,
+RTL M1, and XRT M1 pass. RTL M1 retires the same 1,646,854 instructions as
+SimX, with a 1.767% full-run cycle gap.
+
+Each direct measurement has one warmup and uses a separate launch. All
+resident warps synchronize before timing and after completion, excluding
+setup and output checks from the measured interval. The interval includes
+the completion barrier but excludes the KEM dispatch/expansion wrapper.
+Setup uses each arm's lane count, so its cache and stack history can differ;
+direct microbenchmark ratios do not replace the complete-KEM comparisons.
+The reduce `w32_ise` column uses the same C helper and is a control arm,
+not a reduction instruction result. The setup functions remain small enough
+for the compiler to emit split/join around lane-dependent branches; both
+the resulting mask handling and timestamp writes are checked.
+
+The original direct test exposed a separate XRT/RTL timing difference: both retire
+1,646,854 instructions, but whole-program cycles are 23,952,861 on XRT and
+20,609,824 on RTL (+16.221%). All 24 scalar samples agree exactly, while
+all 48 W32 samples are 3,856–4,114 cycles higher on XRT (median 3,947.5).
+Controlled bank-address and call/BAR/WSYNC probes subsequently localized
+the cause to `VX_afu_wrap.bank0_arb`: its single-outstanding configuration
+serializes W32 strided stack traffic. Enabling concurrent transactions with
+reserved source IDs removes that penalty. A new backpressure regression
+also found and fixed unstable AR/AW offers in the existing multi-outstanding
+arbiter. This delay was an AFU integration effect, not an NTTMUL arithmetic
+cost. The original measurements remain archived unchanged; final AFU results
+are reported separately in the [concurrency proposal](afu_bank0_concurrency_proposal.md).
+The final XRT full-run count is 20,609,521 cycles with the same 1,646,854
+instructions, just 303 cycles below RTL (-0.001470%). All 72 arithmetic
+samples and the 65,536-input reduction oracle pass again on the final RTL.
+
+The CI catalog adds direct M8 SimX and M1 XRT cases, all-three M1/M8 parity,
+the two-function M8 parity case, and complete-KEM M1 XRT coverage. The new
+standalone arithmetic app is registered only in the RV32 aggregate test list.
+The new M1 all-three parity, M8 basemul+reduce parity, and direct M8 SimX
+cases pass through the generated pytest/blackbox flow. Other listed
+functional configurations were exercised directly with archived binaries.
+
+Data: [complete-KEM runs](../../pqc/results/mlkem_arith_e2e.csv),
+[per-request profiling](../../pqc/results/mlkem_arith_profile.csv), and
+[direct arithmetic checks](../../pqc/results/mlkem_arith_primitives.csv).
+Raw logs, binaries, hashes, and the working-tree patch are archived under
+`build32_nttmul/arith_validation/`. The previous Vivado V80/250 MHz reports
+remain evidence for the unchanged core. They do not cover the subsequently
+modified AFU arbiter; no new AFU physical implementation or workload power
+measurement was performed.

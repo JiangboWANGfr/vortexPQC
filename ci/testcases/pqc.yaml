@@ -310,6 +310,51 @@ tests:
   flags: --target=xrtsim
   args: -b 1 -t 32
 
+- id: mlkem_arith_w32_batch
+  via: blackbox
+  drivers: [simx]
+  app: pqc/mlkem_arith_xn
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8
+- id: mlkem_arith_w32_xrt
+  via: blackbox
+  drivers: [xrt]
+  app: pqc/mlkem_arith_xn
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  flags: --target=xrtsim
+  args: -b 1
+- id: model_parity-mlkem_profile_arith
+  check: model_parity
+  via: blackbox
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
+  args: -b 1 -t 32
+- id: model_parity-mlkem_profile_arith_batch
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
+  args: -b 8 -t 32
+- id: mlkem_profile_arith_xrt
+  via: blackbox
+  drivers: [xrt]
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
+  flags: --target=xrtsim
+  args: -b 1 -t 32
+- id: model_parity-mlkem_profile_basemul_reduce_batch
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: "basemul reduce"}
+  args: -b 8 -t 32
+
 - id: keccak-unit
   via: script
   run: make -C hw/unittest/pqc_unit run

@@ -7,6 +7,10 @@ TESTS := \
     mldsa mldsa_microbench mldsa_profile \
     keccak_sg5
 
+ifeq ($(XLEN),32)
+TESTS += mlkem_arith_xn
+endif
+
 BACKENDS := simx rtlsim aved
 
 .PHONY: all clean $(addprefix run-,$(BACKENDS))
