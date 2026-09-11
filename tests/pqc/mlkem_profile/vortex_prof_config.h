@@ -16,6 +16,10 @@
 
 #include "vortex_mlkem_config.h"
 
+#if defined(PQC_SERIAL_FIPS202_ONLY) || defined(PQC_KECCAK_SG25)
+#define MLK_CONFIG_SERIAL_FIPS202_ONLY
+#endif
+
 // The profile build owns the FIPS-202 backend, because the counters have to be
 // in it. KECCAK=pe does NOT select a different backend here the way it does in
 // the plain mlkem build -- it routes to the instruction from inside
@@ -24,8 +28,13 @@
 // undefine before redefining rather than leaving a redefinition warning.
 #undef MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
 #undef MLK_CONFIG_FIPS202_BACKEND_FILE
+#undef MLK_CONFIG_FIPS202_CUSTOM_HEADER
+#if defined(PQC_KECCAK_SG25)
+#define MLK_CONFIG_FIPS202_CUSTOM_HEADER "profile_sg25_fips202.h"
+#else
 #define MLK_CONFIG_USE_NATIVE_BACKEND_FIPS202
 #define MLK_CONFIG_FIPS202_BACKEND_FILE "mlk_prof_fips202.h"
+#endif
 
 #define MLK_CONFIG_USE_NATIVE_BACKEND_ARITH
 #define MLK_CONFIG_ARITH_BACKEND_FILE "mlk_prof_arith.h"

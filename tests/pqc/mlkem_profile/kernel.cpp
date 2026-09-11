@@ -13,9 +13,11 @@ extern "C" {
 #include "src/poly_k.c"
 #include "src/sampling.c"
 #include "src/verify.c"
+#if !defined(PQC_KECCAK_SG25)
 #include "src/fips202/fips202.c"
 #include "src/fips202/fips202x4.c"
 #include "src/fips202/keccakf1600.c"
+#endif
 
 // Public entry points. The internal mlk_kem_* names are function-like macros
 // carrying the optional context parameter, and this test wants the same three
@@ -26,6 +28,13 @@ extern "C" {
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
 #include "common.h"
+
+#if defined(PQC_KECCAK_SG25)
+static_assert(VX_CFG_XLEN == 32, "SG25 requires RV32");
+static_assert(VX_CFG_NUM_THREADS == 32 && VX_CFG_SIMD_WIDTH == 32 &&
+              VX_CFG_NUM_ALU_LANES == 32,
+              "SG25 requires a complete 32-lane ALU vector");
+#endif
 
 #if defined(PQC_PROFILE_ARITH) || defined(PQC_ARITH_COOP)
 #include "mlk_arith_dispatch.h"
@@ -38,6 +47,9 @@ extern "C" {
 extern "C" __attribute__((noinline, used)) void mlk_profile_main(kernel_arg_t* arg) {
 #else
 __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
+#endif
+#if defined(PQC_KECCAK_SG25) && !defined(PQC_NTT_COOP)
+  vx_tmc_one();
 #endif
   const unsigned req = blockIdx.x;
   if (req >= arg->requests || threadIdx.x != 0) {

@@ -509,6 +509,24 @@ tests:
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   flags: --target=xrtsim
   args: -b 1 -t 32
+- id: mlkem_profile_arith_sg25_xrt
+  via: blackbox
+  tier: full
+  drivers: [xrt]
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: sg25, SERIAL: "1", NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
+  flags: --target=xrtsim
+  args: -b 1 -t 32
+- id: mlkem_profile_arith_kround_xrt
+  via: blackbox
+  tier: full
+  drivers: [xrt]
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: kround, SERIAL: "1", NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
+  flags: --target=xrtsim
+  args: -b 1 -t 32
 - id: model_parity-mlkem_profile_basemul_reduce_batch
   check: model_parity
   via: blackbox

@@ -13,7 +13,8 @@ VX_SRCS := $(SRC_DIR)/kernel.cpp
 
 # vortex_prof_config.h includes the mlkem test's config and adds the two
 # counting backends, so -I reaches both directories.
-MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
+MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem -I$(VORTEX_HOME)/tests/pqc/mlkem_width \
+               -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
                -DMLK_CONFIG_FILE='"vortex_prof_config.h"'
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
@@ -25,13 +26,33 @@ CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
 # success. The build then computes garbage, on purpose: the cycle delta against
 # ABLATE unset is that primitive's true cost, measured rather than estimated
 # from a call count times a microbenchmark.
-# KECCAK=pe routes the permutation to the KECCAKF instruction, inside this
-# counting build, so the PE arm and its own baseline and floor are one build.
+# KECCAK selects the permutation backend while every other ML-KEM optimization
+# stays fixed. sg1 is the serial C reference; SG25 variants distribute one
+# state over lanes 0..24.
 ifeq ($(KECCAK),pe)
 	VX_CFLAGS += -DPQC_KECCAK_PE
 	CXXFLAGS  += -DPQC_KECCAK_PE
+else ifeq ($(KECCAK),sg1)
+	VX_CFLAGS += -DPQC_KECCAK_SG1
+	CXXFLAGS  += -DPQC_KECCAK_SG1
+else ifeq ($(KECCAK),sg25)
+	VX_CFLAGS += -DPQC_KECCAK_SG25
+	CXXFLAGS  += -DPQC_KECCAK_SG25
+else ifeq ($(KECCAK),sg25_sw)
+	VX_CFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_SG25_SW
+	CXXFLAGS  += -DPQC_KECCAK_SG25 -DPQC_KECCAK_SG25_SW
+else ifeq ($(KECCAK),kround)
+	VX_CFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_KROUND25
+	CXXFLAGS  += -DPQC_KECCAK_SG25 -DPQC_KECCAK_KROUND25
 else ifneq ($(KECCAK),)
-$(error KECCAK must be pe or unset -- got '$(KECCAK)')
+$(error KECCAK must be sg1, sg25_sw, sg25, kround, pe, or unset -- got '$(KECCAK)')
+endif
+
+ifeq ($(SERIAL),1)
+	VX_CFLAGS += -DPQC_SERIAL_FIPS202_ONLY
+	CXXFLAGS  += -DPQC_SERIAL_FIPS202_ONLY
+else ifneq ($(SERIAL),)
+$(error SERIAL must be 1 or unset -- got '$(SERIAL)')
 endif
 
 ifneq ($(ARITH),)
@@ -142,6 +163,16 @@ VX_HDRS := $(HDRS) $(SRC_DIR)/mlk_prof_arith.h \
            $(VORTEX_HOME)/tests/pqc/mlkem_coop_arith.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_pqc_defs.h
+ifneq ($(filter sg25 sg25_sw kround,$(KECCAK)),)
+VX_HDRS += $(SRC_DIR)/profile_sg25_fips202.h \
+           $(VORTEX_HOME)/tests/pqc/mlkem_width/sg25_fips202.h
+endif
+ifeq ($(KECCAK),sg25)
+VX_HDRS += $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ksg25.h
+endif
+ifeq ($(KECCAK),kround)
+VX_HDRS += $(VORTEX_HOME)/sw/kernel/include/pqc/vx_kround25.h
+endif
 ifneq ($(NTT),)
 VX_HDRS += $(VORTEX_HOME)/tests/pqc/mlkem_coop_ntt.h $(SRC_DIR)/mlk_coop_dispatch.h
 endif

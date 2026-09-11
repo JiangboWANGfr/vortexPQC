@@ -11,7 +11,17 @@
 #endif
 #include <vx_intrinsics.h>
 
+#if !defined(MLKSG_COUNT_PERMUTATIONS)
 #include "mlk_width_counters.h"
+#define MLKSG_COUNT_PERMUTATIONS(permutations) do {                       \
+  if (vx_thread_id() == 0) {                                             \
+    unsigned wid = (unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1);        \
+    mlkw_counts[wid][MLKW_KECCAK_X1] += (permutations);                  \
+    mlkw_counts[wid][MLKW_SLOTS] += (permutations);                      \
+  }                                                                      \
+} while (0)
+#define MLKSG_DEFAULT_COUNT_PERMUTATIONS
+#endif
 
 // The surrounding ML-KEM runs on lane 0. Each sponge entry activates the warp,
 // broadcasts lane 0's arguments, and leaves one Keccak word in lanes 0..24.
@@ -171,11 +181,7 @@ static MLK_INLINE void mlksg_extract(uint8_t *output, size_t length,
 }
 
 static MLK_INLINE void mlksg_count(unsigned permutations) {
-  if (vx_thread_id() == 0) {
-    unsigned wid = (unsigned)vx_warp_id() & (MLKW_MAX_WARPS - 1);
-    mlkw_counts[wid][MLKW_KECCAK_X1] += permutations;
-    mlkw_counts[wid][MLKW_SLOTS] += permutations;
-  }
+  MLKSG_COUNT_PERMUTATIONS(permutations);
 }
 
 static __attribute__((noinline)) void mlksg_sponge_worker(
@@ -329,5 +335,10 @@ static MLK_INLINE void mlk_sha3_512(uint8_t *output, const uint8_t *input,
                                     size_t inlen) {
   mlksg_sponge(output, SHA3_512_HASHBYTES, input, inlen, SHA3_512_RATE, 0x06);
 }
+
+#if defined(MLKSG_DEFAULT_COUNT_PERMUTATIONS)
+#undef MLKSG_COUNT_PERMUTATIONS
+#undef MLKSG_DEFAULT_COUNT_PERMUTATIONS
+#endif
 
 #endif

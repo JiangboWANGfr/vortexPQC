@@ -199,8 +199,13 @@ int main(int argc, char** argv) {
                           (arm & MLK_ARM_NTT_COOP) ? "coop" : "c";
         const char* nttbf = (arm & MLK_ARM_NTTBF_K) ? "sg2" :
                             (arm & MLK_ARM_NTT_REG32) ? "shfl" : "none";
-        std::printf("ARM: id=%u keccak=%s ablate=%s ntt=%s nttmul=%s nttbf=%s flags=%u\n", req,
-                    (arm & MLK_ARM_KECCAK_PE) ? "pe" : "c",
+        const char* keccak = (arm & MLK_ARM_KECCAK_KROUND25) ? "kround" :
+                             (arm & MLK_ARM_KECCAK_SG25) ? "sg25" :
+                             (arm & MLK_ARM_KECCAK_SG25_SW) ? "sg25_sw" :
+                             (arm & MLK_ARM_KECCAK_SG1) ? "sg1" :
+                             (arm & MLK_ARM_KECCAK_PE) ? "pe" : "c";
+        std::printf("ARM: id=%u keccak=%s fips202=%s ablate=%s ntt=%s nttmul=%s nttbf=%s flags=%u\n", req,
+                    keccak, (arm & MLK_ARM_SERIAL_FIPS202) ? "serial" : "default",
                     (arm & MLK_ARM_ABLATE_NTT) ? "ntt" :
                     (arm & MLK_ARM_ABLATE_KECCAK) ? "keccak" : "none",
                     ntt, (arm & MLK_ARM_NTTMUL_K) ? "k" : "c", nttbf, arm);
