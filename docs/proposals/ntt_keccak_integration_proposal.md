@@ -70,10 +70,27 @@ through XRT and the AFU, with zero output mismatches.
 
 The M1/M8 KEM makespans, excluding launch/setup/readback, are 5,999,744 and
 8,992,026 cycles. Both exactly reproduce the final NTT-branch measurements.
-These end-to-end kernels use pointer KECCAKF (`KECCAK=pe`); they do not yet
-combine the SG25 or whole-round Keccak hooks with NTT in one KEM kernel.
-The mixed regression separately verifies their coexistence on shared ALU
-dispatch and writeback paths.
+These original end-to-end rows use pointer KECCAKF (`KECCAK=pe`). The later
+unified experiment also connects SG25 software, SG25 stages, and whole-round
+Keccak to the same complete KEM path while holding the NTT and arithmetic
+configuration fixed:
+
+| Keccak backend | SimX M1 cycles | SimX M8 cycles | M1 XRT cycles |
+| --- | ---: | ---: | ---: |
+| SG1 serial C | 27,739,317 | 44,824,668 | -- |
+| SG25 shuffle | 7,900,300 | 19,176,807 | -- |
+| SG25 stages | 5,409,748 | 12,246,844 | 5,409,552 |
+| SG25 whole round | 5,198,475 | 11,947,257 | 5,203,321 |
+| Pointer KECCAKF | 5,911,515 | 8,901,903 | -- |
+
+Every row uses serial FIPS-202, register NTT, NTTBF/NTTMUL instructions, and
+all three cooperative arithmetic replacements. Each request passes the exact
+FIPS 203 KAT and records 140 Keccak permutations, 15 NTTs, and nine inverse
+NTTs. The stage and whole-round XRT runs retire the same 436,262 and 415,822
+instructions as SimX; their cycle gaps are 0.004% and 0.093%. The pointer PE
+therefore retains the best eight-request throughput, while the GPR stage and
+whole-round designs have lower single-request latency. The structured rows are
+in [the unified KEM results](../../pqc/results/keccak_ntt_unified_mlkem.csv).
 
 The NTT RTL unit bench passes 100 requests with measured CT II=1 and
 GS/NTTMUL II=2. It passes both the combined RV32 configuration and RV64
@@ -93,9 +110,10 @@ W1T1 `diverge -n16 -d8` run passes with 6,218 instructions and 72,035 cycles,
 covering the single-thread JOIN bypass.
 
 The CI catalog registers functional SimX/XRT and model-parity cases for
-`pqc_alu_mix`. Timing agreement uses the existing exact-instruction and 5%
-cycle criteria. The mixed test keeps all four accelerated workloads in one
-resident CTA and synchronizes the eight warps at every burst.
+`pqc_alu_mix`, plus full-tier end-to-end XRT cases for the stage and
+whole-round KEM backends. Timing agreement uses the existing exact-instruction
+and 5% cycle criteria. The mixed test keeps all four accelerated workloads in
+one resident CTA and synchronizes the eight warps at every burst.
 
 All ten final SimX/RTL comparisons pass with identical instruction counts
 and kernel hashes. The largest cycle difference is the mixed regression:

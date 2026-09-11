@@ -240,6 +240,64 @@ axes[0].set_ylabel("Whole-launch speedup over SG1")
 fig.savefig(OUT/"kem_gains.pdf")
 plt.close(fig)
 
+unified = read("keccak_ntt_unified_mlkem")
+assert all(r["result"] == "PASS" and r["kat"] == "PASS" for r in unified)
+for r in unified:
+    assert r["permutations_per_request"] == "140"
+    assert r["ntt_per_request"] == "15" and r["intt_per_request"] == "9"
+    assert sum(int(r[k]) for k in ["keypair_cycles_request0",
+                                   "encaps_cycles_request0",
+                                   "decaps_cycles_request0"]) == int(r["request0_total"])
+unified_simx = {(r["backend"], int(r["requests"])): r
+                for r in unified if r["driver"] == "simx"}
+assert len(unified_simx) == 10
+unified_names = {"sg1_serial": "SG1 C", "sg25_sw": "SG25 shuffle",
+                 "sg25_stages": "SG25 stages", "kround25": "SG25 whole round",
+                 "pointer_keccakf": "Pointer PE"}
+
+def unified_cycles(backend, requests):
+    return int(unified_simx[backend, requests]["device_cycles"])
+
+table("unified_kem", [[name, million(unified_cycles(backend, 1)),
+                       number(unified_cycles("sg1_serial", 1) /
+                              unified_cycles(backend, 1)),
+                       million(unified_cycles(backend, 8)),
+                       number(unified_cycles("sg1_serial", 8) /
+                              unified_cycles(backend, 8))]
+                      for backend, name in unified_names.items()])
+for requests, suffix in [(1, "One"), (8, "Eight")]:
+    macros["UnifiedStage" + suffix] = number(
+        unified_cycles("sg1_serial", requests) /
+        unified_cycles("sg25_stages", requests))
+    macros["UnifiedIse" + suffix] = number(
+        unified_cycles("sg25_sw", requests) /
+        unified_cycles("sg25_stages", requests))
+    macros["UnifiedRound" + suffix] = number(
+        unified_cycles("sg25_stages", requests) /
+        unified_cycles("kround25", requests))
+macros["UnifiedStageVsPointerOne"] = number(
+    unified_cycles("pointer_keccakf", 1) /
+    unified_cycles("sg25_stages", 1))
+macros["UnifiedRoundVsPointerOne"] = number(
+    unified_cycles("pointer_keccakf", 1) /
+    unified_cycles("kround25", 1))
+macros["UnifiedPointerVsStageEight"] = number(
+    unified_cycles("sg25_stages", 8) /
+    unified_cycles("pointer_keccakf", 8))
+macros["UnifiedPointerVsRoundEight"] = number(
+    unified_cycles("kround25", 8) /
+    unified_cycles("pointer_keccakf", 8))
+unified_xrt = {r["backend"]: r for r in unified if r["driver"] == "xrt"}
+assert set(unified_xrt) == {"sg25_stages", "kround25"}
+for backend, xrt_row in unified_xrt.items():
+    simx_row = unified_simx[backend, 1]
+    assert xrt_row["retired_instructions"] == simx_row["retired_instructions"]
+    gap = abs(int(xrt_row["device_cycles"]) - int(simx_row["device_cycles"])) \
+          / int(xrt_row["device_cycles"])
+    assert gap < 0.01
+    macros["UnifiedXrtGap" + ("Stage" if backend == "sg25_stages" else "Round")] = \
+        number(100 * gap, 3) + "\\%"
+
 ppa = read("keccak_sg25_ppa")
 core = {(r["design"],int(r["target_mhz"])):r for r in ppa if "core_8w32" in r["design"]}
 core_names = {"base_core_8w32":"Base", "sg25_core_8w32":"Stages", "kround25_core_8w32":"Whole round", "pointer_core_8w32":"Pointer PE"}

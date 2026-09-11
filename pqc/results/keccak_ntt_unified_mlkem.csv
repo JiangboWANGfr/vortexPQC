@@ -1,0 +1,22 @@
+# ML-KEM-768 keypair/encaps/decaps with the NTT and arithmetic path fixed while
+# only the Keccak backend changes. RV32, one core, 8 warps x 32 threads,
+# SIMD/ALU/LSU width 32, L2/L3 disabled. All rows use SERIAL=1, NTT=reg32,
+# NTTBF=ise, NTTMUL=ise, ARITH=all, and ARITH_MUL=ise. The common hardware
+# build enables PQC, KSG25, and KROUND25. Inputs are the FIPS 203 KAT d/z/m
+# bytes; every row matches pk/sk/ct/ss_enc/ss_dec byte-for-byte.
+# device_cycles and retired_instructions are the driver's PERF counters;
+# batch_makespan spans the first request start through the last request end.
+# Source commit: fd4db5ab8804ece39ff0f0905ee96ee50191cd3f
+driver,backend,requests,keccak_state_lanes,ntt_lanes,permutations_per_request,ntt_per_request,intt_per_request,rej_uniform_per_request,mulcache_per_request,basemul_per_request,poly_reduce_per_request,keypair_cycles_request0,encaps_cycles_request0,decaps_cycles_request0,request0_total,batch_makespan,device_cycles,retired_instructions,kat,result
+simx,sg1_serial,1,1,32,140,15,9,27,12,12,18,8360596,8862803,10513930,27737329,27737329,27739317,2821599,PASS,PASS
+simx,sg25_sw,1,25,32,140,15,9,27,12,12,18,2276229,2637642,2984427,7898298,7898298,7900300,680562,PASS,PASS
+simx,sg25_stages,1,25,32,140,15,9,27,12,12,18,1509983,1852776,2044995,5407754,5407754,5409748,436262,PASS,PASS
+simx,kround25,1,25,32,140,15,9,27,12,12,18,1445575,1786174,1964726,5196475,5196475,5198475,415822,PASS,PASS
+simx,pointer_keccakf,1,1,32,140,15,9,27,12,12,18,1657480,2002559,2249454,5909493,5909493,5911515,527622,PASS,PASS
+simx,sg1_serial,8,1,32,140,15,9,27,12,12,18,14035158,14069235,16379058,44483451,44822109,44824668,22572792,PASS,PASS
+simx,sg25_sw,8,25,32,140,15,9,27,12,12,18,5646008,6324075,6878272,18848355,19174451,19176807,5444496,PASS,PASS
+simx,sg25_stages,8,25,32,140,15,9,27,12,12,18,3610957,4119404,4380931,12111292,12244482,12246844,3490096,PASS,PASS
+simx,kround25,8,25,32,140,15,9,27,12,12,18,3434266,4031009,4269764,11735039,11944780,11947257,3326576,PASS,PASS
+simx,pointer_keccakf,8,1,32,140,15,9,27,12,12,18,2501928,2939997,3310281,8752206,8899452,8901903,4220976,PASS,PASS
+xrt,sg25_stages,1,25,32,140,15,9,27,12,12,18,1514870,1848128,2044735,5407733,5407733,5409552,436262,PASS,PASS
+xrt,kround25,1,25,32,140,15,9,27,12,12,18,1451929,1782750,1966833,5201512,5201512,5203321,415822,PASS,PASS

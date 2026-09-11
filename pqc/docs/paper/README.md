@@ -4,9 +4,9 @@
 
 中文工作题目：**面向 RV32 SIMT GPU 的瓶颈驱动 Keccak 加速设计**。
 
-本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 9 页，含 15 张表、5 幅图和 11 条参考文献。
+本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 10 页，含 16 张表、5 幅图和 11 条参考文献。
 
-论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。这次工作整理已有实验，没有重新执行硬件实验。
+论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新重新执行了五种 Keccak 后端的统一 SimX 矩阵，以及 stage/whole-round 的 XRT 端到端验证。
 
 [Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
 
@@ -90,6 +90,18 @@ SG5 保留为历史布局对照，其已归档比较使用 16-thread build，不
 
 上述 143 次的新主实验与历史 144 次的 KAT profile 不同。不能把 65.65% 直接当作新主平台的 Keccak 份额。
 
+合并 NTT 后又完成了一组最终统一实验：固定 `NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise SERIAL=1`，只切换 Keccak 后端。输入统一为 FIPS 203 KAT coins，每请求均为 140 次 permutation、15 次 NTT、9 次 INTT，并逐字节验证 pk/sk/ct/ss。
+
+| 后端 | M=1 cycles | 相对 SG1 | M=8 cycles | 相对 SG1 |
+| --- | ---: | ---: | ---: | ---: |
+| SG1 C | 27,739,317 | 1.000× | 44,824,668 | 1.000× |
+| SG25 shuffle | 7,900,300 | 3.511× | 19,176,807 | 2.337× |
+| SG25 三阶段 | 5,409,748 | 5.128× | 12,246,844 | 3.660× |
+| SG25 整轮 KROUND | 5,198,475 | 5.336× | 11,947,257 | 3.752× |
+| pointer PE | 5,911,515 | 4.692× | 8,901,903 | 5.035× |
+
+M=1 时 stage 和 KROUND 分别比 pointer PE 快 1.093× 和 1.137×；M=8 时 pointer 分别快 1.376× 和 1.342×。这是真正的延迟/吞吐交叉，不能只选一个 batch 点下结论。stage 和 KROUND 的 XRT M=1 均通过，分别为 5,409,552 和 5,203,321 cycles，与 SimX 的 whole-launch 差为 0.004% 和 0.093%。
+
 ## 6. 成本与频率的写法
 
 250 MHz 相同目标下，V80 整核 base 为 323,072 LUT / 263,116 FF，三阶段为 325,288 / 265,015，增加 0.69% LUT / 0.72% FF。整轮为 325,832 / 269,371。这里比较的是既定 W32 核上增加单元的成本；从窄核拓宽到 W32 的成本并不包含在该百分比中，正文另列了历史核宽度面积。
@@ -115,7 +127,8 @@ SG5 保留为历史布局对照，其已归档比较使用 16-thread build，不
 | 表 VIII、图 4 阶段消融 | keccak_sg25_stages.csv |
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
-| 表 XIII–XV、PPA 分析 | keccak_sg25_ppa.csv |
+| 表 XIII 最终 NTT+Keccak 五后端完整 ML-KEM | keccak_ntt_unified_mlkem.csv |
+| 表 XIV–XVI、PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |
 
@@ -133,7 +146,7 @@ make -C ../pqc/docs/paper
 
 也可在本目录直接执行 make。此目标只生成文档，不编译 Vortex 核心或测试程序。所有中间结果进入仓库 build/ieee_pqc/，最终 PDF 保存在本目录。
 
-[generate_results.py](generate_results.py) 从 11 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、完整 ML-KEM 正确性和阶段周期之和。另将文字引用的四份历史文件纳入哈希清单；这些文件不是重新执行实验后的结果。
+[generate_results.py](generate_results.py) 从 12 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性和阶段周期之和。另将文字引用的四份历史文件纳入哈希清单；这些文件不是重新执行实验后的结果。
 
 独立源码包含已生成的表格、图、原始 CSV 快照和 provenance.json，可在 Overleaf 选择 pdfLaTeX 编译 main.tex，也可在解压目录执行：
 

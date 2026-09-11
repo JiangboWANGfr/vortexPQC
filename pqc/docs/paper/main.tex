@@ -40,14 +40,16 @@ a state in ordinary registers. A whole-round register instruction pair
 and a memory-pointer permutation engine provide comparison points.
 On the same 8-warp, 32-thread processor, stage instructions improve RTL
 permutation throughput by \StageThroughputGain{} times over shuffle-only SG25.
-The cooperative mapping improves complete ML-KEM cycles by
-\KemStageOne{} times at one request and \KemStageEight{} times at eight
-requests over serial software; the instruction-only gains over the identical
-shuffle mapping are \KemIseOne{} and \KemIseEight{} times.
+With the final cooperative NTT and arithmetic path fixed, the stage backend
+improves complete ML-KEM cycles by \UnifiedStageOne{} times at one request
+and \UnifiedStageEight{} times at eight requests over serial software;
+the instruction-only gains over the identical shuffle mapping are
+\UnifiedIseOne{} and \UnifiedIseEight{} times.
 At a common 250 MHz target, the stage extension adds \StageLutOverhead{} LUTs
 and \StageFfOverhead{} flip-flops to the full core. Whole-round fusion raises
 permutation throughput by another \RoundThroughputGain{} times, but improves
-ML-KEM by only \KemRoundOne{} and \KemRoundEight{} times.
+the final integrated ML-KEM by only \UnifiedRoundOne{} and
+\UnifiedRoundEight{} times.
 Collective granularity trades pipeline storage against benefits that
 shrink substantially at application scope.
 \end{abstract}
@@ -153,6 +155,7 @@ C / assembly A/B & $4\times4$ & Same ML-KEM request; reference C or PQRV & Whole
 Batch and x4 mapping & $8\times4$ & $M=1,2,4,8$; $L=1,2,4$ where archived & Each sweep's own $M=1,L=1$ launch & Request throughput and cache/mapping interaction \\
 SG25 stages / round & $8\times32$ & 32-wide SIMD/ALU; 1 or 8 states & Synchronized permutation span & Shuffle, stage-use ablation, whole round \\
 Complete SG25 ML-KEM & $8\times32$ & Serial FIPS-202; 143 permutations/request & Whole-launch cycles at fixed $M$ & SG1, shuffle, stages, whole round, pointer \\
+Final NTT+Keccak ML-KEM & $8\times32$ & W32 NTT/arithmetic; KAT; 140 permutations/request & Whole-launch cycles at fixed $M$ & Five Keccak backends with all other arms fixed \\
 Physical implementation & $8\times32$ & Full core, or isolated units explicitly labeled & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency \\
 \bottomrule
 \end{tabular}
@@ -778,6 +781,47 @@ as many. At eight requests the redundant version takes 160.039 million
 cycles, slower than serial SG1. Correct output and a low instruction count
 alone therefore do not establish an efficient SIMT mapping.
 
+\subsection{Final NTT--Keccak integration}
+Table~\ref{tab:unifiedkem} repeats the five-backend comparison after fixing
+the final W32 NTT and cooperative arithmetic configuration. Every arm uses
+the same combined hardware build, serial FIPS-202 call graph, and FIPS 203
+KAT coins. Each request executes 140 Keccak-f permutations, 15 forward NTTs,
+and nine inverse NTTs; all public keys, secret keys, ciphertexts, and shared
+secrets match byte-for-byte. Consequently, only the Keccak backend varies.
+
+\begin{table}[!h]
+\caption{Final integrated ML-KEM-768 on SimX, $8w\times32t$.
+Cycles are millions per launch; gains use SG1 at the same $M$.}
+\label{tab:unifiedkem}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Backend & $M=1$ & Gain & $M=8$ & Gain \\
+\midrule
+\tablerows{unified_kem.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/keccak_ntt_unified_mlkem.csv}
+\end{table}
+
+Stages achieve \UnifiedStageOne{}$\times$/\UnifiedStageEight{}$\times$
+over SG1 at $M=1/8$. Relative to the matched shuffle implementation, the
+instruction-only gains are \UnifiedIseOne{}$\times$/\UnifiedIseEight{}$\times$.
+Whole-round fusion adds \UnifiedRoundOne{}$\times$/\UnifiedRoundEight{}$\times$
+over stages. The latency--throughput crossover remains: stages and the
+whole-round unit beat the pointer PE at $M=1$ by
+\UnifiedStageVsPointerOne{}$\times$ and \UnifiedRoundVsPointerOne{}$\times$,
+whereas the pointer PE leads them at $M=8$ by
+\UnifiedPointerVsStageEight{}$\times$ and \UnifiedPointerVsRoundEight{}$\times$.
+
+Full XRT integration runs for stages and whole round reproduce the KAT and
+retired-instruction counts. Their whole-launch cycle gaps from SimX are
+\UnifiedXrtGapStage{} and \UnifiedXrtGapRound{}, respectively. These runs
+cover the AFU and processor RTL. Since all three accelerators are instantiated
+in the common core, Table~\ref{tab:unifiedkem} is a functional and cycle
+comparison; per-backend area still comes from the separate builds in
+Section~VI.
+
 \section{Implementation Cost}
 \subsection{Full-core FPGA area and timing}
 We target \code{xcv80-lsva4737-2MHP-e-S} with Vivado 2025.1,
@@ -916,12 +960,12 @@ the area metric, not solely on the number of custom instructions.
 
 \section{Limitations and Next Measurements}
 Historical component fractions apply to their fixed input, instrumented
-build, and narrow-core configuration. Direct profiling of the final
-$8w\times32t$ implementation is needed to separate absorb, extract,
+build, and narrow-core configuration. Direct interval profiling of the final
+$8w\times32t$ implementation is still needed to separate absorb, extract,
 transforms, other arithmetic, wrappers, and allocation. The small
 stage-to-round ML-KEM gain does not identify these residual percentages.
 
-The main end-to-end table lacks a matched $8w\times32t$ PQRV assembly arm.
+The final integrated table lacks a matched $8w\times32t$ PQRV assembly arm.
 Historical SG5 software uses a 16-thread configuration. A matched
 SG1/SG5/SG25 sweep and a loop-unrolling control would sharpen attribution;
 the historical experiments cannot substitute for these controls.
@@ -946,10 +990,11 @@ separately measured baselines.
 On a fixed RV32 $8w\times32t$ Vortex core, three subgroup stages convert
 the 25-word Keccak state into an explicit GPR collective interface.
 They improve permutation throughput by \StageThroughputGain{}$\times$
-over shuffles and complete ML-KEM by \KemStageOne{}$\times$/
-\KemStageEight{}$\times$ over SG1 at one/eight requests.
+over shuffles and, with the final NTT path fixed, complete ML-KEM by
+\UnifiedStageOne{}$\times$/\UnifiedStageEight{}$\times$ over SG1 at
+one/eight requests.
 Whole-round fusion adds about fourfold permutation throughput but only
-1--2\% application speedup, while the pointer PE remains strongest in the
+2--4\% application speedup, while the pointer PE remains strongest in the
 eight-request launch. The result is an implemented set of design choices
 with measured tradeoffs, rather than a universal ranking inferred from
 one primitive benchmark.
@@ -967,5 +1012,6 @@ missing experiment source snapshots. Build with \code{make} in
 frozen generated tables and figures.
 
 \bibliographystyle{IEEEtran}
+\IEEEtriggeratref{6}
 \bibliography{references}
 \end{document}
