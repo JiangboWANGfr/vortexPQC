@@ -28,8 +28,8 @@ then build and run with matching hardware macros:
 
 ```sh
 ../configure --xlen=32 --tooldir=/path/to/toolchains
-CONFIGS="-DVX_CFG_EXT_PQC_ENABLE" make -C tests/pqc/mlkem_ntt_cost
-CONFIGS="-DVX_CFG_EXT_PQC_ENABLE" ./ci/blackbox.sh --driver=simx \
+CONFIGS="-DVX_CFG_EXT_NTT_ENABLE" make -C tests/pqc/mlkem_ntt_cost
+CONFIGS="-DVX_CFG_EXT_NTT_ENABLE" ./ci/blackbox.sh --driver=simx \
   --app=pqc/mlkem_ntt_cost --args="-n8"
 ```
 

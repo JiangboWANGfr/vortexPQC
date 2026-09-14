@@ -9,7 +9,7 @@ TESTS := \
 
 ifeq ($(XLEN),32)
 TESTS += mlkem_arith_xn
-ifeq ($(words $(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE,$(CONFIGS))),3)
+ifeq ($(words $(filter -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE,$(CONFIGS))),3)
 TESTS += pqc_alu_mix
 endif
 endif

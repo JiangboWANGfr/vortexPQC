@@ -34,7 +34,7 @@ static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_THREADS == 32
            && VX_CFG_SIMD_WIDTH == 32 && VX_CFG_NUM_ALU_LANES == 32,
               "KROUND25 requires RV32 and 32 threads, SIMD lanes, and ALU lanes");
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
 namespace {
 
 int32_t signed16(uint32_t value) {
@@ -85,7 +85,7 @@ AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
   , kround25_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 4))
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
   , ntt_results_(make_sim_channels<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS>(this, 1))
 #endif
 #endif
@@ -94,12 +94,12 @@ AluUnit::AluUnit(const SimContext& ctx, const char* name, Core* core)
 void AluUnit::on_reset() {
 #if defined(VX_CFG_EXT_KSG25_ENABLE) || defined(VX_CFG_EXT_KROUND25_ENABLE)
   next_pe_.fill(0);
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
   ntt_pipeline_.fill({});
   ntt_second_.fill(nullptr);
 #endif
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
   ntt_ready_cycle_.fill(0);
 #endif
 }
@@ -170,7 +170,7 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 		default:
 			std::abort();
 		}
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
 	} else if (std::get_if<NttType>(&trace->op_type)) {
 		return ntt_uses_two_beats(trace) ? 7 : 6;
 #endif
@@ -778,7 +778,7 @@ void AluUnit::execute(instr_trace_t* trace) {
 			std::abort();
 		}
 		DT(3, this->name() << " execute: op=" << mdv_type << ", " << *trace);
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
 	} else if (std::get_if<NttType>(&trace->op_type)) {
 		auto ntt_type = std::get<NttType>(trace->op_type);
 		switch (ntt_type) {
@@ -837,7 +837,7 @@ void AluUnit::execute(instr_trace_t* trace) {
 
 void AluUnit::on_tick() {
   bool idle = true;
-#if defined(VX_CFG_EXT_PQC_ENABLE) && !defined(VX_CFG_EXT_KSG25_ENABLE) && !defined(VX_CFG_EXT_KROUND25_ENABLE)
+#if defined(VX_CFG_EXT_NTT_ENABLE) && !defined(VX_CFG_EXT_KSG25_ENABLE) && !defined(VX_CFG_EXT_KROUND25_ENABLE)
   const auto cycle = SimPlatform::instance().cycles();
 #endif
   for (uint32_t b = 0; b < VX_CFG_NUM_ALU_BLOCKS; ++b) {
@@ -854,7 +854,7 @@ void AluUnit::on_tick() {
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
       &kround25_results_[b],
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
       &ntt_results_[b],
 #endif
     };
@@ -870,7 +870,7 @@ void AluUnit::on_tick() {
         }
       }
     }
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
     const bool ntt_advance = !ntt_results_[b].full();
     instr_trace_t* ntt_accepted = nullptr;
 #endif
@@ -893,7 +893,7 @@ void AluUnit::on_tick() {
         pe = 1 + VX_CFG_EXT_M_ENABLED + VX_CFG_EXT_KSG25_ENABLED;
       }
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
       if (std::get_if<NttType>(&trace->op_type)) {
         pe = 1 + VX_CFG_EXT_M_ENABLED + VX_CFG_EXT_KSG25_ENABLED
                + VX_CFG_EXT_KROUND25_ENABLED;
@@ -902,7 +902,7 @@ void AluUnit::on_tick() {
 #endif
       if (unit_ready && !results[pe]->full() && !DispatchRelease.at(b).full()) {
         this->execute(trace);
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
         if (std::get_if<NttType>(&trace->op_type)) {
           ntt_accepted = trace;
         } else
@@ -915,7 +915,7 @@ void AluUnit::on_tick() {
         input.pop();
       }
     }
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
     auto& pipeline = ntt_pipeline_[b];
     if (ntt_advance) {
       // The final registered stage is the result channel; its stall freezes every beat.
@@ -950,7 +950,7 @@ void AluUnit::on_tick() {
       auto& output = Outputs.at(b);
       if (!output.full()) {
         auto trace = input.peek();
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
         if (std::get_if<NttType>(&trace->op_type)
          && cycle < ntt_ready_cycle_.at(b)) {
           idle = false;
@@ -961,7 +961,7 @@ void AluUnit::on_tick() {
         uint32_t delay = this->latency_of(trace);
         output.send(trace, delay);
         input.pop();
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
         if (ntt_uses_two_beats(trace)) {
           ntt_ready_cycle_.at(b) = cycle + 2;
         }

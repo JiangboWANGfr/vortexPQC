@@ -46,12 +46,18 @@ it does not change processor RTL.
 ## Functional verification
 
 The combined RV32 build uses one core, eight warps, 32 threads, 32 ALU lanes,
-and all three extensions:
+and all accelerator units:
 
 ```text
--DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE
+-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE
 -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
 ```
+
+The archived measurements predate the independent NTT gate, when
+`VX_CFG_EXT_PQC_ENABLE` instantiated both the pointer Keccak PE and the NTT
+unit. Current builds must add `VX_CFG_EXT_NTT_ENABLE` whenever they execute
+NTTMUL or NTTBF instructions. The split does not change either instruction's
+encoding or timing.
 
 Fresh binaries use the revised instruction encodings. All runs below pass
 through XRT and the AFU, with zero output mismatches.
@@ -93,8 +99,8 @@ whole-round designs have lower single-request latency. The structured rows are
 in [the unified KEM results](../../pqc/results/keccak_ntt_unified_mlkem.csv).
 
 The NTT RTL unit bench passes 100 requests with measured CT II=1 and
-GS/NTTMUL II=2. It passes both the combined RV32 configuration and RV64
-with only PQC enabled, including decoder, mask, reset and backpressure checks.
+GS/NTTMUL II=2. It passes both RV32 and RV64 with NTT enabled, including
+decoder, mask, reset and backpressure checks.
 Keccak stage and whole-round benches pass 288 and 192 transactions,
 respectively, plus invalid-contract diagnostics. The AFU AXI arbitration
 bench passes six outstanding reads and six outstanding writes in separate
@@ -165,3 +171,50 @@ paths inside run manifests identify the isolated worktree used for testing.
 Reconfigure a fresh build tree after checking out the merge; do not run old
 NTTBF binaries against the merged decoder. No remote push is part of this
 integration.
+
+## Matched Keccak backend synthesis
+
+`VX_CFG_EXT_NTT_ENABLE` is the common NTT hardware gate.
+`VX_CFG_EXT_PQC_ENABLE`, `VX_CFG_EXT_KSG25_ENABLE`, and
+`VX_CFG_EXT_KROUND25_ENABLE` independently select the pointer, stage, and
+whole-round Keccak hardware. The paper PPA comparison therefore uses four
+complete-core builds. All four keep RV32, W8T32, the device, clock constraint,
+Vivado version, and optimization level fixed.
+
+| Build | Enabled accelerator units | Purpose |
+| --- | --- | --- |
+| `ntt_only` | NTT | Common area/timing baseline; SG1 and SG25-shuffle need no Keccak unit |
+| `ntt_stage` | NTT + SG25 stages | Stage-factored GPR design |
+| `ntt_kround` | NTT + SG25 whole round | GPR whole-round comparator |
+| `ntt_pointer` | NTT + pointer Keccak PE | Memory-pointer PE comparator |
+
+Run each build synchronously from a freshly configured RV32 tree. The copied
+per-DUT Makefile expects `ROOT_DIR` to name that build tree:
+
+```sh
+cd build32_pqc/hw/syn/xilinx/dut
+source /data/Xilinx/2025.1/Vivado/settings64.sh
+
+run_core () {
+    name="$1"
+    configs="$2"
+    mkdir -p "v80_${name}_core"
+    cp build.mk "v80_${name}_core/Makefile"
+    make -C "v80_${name}_core" DUT=core ROOT_DIR="$PWD/../../../.." clean
+    make -C "v80_${name}_core" DUT=core ROOT_DIR="$PWD/../../../.." \
+        DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=250 OPT_LEVEL=3 \
+        CONFIGS="$configs -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+}
+
+run_core ntt_only    '-DVX_CFG_EXT_NTT_ENABLE'
+run_core ntt_stage   '-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE'
+run_core ntt_kround  '-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE'
+run_core ntt_pointer '-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_PQC_ENABLE'
+```
+
+Use `post_impl_util.rpt`, `timing_summary.rpt`, `timing.rpt`, and
+`qor_summary.json` from each directory. Report complete-core LUT, FF, BRAM,
+DSP, setup/hold slack, and achieved frequency. Compute the three Keccak area
+deltas against `ntt_only`; hierarchy rows are supporting evidence because
+shared arbiter and routing costs only appear in the complete-core delta. Do
+not combine the archived all-enabled core area with any new isolated result.

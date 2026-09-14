@@ -726,9 +726,9 @@ module VX_decode import
                         `USED_IREG (rs2);
                     end
                 `endif
-                `ifdef VX_CFG_EXT_PQC_ENABLE
                     7'h05: begin // PQC custom instructions
                         case (funct3)
+                        `ifdef VX_CFG_EXT_PQC_ENABLE
                             3'h0: begin // KECCAKF -- rs1 = &state[25], rd = x0
                                 // Blocking: the engine reads and writes the state
                                 // behind the register file, so nothing downstream can
@@ -741,6 +741,8 @@ module VX_decode import
                                 is_wstall = 1;
                                 `USED_IREG (rs1);
                             end
+                        `endif
+                        `ifdef VX_CFG_EXT_NTT_ENABLE
                             3'h2: begin // NTTMUL.K -- signed low-16 Montgomery multiply
                                 ex_type = EX_ALU;
                                 op_type = INST_OP_BITS'(INST_ALU_NTTMUL_K);
@@ -753,9 +755,11 @@ module VX_decode import
                                 `USED_IREG (rs1);
                                 `USED_IREG (rs2);
                             end
+                        `endif
                             default:;
                         endcase
                     end
+                `ifdef VX_CFG_EXT_NTT_ENABLE
                     7'h08, 7'h09: begin // NTTBF.{CT,GS}.K.XORs
                         if ((funct3 <= 3'h4) && (`VX_CFG_NUM_ALU_LANES == 32)) begin
                             ex_type = EX_ALU;

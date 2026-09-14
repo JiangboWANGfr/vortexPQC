@@ -235,7 +235,8 @@ package VX_gpu_pkg;
     localparam STALL_TIMEOUT = `VX_DBG_STALL_TIMEOUT;
 `else
     localparam STALL_TIMEOUT = (100000 * (1 << (`VX_CFG_L2_ENABLED + `VX_CFG_L3_ENABLED))
-                             * (`VX_CFG_EXT_PQC_ENABLED ? `VX_CFG_NUM_THREADS : 1));
+                             * ((`VX_CFG_EXT_PQC_ENABLED || `VX_CFG_EXT_NTT_ENABLED)
+                                ? `VX_CFG_NUM_THREADS : 1));
 `endif
 
     ///////////////////////////////////////////////////////////////////////////
@@ -314,7 +315,7 @@ package VX_gpu_pkg;
     ///////////////////////////////////////////////////////////////////////////
 
     localparam INST_ALU_ADD =    4'b0000;
-`ifdef VX_CFG_EXT_PQC_ENABLE
+`ifdef VX_CFG_EXT_NTT_ENABLE
     localparam INST_ALU_NTTMUL_K = 4'b0001;
     localparam INST_ALU_NTTBF_K  = 4'b0110;
 `endif

@@ -418,6 +418,8 @@ static op_string_t op_string(const Instr &instr) {
     ,[&](PqcType /*pqc_type*/)-> op_string_t {
       return {"PQC.KECCAKF", ""};
     }
+#endif
+#ifdef VX_CFG_EXT_NTT_ENABLE
     ,[&](NttType ntt_type)-> op_string_t {
       switch (ntt_type) {
       case NttType::MUL_K: return {"NTTMUL.K", ""};
@@ -937,9 +939,9 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
       instr->set_src_reg(1, rs2, RegType::Integer);
     } break;
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
     case 5: { // PQC
       switch (funct3) {
+#ifdef VX_CFG_EXT_PQC_ENABLE
       case 0: { // KECCAKF. R-type, rd = x0, rs2 = x0; rs1 is the state pointer.
         // One source, because Keccak-f1600 has no parameters -- 1600 bits in,
         // 1600 bits out, 24 rounds. See
@@ -962,6 +964,8 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
         // WctlType cases are the model.
         instr->set_wstall(true);
       } break;
+#endif
+#ifdef VX_CFG_EXT_NTT_ENABLE
       case 2: { // NTTMUL.K
         instr->set_fu_type(FUType::ALU);
         instr->set_op_type(NttType::MUL_K);
@@ -969,9 +973,11 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
         instr->set_src_reg(0, rs1, RegType::Integer);
         instr->set_src_reg(1, rs2, RegType::Integer);
       } break;
+#endif
       default: std::abort();
       }
     } break;
+#ifdef VX_CFG_EXT_NTT_ENABLE
     case 8:
     case 9: { // NTTBF.{CT,GS}.K
       if (funct3 > 4 || VX_CFG_NUM_ALU_LANES != 32)

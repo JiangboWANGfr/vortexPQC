@@ -40,7 +40,7 @@ private:
   static constexpr uint32_t kNumPEs = 1 + VX_CFG_EXT_M_ENABLED
                                        + VX_CFG_EXT_KSG25_ENABLED
                                        + VX_CFG_EXT_KROUND25_ENABLED
-                                       + VX_CFG_EXT_PQC_ENABLED;
+                                       + VX_CFG_EXT_NTT_ENABLED;
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> int_results_;
 #ifdef VX_CFG_EXT_M_ENABLE
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> mdv_results_;
@@ -51,7 +51,7 @@ private:
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> kround25_results_;
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
   struct NttBeat {
     instr_trace_t* trace = nullptr;
     bool last = false;
@@ -62,7 +62,7 @@ private:
 #endif
   std::array<uint32_t, VX_CFG_NUM_ALU_BLOCKS> next_pe_{};
 #endif
-#ifdef VX_CFG_EXT_PQC_ENABLE
+#ifdef VX_CFG_EXT_NTT_ENABLE
   std::array<uint64_t, VX_CFG_NUM_ALU_BLOCKS> ntt_ready_cycle_{};
 #endif
 };

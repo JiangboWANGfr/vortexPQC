@@ -127,7 +127,8 @@ ifneq (,$(filter -DVX_CFG_EXT_RTU_ENABLE, $(XCONFIGS)))
 endif
 
 # Add PQC extension sources
-ifneq (,$(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_PQC_ENABLE=1 -DVX_CFG_EXT_PQC_ENABLED=1, $(XCONFIGS)))
+ifneq (,$(filter -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_PQC_ENABLE=1 -DVX_CFG_EXT_PQC_ENABLED=1 \
+                     -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_NTT_ENABLE=1 -DVX_CFG_EXT_NTT_ENABLED=1, $(XCONFIGS)))
 	RTL_PKGS += $(RTL_DIR)/pqc/VX_pqc_pkg.sv
 	RTL_INCLUDE += -I$(RTL_DIR)/pqc
 endif

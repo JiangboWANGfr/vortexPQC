@@ -24,12 +24,12 @@ tests:
   via: blackbox
   drivers: [simx, xrt]
   app: pqc/pqc_alu_mix
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   touches: [hw/rtl/core, hw/rtl/pqc, hw/rtl/VX_gpu_pkg.sv, sim/simx, sw/kernel/include/pqc, tests/pqc/pqc_alu_mix]
 - id: model_parity-pqc-alu-mix
   check: model_parity
   app: pqc/pqc_alu_mix
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   touches: [hw/rtl/core, hw/rtl/pqc, hw/rtl/VX_gpu_pkg.sv, sim/simx, sw/kernel/include/pqc, tests/pqc/pqc_alu_mix]
 # --- shuffle-only SG25 software oracle ----------------------------------
 - id: keccak_sg25-target
@@ -323,7 +323,7 @@ tests:
   via: blackbox
   drivers: [simx]
   app: pqc/mlkem_ntt_cost
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -n2
 - id: mlkem_profile_batch
   via: blackbox
@@ -377,25 +377,25 @@ tests:
   check: model_parity
   via: blackbox
   app: pqc/nttmul_k
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32
   args: -n 4093 -t 13 -r 17
 - id: model_parity-nttbf_k
   check: model_parity
   via: blackbox
   app: pqc/nttbf_k
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32
 - id: mlkem_ntt_reg32_sg2
   via: blackbox
   drivers: [simx]
   app: pqc/mlkem_ntt_xn
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {NTT: reg32, NTTBF: ise}
   args: -b 1 -t 32
 - id: model_parity-mlkem_profile_reg32_sg2_nttmul
   check: model_parity
   via: blackbox
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise}
   args: -b 1 -t 32
 - id: model_parity-mlkem_profile_reg32_sg2_nttmul_batch
@@ -403,14 +403,14 @@ tests:
   via: blackbox
   tier: full
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise}
   args: -b 8 -t 32
 - id: mlkem_profile_reg32_sg2_nttmul_xrt
   via: blackbox
   drivers: [xrt]
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise}
   flags: --target=xrtsim
   args: -b 1 -t 32
@@ -446,14 +446,14 @@ tests:
   via: blackbox
   drivers: [simx]
   app: pqc/mlkem_ntt_xn
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {NTT: smem32, NTTMUL: ise}
   args: -b 1 -t 32
 - id: model_parity-mlkem_profile_smem32_nttmul
   check: model_parity
   via: blackbox
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: smem32, NTTMUL: ise}
   args: -b 1 -t 32
 - id: model_parity-mlkem_profile_smem32_nttmul_batch
@@ -461,14 +461,14 @@ tests:
   via: blackbox
   tier: full
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: smem32, NTTMUL: ise}
   args: -b 8 -t 32
 - id: mlkem_profile_smem32_nttmul_xrt
   via: blackbox
   drivers: [xrt]
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: smem32, NTTMUL: ise}
   flags: --target=xrtsim
   args: -b 1 -t 32
@@ -477,20 +477,20 @@ tests:
   via: blackbox
   drivers: [simx]
   app: pqc/mlkem_arith_xn
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -b 8
 - id: mlkem_arith_w32_xrt
   via: blackbox
   drivers: [xrt]
   app: pqc/mlkem_arith_xn
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   flags: --target=xrtsim
   args: -b 1
 - id: model_parity-mlkem_profile_arith
   check: model_parity
   via: blackbox
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   args: -b 1 -t 32
 - id: model_parity-mlkem_profile_arith_batch
@@ -498,14 +498,14 @@ tests:
   via: blackbox
   tier: full
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   args: -b 8 -t 32
 - id: mlkem_profile_arith_xrt
   via: blackbox
   drivers: [xrt]
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   flags: --target=xrtsim
   args: -b 1 -t 32
@@ -514,7 +514,7 @@ tests:
   tier: full
   drivers: [xrt]
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: sg25, SERIAL: "1", NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   flags: --target=xrtsim
   args: -b 1 -t 32
@@ -523,7 +523,7 @@ tests:
   tier: full
   drivers: [xrt]
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: kround, SERIAL: "1", NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   flags: --target=xrtsim
   args: -b 1 -t 32
@@ -532,7 +532,7 @@ tests:
   via: blackbox
   tier: full
   app: pqc/mlkem_profile
-  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: "basemul reduce"}
   args: -b 8 -t 32
 

@@ -4,9 +4,9 @@
 #include <pqc/vx_ntt.h>
 #include "common.h"
 
-#if !defined(VX_CFG_EXT_PQC_ENABLE) || !defined(VX_CFG_EXT_KSG25_ENABLE) \
+#if !defined(VX_CFG_EXT_NTT_ENABLE) || !defined(VX_CFG_EXT_KSG25_ENABLE) \
     || !defined(VX_CFG_EXT_KROUND25_ENABLE)
-#error "pqc_alu_mix requires PQC, KSG25 and KROUND25 enabled together"
+#error "pqc_alu_mix requires NTT, KSG25 and KROUND25 enabled together"
 #endif
 static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_WARPS == MIX_WARPS
               && VX_CFG_NUM_THREADS == MIX_LANES && VX_CFG_NUM_ALU_LANES == MIX_LANES,

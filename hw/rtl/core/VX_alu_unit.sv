@@ -32,7 +32,7 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
     localparam NUM_LANES    = `VX_CFG_NUM_ALU_LANES;
     localparam PARTIAL_BW   = (BLOCK_SIZE != `VX_CFG_ISSUE_WIDTH) || (NUM_LANES != `VX_CFG_SIMD_WIDTH);
     localparam PE_COUNT     = 1 + `VX_CFG_EXT_M_ENABLED + `VX_CFG_EXT_KSG25_ENABLED
-                                + `VX_CFG_EXT_KROUND25_ENABLED + `VX_CFG_EXT_PQC_ENABLED;
+                                + `VX_CFG_EXT_KROUND25_ENABLED + `VX_CFG_EXT_NTT_ENABLED;
     localparam PE_SEL_BITS  = `CLOG2(PE_COUNT);
     localparam PE_IDX_INT   = 0;
     localparam PE_IDX_MDV   = PE_IDX_INT + `VX_CFG_EXT_M_ENABLED;
@@ -43,7 +43,7 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
     localparam PE_IDX_KROUND25 = PE_IDX_MDV + `VX_CFG_EXT_KSG25_ENABLED
                                            + `VX_CFG_EXT_KROUND25_ENABLED;
 `endif
-`ifdef VX_CFG_EXT_PQC_ENABLE
+`ifdef VX_CFG_EXT_NTT_ENABLE
     localparam PE_IDX_NTT   = 1 + `VX_CFG_EXT_M_ENABLED + `VX_CFG_EXT_KSG25_ENABLED
                                 + `VX_CFG_EXT_KROUND25_ENABLED;
 `endif
@@ -96,7 +96,7 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
                 pe_select = PE_IDX_KROUND25;
             end
         `endif
-        `ifdef VX_CFG_EXT_PQC_ENABLE
+        `ifdef VX_CFG_EXT_NTT_ENABLE
             if ((per_block_execute_if[block_idx].data.op_args.alu.xtype == ALU_TYPE_ARITH)
              && ((per_block_execute_if[block_idx].data.op_type == INST_ALU_NTTMUL_K)
               || (per_block_execute_if[block_idx].data.op_type == INST_ALU_NTTBF_K))) begin
@@ -165,7 +165,7 @@ module VX_alu_unit import VX_gpu_pkg::*; #(
         );
     `endif
 
-    `ifdef VX_CFG_EXT_PQC_ENABLE
+    `ifdef VX_CFG_EXT_NTT_ENABLE
         VX_pqc_nttmul #(
             .INSTANCE_ID (`SFORMATF(("%s-nttmul%0d", INSTANCE_ID, block_idx))),
             .NUM_LANES (NUM_LANES)

@@ -673,17 +673,7 @@ enum class PqcType {
   KECCAKF
 };
 
-enum class NttType {
-  MUL_K,
-  BF_CT_K,
-  BF_GS_K
-};
-
 struct IntrPqcArgs {};
-
-struct IntrNttArgs {
-  uint32_t stage : 3;
-};
 
 inline std::ostream &operator<<(std::ostream &os, const PqcType& type) {
   switch (type) {
@@ -692,6 +682,20 @@ inline std::ostream &operator<<(std::ostream &os, const PqcType& type) {
   }
   return os;
 }
+
+#endif
+
+#ifdef VX_CFG_EXT_NTT_ENABLE
+
+enum class NttType {
+  MUL_K,
+  BF_CT_K,
+  BF_GS_K
+};
+
+struct IntrNttArgs {
+  uint32_t stage : 3;
+};
 
 inline std::ostream &operator<<(std::ostream &os, const NttType& type) {
   switch (type) {
@@ -905,6 +909,8 @@ using OpType = std::variant<
 , WctlType
 #ifdef VX_CFG_EXT_PQC_ENABLE
 , PqcType
+#endif
+#ifdef VX_CFG_EXT_NTT_ENABLE
 , NttType
 #endif
 #ifdef VX_CFG_EXT_DXA_ENABLE
@@ -936,6 +942,8 @@ using IntrArgs = std::variant<
 , IntrWctlArgs
 #ifdef VX_CFG_EXT_PQC_ENABLE
 , IntrPqcArgs
+#endif
+#ifdef VX_CFG_EXT_NTT_ENABLE
 , IntrNttArgs
 #endif
 #ifdef VX_CFG_EXT_DXA_ENABLE

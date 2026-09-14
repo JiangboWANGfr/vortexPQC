@@ -636,6 +636,13 @@ core, eight warps, 32 threads, `EXT_PQC_ENABLE`, the static Keccak AGU, a
 predates the NTT changes, and no relevant RTL changed between that baseline and
 `d82b2a24f`.
 
+These rows also predate the independent `EXT_NTT_ENABLE` gate. At the recorded
+revision, `EXT_PQC_ENABLE` instantiated both NTT and pointer-Keccak hardware.
+In current builds, use `EXT_NTT_ENABLE` for NTT and add `EXT_PQC_ENABLE` only
+when the selected workload uses pointer `KECCAKF`. The matched four-build
+method is specified in the
+[NTT/Keccak integration proposal](ntt_keccak_integration_proposal.md#matched-keccak-backend-synthesis).
+
 The final implementation command was run from its dedicated Vivado DUT
 directory:
 
@@ -754,7 +761,7 @@ mkdir -p build32_ntt_repro
 cd build32_ntt_repro
 ../configure --xlen=32 --tooldir=/home/jiangbowang/aphdcode/vortex_v80/toolchains
 make -C ../third_party -j4 softfloat ramulator
-export CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+export CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
 make -j4 -C sw/runtime simx stub
 ```
 
@@ -1019,7 +1026,7 @@ advantage over W32 C.
 Reproduce an arm from the configured `build32_nttmul` tree after `configure`:
 
 ```bash
-export CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+export CONFIGS="-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
 make -C tests/pqc/mlkem_profile clean
 make -C tests/pqc/mlkem_profile KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise
 make -C tests/pqc/mlkem_profile run-simx KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise OPTS="-b 8 -t 32"

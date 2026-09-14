@@ -126,7 +126,7 @@ pqc_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/pqc -I$(UNI
 pqc_PKG  = $(RTL_DIR)/pqc/VX_pqc_pkg.sv
 
 pqc_ntt_PRJ := VX_pqc_ntt_top
-pqc_ntt_CFG := -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_THREADS=32 \
+pqc_ntt_CFG := -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 \
                -DVX_CFG_SIMD_WIDTH=32 -DVX_CFG_NUM_ALU_LANES=32
 pqc_ntt_INC  = $(BASE_INC) -I$(RTL_DIR)/mem -I$(RTL_DIR)/vm -I$(RTL_DIR)/pqc -I$(UNITTEST_DIR)/pqc_ntt
 pqc_ntt_PKG  = $(RTL_DIR)/pqc/VX_pqc_pkg.sv

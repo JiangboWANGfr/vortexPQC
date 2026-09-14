@@ -42,6 +42,7 @@ VX_CFG_EXT_RASTER_ENABLE = false
 VX_CFG_EXT_OM_ENABLE = false
 VX_CFG_EXT_RTU_ENABLE = false
 VX_CFG_EXT_PQC_ENABLE = false
+VX_CFG_EXT_NTT_ENABLE = false
 VX_CFG_EXT_KSG25_ENABLE = false
 VX_CFG_EXT_KROUND25_ENABLE = false
 VX_CFG_VLEN = "expr: $VX_CFG_XLEN * 4"
@@ -449,8 +450,8 @@ SYNOPSYS = false
 SV_DPI = false
 
 [debug]
-# Wide PQC workloads can queue serialized engine or lane-memory service.
-VX_DBG_STALL_TIMEOUT = "expr: (100000 * (1 << ($VX_CFG_L2_ENABLED + $VX_CFG_L3_ENABLED)) * (1 + max($VX_CFG_EXT_PQC_ENABLED, max($VX_CFG_EXT_KSG25_ENABLED, $VX_CFG_EXT_KROUND25_ENABLED)) * ($VX_CFG_NUM_THREADS - 1)))"
+# Wide PQC and NTT workloads can queue serialized engine or lane-memory service.
+VX_DBG_STALL_TIMEOUT = "expr: (100000 * (1 << ($VX_CFG_L2_ENABLED + $VX_CFG_L3_ENABLED)) * (1 + max($VX_CFG_EXT_PQC_ENABLED, max($VX_CFG_EXT_NTT_ENABLED, max($VX_CFG_EXT_KSG25_ENABLED, $VX_CFG_EXT_KROUND25_ENABLED))) * ($VX_CFG_NUM_THREADS - 1)))"
 VX_DBG_DEBUG_LEVEL = 3
 
 [[enum]]

@@ -94,5 +94,5 @@ pqc_CFG := -DVX_CFG_EXT_PQC_ENABLE
 
 pqc_ntt_TOP := VX_pqc_ntt_top
 pqc_ntt_INC := -I$(UNITTEST_DIR)/pqc_ntt
-pqc_ntt_CFG := -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_THREADS=32 \
+pqc_ntt_CFG := -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 \
                -DVX_CFG_SIMD_WIDTH=32 -DVX_CFG_NUM_ALU_LANES=32
