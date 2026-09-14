@@ -108,8 +108,8 @@ NTT 不是只有一种候选。仓库先后保留了 scalar library、shared-arr
 cooperative、`reg32+SHFL`、`smem32` transpose、`NTTMUL.K`、full-bank
 `NTTBF+NTTMUL.K`，以及最终的 half-bank `NTTBF+NTTMUL.K`。论文主比较固定
 最后一种：一个 W32 warp 保存一个 transform，前三层在 lane 内执行，后四层使用
-XOR 16/8/4/2 的 CT/GS butterfly；16 个有符号 16×16 乘法器由 32 lanes 共享，
-并对五种合法 XOR stage 使用静态路由。
+XOR 16/8/4/2 的 CT/GS butterfly；16 个有符号 16×16 乘法器由 32 lanes 共享。
+硬件对五种合法编码距离使用静态路由，该内核使用其中四种。
 
 历史同源 PPA 扫描中，无 NTT ISE、注册 full bank、half bank 分别使用
 334,917 / 356,447 / 341,680 LUT，265,187 / 272,430 / 270,865 FF，
@@ -140,7 +140,7 @@ Keccak 面积分母。
 
 ## 7. 表格与来源映射
 
-以下路径均相对仓库根目录的 pqc/results/；生成清单保存 15 个源文件的 SHA-256。
+以下路径均相对仓库根目录的 pqc/results/；生成清单保存 18 个源文件的 SHA-256。
 
 | 正文内容 | 源文件 |
 | --- | --- |
