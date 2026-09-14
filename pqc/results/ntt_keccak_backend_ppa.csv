@@ -1,0 +1,27 @@
+# AMD Alveo V80 xcv80-lsva4737-2MHP-e-S, Vivado 2025.1, post-route
+# physical optimization. Hardware source is commit 8798cb61a. Every row is an
+# independent RV32 one-core W8/T32 OPT3 run with a 4.000 ns clock constraint;
+# no incremental checkpoint is shared across variants.
+#
+# EXT_NTT_ENABLE is present in all rows and selects the final half-width W32
+# NTTBF/NTTMUL bank. The other extension flags are mutually exclusive. The
+# NTT-only row is therefore the matched denominator for Keccak backend area.
+# BRAM=133 is 113 RAMB36 plus 40 RAMB18 in Vivado's tile-equivalent summary.
+# Every route report has zero routing-error nets.
+#
+# Keccak/NTT hierarchy counts are reported for interpretation. Whole-core
+# deltas include decode, arbitration, integration, placement, and routing
+# effects and need not equal the isolated hierarchy counts. Vectorless power
+# has no workload activity or environmental constraints and is not an energy
+# measurement; the KROUND route report also warns about reset activity.
+variant,date,git_commit,tool,device,stage,target_mhz,warps,threads,keccak_backend,total_luts,logic_luts,lutrams,srls,ffs,ramb36,ramb18,uram,dsps,wns_ns,whs_ns,fmax_mhz,vectorless_dynamic_w,total_onchip_w,keccak_hier_luts,keccak_hier_ffs,ntt_hier_luts,ntt_hier_ffs,routing_errors,status,report_dir
+ntt_only,2026-09-14,8798cb61a,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,none,330530,318144,8286,4100,267838,113,40,0,176,0.000,0.000,250.0,8.132,30.166,0,0,5179,5040,0,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_ntt_keccak_merge/hw/syn/xilinx/dut/v80_ntt_only_core
+ntt_stage,2026-09-14,8798cb61a,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,sg25_stages,334561,322175,8286,4100,269806,113,40,0,176,0.006,0.011,250.4,8.323,30.358,902,2025,5106,5040,0,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_ntt_keccak_merge/hw/syn/xilinx/dut/v80_ntt_stage_core
+ntt_kround,2026-09-14,8798cb61a,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,kround25,332710,320324,8286,4100,274237,113,40,0,176,0.003,0.010,250.2,8.246,30.281,2503,6130,5112,5040,0,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_ntt_keccak_merge/hw/syn/xilinx/dut/v80_ntt_kround_core
+ntt_pointer,2026-09-14,8798cb61a,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,pointer_keccakf,341751,329365,8286,4100,271058,113,40,0,176,0.004,0.012,250.3,8.230,30.266,10414,4556,5105,5040,0,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_ntt_keccak_merge/hw/syn/xilinx/dut/v80_ntt_pointer_core
+#
+# Full-core deltas versus NTT only:
+# stages: +4,031 LUT (+1.219%), +1,968 FF (+0.735%);
+# whole round: +2,180 LUT (+0.660%), +6,399 FF (+2.389%);
+# pointer PE: +11,221 LUT (+3.395%), +3,220 FF (+1.202%).
+# BRAM, URAM, and DSP counts are unchanged across the four rows.

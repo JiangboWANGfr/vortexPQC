@@ -218,3 +218,28 @@ DSP, setup/hold slack, and achieved frequency. Compute the three Keccak area
 deltas against `ntt_only`; hierarchy rows are supporting evidence because
 shared arbiter and routing costs only appear in the complete-core delta. Do
 not combine the archived all-enabled core area with any new isolated result.
+
+The four independent post-route runs completed on 2026-09-14 from hardware
+commit `8798cb61a`:
+
+| Build | LUT | Delta LUT vs. NTT only | FF | Delta FF vs. NTT only | DSP | WNS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `ntt_only` | 330,530 | -- | 267,838 | -- | 176 | 0.000 ns |
+| `ntt_stage` | 334,561 | +4,031 (+1.219%) | 269,806 | +1,968 (+0.735%) | 176 | +0.006 ns |
+| `ntt_kround` | 332,710 | +2,180 (+0.660%) | 274,237 | +6,399 (+2.389%) | 176 | +0.003 ns |
+| `ntt_pointer` | 341,751 | +11,221 (+3.395%) | 271,058 | +3,220 (+1.202%) | 176 | +0.004 ns |
+
+Every build uses 113 RAMB36 and 40 RAMB18, closes the 250 MHz target, and
+has zero routing-error nets. The stage, whole-round, and pointer hierarchies
+contain 902/2,025, 2,503/6,130, and 10,414/4,556 LUT/FF, respectively. These
+hierarchy counts explain the local units; the complete-core deltas above are
+the comparison metric because they also include decode, arbitration,
+placement, and routing effects. The whole-round worst setup path runs from
+the issue dispatcher to the integer ALU/shuffle response, not through the
+whole-round unit.
+
+The complete result manifest, including device, tool, configuration, hierarchy
+counts, report directories, and derived deltas, is
+[`pqc/results/ntt_keccak_backend_ppa.csv`](../../pqc/results/ntt_keccak_backend_ppa.csv).
+Its power columns are vectorless Vivado estimates without workload activity or
+environmental constraints and do not support energy claims.

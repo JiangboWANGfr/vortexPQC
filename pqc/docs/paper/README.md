@@ -4,7 +4,7 @@
 
 中文工作题目：**面向 RV32 SIMT GPU 的瓶颈驱动 Keccak 加速设计**。
 
-本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 10 页，含 16 张表、5 幅图和 11 条参考文献。
+本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 10 页，含 17 张表、5 幅图和 11 条参考文献。
 
 论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新重新执行了五种 Keccak 后端的统一 SimX 矩阵，以及 stage/whole-round 的 XRT 端到端验证。
 
@@ -104,11 +104,39 @@ M=1 时 stage 和 KROUND 分别比 pointer PE 快 1.093× 和 1.137×；M=8 时 
 
 ## 6. 成本与频率的写法
 
-250 MHz 相同目标下，V80 整核 base 为 323,072 LUT / 263,116 FF，三阶段为 325,288 / 265,015，增加 0.69% LUT / 0.72% FF。整轮为 325,832 / 269,371。这里比较的是既定 W32 核上增加单元的成本；从窄核拓宽到 W32 的成本并不包含在该百分比中，正文另列了历史核宽度面积。
+NTT 不是只有一种候选。仓库先后保留了 scalar library、shared-array
+cooperative、`reg32+SHFL`、`smem32` transpose、`NTTMUL.K`、full-bank
+`NTTBF+NTTMUL.K`，以及最终的 half-bank `NTTBF+NTTMUL.K`。论文主比较固定
+最后一种：一个 W32 warp 保存一个 transform，前三层在 lane 内执行，后四层使用
+XOR 16/8/4/2 的 CT/GS butterfly；16 个有符号 16×16 乘法器由 32 lanes 共享，
+并对五种合法 XOR stage 使用静态路由。
 
-300 MHz 目标的 base、三阶段和整轮均有负 WNS，不能写成“整核已经闭合 300 MHz”。报告的 Fmax 是路由后 STA 估计，不是板上实测时钟。250 MHz 表中的零 WNS 也表示没有正时序余量。
+历史同源 PPA 扫描中，无 NTT ISE、注册 full bank、half bank 分别使用
+334,917 / 356,447 / 341,680 LUT，265,187 / 272,430 / 270,865 FF，
+以及 160 / 192 / 176 DSP；三者均包含相同 pointer Keccak PE。最终 half bank
+相对该历史无 NTT ISE 分母增加 2.019% LUT、2.141% FF 和 16 DSP；相对 full
+bank 减少 14,767 LUT、1,565 FF 和 16 DSP，完整 KEM 周期最大变化 0.041%。
+这些数据用于解释 NTT 架构选择，不能与新的独立开关构建跨表相减。
 
-整轮独立单元的 FPGA LUT 少于三阶段，但 FF 约为其 2.99×；ASAP7 下总 cell area 约为其 2.123×。整轮在本次纯置换的整核 throughput/LUT 指标上仍然领先约 4.086×，因此不能预设三阶段在所有面积归一化指标上获胜。
+新 PPA 使用提交 `8798cb61a` 的独立开关，在同一 RV32、1 core、W8/T32、
+XCV80、Vivado 2025.1、OPT3 和 250 MHz 约束下重新跑四次完整实现。每组均从头
+综合和布局布线，不复用增量 checkpoint：
+
+| 构建 | LUT | 相对 NTT-only | FF | 相对 NTT-only | WNS |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| NTT-only | 330,530 | — | 267,838 | — | 0.000 ns |
+| NTT + Stage | 334,561 | +4,031（+1.219%） | 269,806 | +1,968（+0.735%） | +0.006 ns |
+| NTT + KROUND | 332,710 | +2,180（+0.660%） | 274,237 | +6,399（+2.389%） | +0.003 ns |
+| NTT + Pointer | 341,751 | +11,221（+3.395%） | 271,058 | +3,220（+1.202%） | +0.004 ns |
+
+四组都是 113 RAMB36 / 40 RAMB18 / 176 DSP，且 route report 为零 routing
+errors。Stage、KROUND、Pointer 层级分别为 902/2,025、2,503/6,130、
+10,414/4,556 LUT/FF；整核差值还包含 decode、仲裁、布局和路由影响，因此不应
+强制等于层级数字。所有构建都闭合 250 MHz，但余量很小。历史 300 MHz 数据仍
+保留在 `keccak_sg25_ppa.csv`，只用于独立单元及旧配置说明，不再作为最终整核
+Keccak 面积分母。
+
+整轮独立单元的 FPGA LUT 少于三阶段，但 FF 约为其 2.99×；ASAP7 下总 cell area 约为其 2.123×。整轮在本次纯置换的整核 throughput/LUT 指标上仍然领先约 4.115×，因此不能预设三阶段在所有面积归一化指标上获胜。
 
 ## 7. 表格与来源映射
 
@@ -128,7 +156,9 @@ M=1 时 stage 和 KROUND 分别比 pointer PE 快 1.093× 和 1.137×；M=8 时 
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
 | 表 XIII 最终 NTT+Keccak 五后端完整 ML-KEM | keccak_ntt_unified_mlkem.csv |
-| 表 XIV–XVI、PPA 分析 | keccak_sg25_ppa.csv |
+| 表 XIV、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
+| 表 XV、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
+| 表 XVI–XVII、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |
 
@@ -146,7 +176,7 @@ make -C ../pqc/docs/paper
 
 也可在本目录直接执行 make。此目标只生成文档，不编译 Vortex 核心或测试程序。所有中间结果进入仓库 build/ieee_pqc/，最终 PDF 保存在本目录。
 
-[generate_results.py](generate_results.py) 从 12 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性和阶段周期之和。另将文字引用的四份历史文件纳入哈希清单；这些文件不是重新执行实验后的结果。
+[generate_results.py](generate_results.py) 从 14 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和，以及四组综合配置的闭合状态。另将文字引用的四份历史文件纳入哈希清单，共记录 18 个输入文件；这些历史文件不是重新执行实验后的结果。
 
 独立源码包含已生成的表格、图、原始 CSV 快照和 provenance.json，可在 Overleaf 选择 pdfLaTeX 编译 main.tex，也可在解压目录执行：
 

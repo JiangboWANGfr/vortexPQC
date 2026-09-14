@@ -298,20 +298,65 @@ for backend, xrt_row in unified_xrt.items():
     macros["UnifiedXrtGap" + ("Stage" if backend == "sg25_stages" else "Round")] = \
         number(100 * gap, 3) + "\\%"
 
+backend_ppa = {r["variant"]: r for r in read("ntt_keccak_backend_ppa")}
+backend_names = {"ntt_only": "NTT only", "ntt_stage": "NTT + stages",
+                 "ntt_kround": "NTT + whole round", "ntt_pointer": "NTT + pointer PE"}
+assert set(backend_ppa) == set(backend_names)
+assert {r["target_mhz"] for r in backend_ppa.values()} == {"250"}
+assert {r["status"] for r in backend_ppa.values()} == {"met"}
+assert {r["routing_errors"] for r in backend_ppa.values()} == {"0"}
+for field in ("git_commit", "tool", "device", "stage", "warps", "threads",
+              "ramb36", "ramb18", "uram", "dsps"):
+    assert len({r[field] for r in backend_ppa.values()}) == 1, field
+backend_base = backend_ppa["ntt_only"]
+base_lut, base_ff = int(backend_base["total_luts"]), int(backend_base["ffs"])
+table("core_ppa", [[name, integer(r["total_luts"]),
+                    "--" if key == "ntt_only" else "+" + integer(int(r["total_luts"])-base_lut),
+                    integer(r["ffs"]),
+                    "--" if key == "ntt_only" else "+" + integer(int(r["ffs"])-base_ff),
+                    integer(r["dsps"]), r["wns_ns"]]
+                   for key, name in backend_names.items() for r in [backend_ppa[key]]])
+
+ntt_ppa_rows = read("ntt_v80_ppa")
+ntt_ppa = {r["variant"]: r for r in ntt_ppa_rows}
+ntt_names = {"keccak_pe_static_agu": "No NTT ISE",
+             "keccak_pe_static_agu_nttmul_sg2_reducepipe": "Full bank",
+             "keccak_pe_static_agu_nttmul_sg2_halfbank": "Half bank"}
+assert set(ntt_names) <= set(ntt_ppa)
+assert {ntt_ppa[key]["status"] for key in ntt_names} == {"met"}
+assert {ntt_ppa[key]["constraint_mhz"] for key in ntt_names} == {"250"}
+ntt_base = ntt_ppa["keccak_pe_static_agu"]
+ntt_base_lut, ntt_base_ff = int(ntt_base["total_luts"]), int(ntt_base["ffs"])
+table("ntt_ppa", [[name, integer(r["total_luts"]),
+                   "--" if key == "keccak_pe_static_agu" else "+" + integer(int(r["total_luts"])-ntt_base_lut),
+                   integer(r["ffs"]),
+                   "--" if key == "keccak_pe_static_agu" else "+" + integer(int(r["ffs"])-ntt_base_ff),
+                   integer(r["dsps"]), r["wns_ns"]]
+                  for key, name in ntt_names.items() for r in [ntt_ppa[key]]])
+
 ppa = read("keccak_sg25_ppa")
-core = {(r["design"],int(r["target_mhz"])):r for r in ppa if "core_8w32" in r["design"]}
-core_names = {"base_core_8w32":"Base", "sg25_core_8w32":"Stages", "kround25_core_8w32":"Whole round", "pointer_core_8w32":"Pointer PE"}
-table("core_ppa", [[str(target),name,integer(core[key,target]["lut"]),
-                    integer(core[key,target]["ff"]) if core[key,target]["ff"] else "--",
-                    core[key,target]["wns_ns"],core[key,target]["fmax_mhz"]]
-                   for target in [250,300] for key,name in core_names.items() if (key,target) in core])
 unit_names = {"pointer_keccakf":"Pointer PE", "sg25_stage_unit":"Stages", "sg25_round_unit":"Whole round"}
 units = [r for r in ppa if r["design"] in unit_names]
 table("fpga_unit", [[unit_names[r["design"]],integer(r["lut"]),integer(r["ff"]),r["fmax_mhz"]] for r in units if r["technology"]=="fpga"])
 table("asic_unit", [[unit_names[r["design"]],number(r["cell_area_um2"]),number(r["seq_area_um2"]),number(r["fmax_mhz"],1)] for r in units if r["technology"]=="asic"])
-macros["RoundLutEfficiency"] = number(round_gain*int(core["sg25_core_8w32",250]["lut"])/int(core["kround25_core_8w32",250]["lut"]))
-macros["StageLutOverhead"] = percent(int(core["sg25_core_8w32",250]["lut"])/int(core["base_core_8w32",250]["lut"])-1)
-macros["StageFfOverhead"] = percent(int(core["sg25_core_8w32",250]["ff"])/int(core["base_core_8w32",250]["ff"])-1)
+macros["RoundLutEfficiency"] = number(round_gain*int(backend_ppa["ntt_stage"]["total_luts"])/int(backend_ppa["ntt_kround"]["total_luts"]))
+macros["StageLutOverhead"] = percent(int(backend_ppa["ntt_stage"]["total_luts"])/base_lut-1)
+macros["StageFfOverhead"] = percent(int(backend_ppa["ntt_stage"]["ffs"])/base_ff-1)
+macros["StageLutDelta"] = integer(int(backend_ppa["ntt_stage"]["total_luts"])-base_lut)
+macros["StageFfDelta"] = integer(int(backend_ppa["ntt_stage"]["ffs"])-base_ff)
+macros["RoundLutOverhead"] = percent(int(backend_ppa["ntt_kround"]["total_luts"])/base_lut-1)
+macros["RoundFfOverhead"] = percent(int(backend_ppa["ntt_kround"]["ffs"])/base_ff-1)
+macros["RoundLutDelta"] = integer(int(backend_ppa["ntt_kround"]["total_luts"])-base_lut)
+macros["RoundFfDelta"] = integer(int(backend_ppa["ntt_kround"]["ffs"])-base_ff)
+macros["PointerLutOverhead"] = percent(int(backend_ppa["ntt_pointer"]["total_luts"])/base_lut-1)
+macros["PointerFfOverhead"] = percent(int(backend_ppa["ntt_pointer"]["ffs"])/base_ff-1)
+macros["PointerLutDelta"] = integer(int(backend_ppa["ntt_pointer"]["total_luts"])-base_lut)
+macros["PointerFfDelta"] = integer(int(backend_ppa["ntt_pointer"]["ffs"])-base_ff)
+macros["StageCoreLutsMath"] = integer(backend_ppa["ntt_stage"]["total_luts"]).replace(",", "{,}")
+macros["RoundCoreLutsMath"] = integer(backend_ppa["ntt_kround"]["total_luts"]).replace(",", "{,}")
+macros["FinalNttLutOverhead"] = percent(int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_halfbank"]["total_luts"])/ntt_base_lut-1)
+macros["FinalNttFfOverhead"] = percent(int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_halfbank"]["ffs"])/ntt_base_ff-1)
+macros["HalfbankLutSaving"] = percent(1-int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_halfbank"]["total_luts"])/int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_reducepipe"]["total_luts"]))
 
 for name in ("keccak_ise_simx", "keccak_ise_mldsa", "core_config_v80", "keccak_sg5"):
     path = RESULTS / (name + ".csv")

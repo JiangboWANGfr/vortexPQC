@@ -45,8 +45,8 @@ improves complete ML-KEM cycles by \UnifiedStageOne{} times at one request
 and \UnifiedStageEight{} times at eight requests over serial software;
 the instruction-only gains over the identical shuffle mapping are
 \UnifiedIseOne{} and \UnifiedIseEight{} times.
-At a common 250 MHz target, the stage extension adds \StageLutOverhead{} LUTs
-and \StageFfOverhead{} flip-flops to the full core. Whole-round fusion raises
+At a common 250 MHz target, the stage extension increases full-core LUTs by
+\StageLutOverhead{} and flip-flops by \StageFfOverhead{}. Whole-round fusion raises
 permutation throughput by another \RoundThroughputGain{} times, but improves
 the final integrated ML-KEM by only \UnifiedRoundOne{} and
 \UnifiedRoundEight{} times.
@@ -98,6 +98,9 @@ the same hardware.
 the stage design and pointer PE. The comparison connects instruction
 granularity to RTL throughput, ML-KEM latency, memory-operation counts,
 FPGA full-core area/timing, and isolated ASIC cell area.
+\item We select a register-resident W32 NTT with a shared 16-multiplier bank,
+validate its complete-KEM behavior, and hold this implementation fixed in
+the final Keccak performance and full-core area comparison.
 \end{enumerate}
 
 We do not claim the 25-thread state layout or whole-round warp collectives
@@ -817,57 +820,93 @@ whereas the pointer PE leads them at $M=8$ by
 Full XRT integration runs for stages and whole round reproduce the KAT and
 retired-instruction counts. Their whole-launch cycle gaps from SimX are
 \UnifiedXrtGapStage{} and \UnifiedXrtGapRound{}, respectively. These runs
-cover the AFU and processor RTL. Since all three accelerators are instantiated
-in the common core, Table~\ref{tab:unifiedkem} is a functional and cycle
-comparison; per-backend area still comes from the separate builds in
-Section~VI.
+cover the AFU and processor RTL. Table~\ref{tab:unifiedkem} uses a common
+all-enabled core for the functional and cycle comparison. Section~VI uses
+four separate builds that retain the same NTT and enable either no Keccak
+hardware, stages, whole round, or the pointer PE.
 
 \section{Implementation Cost}
-\subsection{Full-core FPGA area and timing}
-We target \code{xcv80-lsva4737-2MHP-e-S} with Vivado 2025.1,
-using post-route physical optimization.
-Table~\ref{tab:coreppa} compares each extension with the base core
-under the same target constraint. At 250 MHz, the stage core adds 2,216 LUTs
-and 1,899 FFs, or \StageLutOverhead{} and \StageFfOverhead{}.
-The whole-round core adds 2,760 LUTs and 6,255 FFs. The pointer core adds
-11,845 LUTs; its full-core FF count is absent from the archived row.
+\subsection{Final NTT architecture and selection}
+The final NTT maps one transform to one 32-lane warp. Coefficients remain in
+lane GPRs across the seven layers. The three lane-local layers use
+\code{NTTMUL.K}; the four cross-lane layers use CT/GS \code{NTTBF} operations
+at XOR distances 16, 8, 4, and 2. A half-width bank shares 16 signed
+$16\times16$ multipliers across the warp. CT retains latency/II 6/1, while
+GS and W32 \code{NTTMUL.K} use 7/2. Static routing implements the five legal
+encoded XOR distances; this kernel uses four of them.
+
+Table~\ref{tab:nttppa} records the matched architecture sweep that selected
+this design. Every row in that historical sweep includes the same pointer
+Keccak PE, so the first row is the no-NTT-ISE denominator for this table only.
+The registered full bank closes 250 MHz. Sharing the multipliers reduces its
+full-core LUT count by \HalfbankLutSaving{} while changing matched complete-KEM
+cycles by at most 0.041\%. Relative to the historical no-NTT-ISE core, the
+selected half bank adds \FinalNttLutOverhead{} LUTs,
+\FinalNttFfOverhead{} FFs, and 16 DSPs without adding BRAM.
 
 \begin{table}[t]
-\caption{Full-core V80 routed results. Target and STA-derived $f_{\max}$
-are MHz; WNS is ns. A dash is an unrecorded value, not zero.}
-\label{tab:coreppa}
-\centering\scriptsize\setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{@{}rlrrrr@{}}
+\caption{Historical matched V80 NTT architecture sweep at 250 MHz. Deltas use
+the no-NTT-ISE row; all rows include the same pointer Keccak PE. WNS is ns.}
+\label{tab:nttppa}
+\centering\scriptsize\setlength{\tabcolsep}{2.6pt}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Target & Core & LUT & FF & WNS & $f_{\max}$ \\
+NTT hardware & LUT & $\Delta$LUT & FF & $\Delta$FF & DSP & WNS \\
+\midrule
+\tablerows{ntt_ppa.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/ntt_v80_ppa.csv}
+\end{table}
+
+The full-bank-to-half-bank comparison holds instruction semantics and the
+kernel binary fixed, but the table predates the independently gated merged
+source used below. We therefore use it to justify the NTT architecture
+selection and do not subtract its absolute counts from the new Keccak rows.
+
+\subsection{Matched full-core Keccak backends}
+We target \code{xcv80-lsva4737-2MHP-e-S} with Vivado 2025.1,
+using post-route physical optimization.
+Table~\ref{tab:coreppa} compares four independent full-core builds under the
+same 250 MHz target. Each contains the selected NTT and arithmetic path.
+The NTT-only row is the common physical denominator; each other row enables
+exactly one Keccak hardware backend. The stage overhead is
+\StageLutDelta{} LUT (\StageLutOverhead{}) and \StageFfDelta{} FF
+(\StageFfOverhead{}). Whole round adds \RoundLutDelta{} LUT
+(\RoundLutOverhead{}) and \RoundFfDelta{} FF (\RoundFfOverhead{}), whereas
+the pointer PE adds \PointerLutDelta{} LUT (\PointerLutOverhead{}) and
+\PointerFfDelta{} FF (\PointerFfOverhead{}). BRAM and DSP counts are unchanged.
+
+\begin{table}[t]
+\caption{Matched full-core V80 post-route results at 250 MHz. Deltas use
+NTT only as the denominator. WNS is ns.}
+\label{tab:coreppa}
+\centering\scriptsize\setlength{\tabcolsep}{2.4pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Core & LUT & $\Delta$LUT & FF & $\Delta$FF & DSP & WNS \\
 \midrule
 \tablerows{core_ppa.tex}
 \bottomrule
 \end{tabular}
-\src{pqc/results/keccak_sg25_ppa.csv}
+\src{pqc/results/ntt_keccak_backend_ppa.csv}
 \end{table}
 
-The 300 MHz implementations all have negative slack, so they do not
-close that target. The whole-round build reaches an STA-derived
-294.9 MHz, compared with 291.6 MHz for stages and 294.2 MHz for the base.
-These are $1000/(P-\mathrm{WNS})$ estimates from the routed design,
-not measured operating clocks or proof of a separate run at that estimate.
-At 250 MHz all reported cores meet setup timing, with zero margin
-for the whole-round and pointer cases.
-
-The whole-round hierarchy contributes 2,483 LUT/6,130 FF at 250 MHz and
-2,428 LUT/6,131 FF at the 300 MHz target. Its 300 MHz worst path is in the
-local-memory response crossbar; none of the 100 reported worst paths
-enters that unit. This supports timing viability of the added datapath
-in this implementation, without implying it cannot affect placement
-elsewhere. Small ordering differences among the Fmax estimates are not
-treated as a general architectural frequency advantage.
+These independently gated builds supply the area denominator for the final
+ML-KEM comparison. They do not replace the common all-enabled binary used to
+measure cycles, whose purpose is to keep software and timing-model context
+identical. Post-route full-core differences include integration, placement,
+and routing effects in addition to the selected unit hierarchy. All four
+builds close 250 MHz, with WNS from 0.000 to 0.006 ns. The routed stage,
+whole-round, and pointer hierarchies contain 902/2,025, 2,503/6,130, and
+10,414/4,556 LUT/FF, respectively. The whole-round critical path remains in
+issue-to-integer-ALU routing rather than inside the new unit.
 
 The wide core itself must also be charged. The historical 300 MHz base
 configuration grid uses 42,553 LUTs at $8w\times4t$, 148,827 at
 $8w\times16t$, and 325,407 at $8w\times32t$.
-Consequently, a sub-1\% extension overhead relative to the chosen wide
-core is not a sub-1\% cost of widening a narrow GPU. The SG25 study fixes
+Consequently, a small extension overhead relative to the chosen wide
+core is not the cost of widening a narrow GPU. The SG25 study fixes
 the wide core to isolate instruction granularity.
 
 \subsection{Isolated-unit FPGA and ASIC comparisons}
@@ -914,7 +953,8 @@ integration, but LUT-only normalization largely hides it.
 At common 250 MHz, the 64-chain RTL results and full-core LUT counts give
 a whole-round versus stage throughput/LUT ratio of
 \begin{equation}
-\frac{481.664}{117.693}\times\frac{325{,}288}{325{,}832}
+\frac{481.664}{117.693}\times
+\frac{\StageCoreLutsMath}{\RoundCoreLutsMath}
 \simeq \RoundLutEfficiency{}.
 \end{equation}
 Thus the whole-round unit also wins this FPGA efficiency metric for pure
