@@ -1,0 +1,15 @@
+# Matched RV32/RV64 ML-KEM-768 comparison from source commit d2941e5dc.
+# Every row uses one core, W8/T32, no L2/L3, FIPS 203 KAT coins, and the final
+# half-bank NTT. Hardware enables only NTT and the pointer Keccak PE. Software
+# uses KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise
+# SERIAL=1. Both XLEN builds use LLVM 20.1.8 at Vortex commit 4c836512a60c.
+# Device cycles include the complete launch; batch_makespan excludes
+# launch/setup/readback. The RV32 and RV64 SimX rows are the XLEN comparison.
+# RTL and XRT rows validate the RV64 M1 timing model and full AFU integration.
+xlen,driver,requests,date,git_commit,warps,threads,keccak_backend,ntt_backend,arith_backend,retired_instructions,device_cycles,batch_makespan,kat,result,log_path
+32,simx,1,2026-09-14,d2941e5dc,8,32,pointer_pe,reg32_halfbank_ise,all_ise,527622,5911500,5909478,PASS,PASS,build32_ntt_keccak_merge/rv64_regression/mlkem_final_m1_simx.log
+32,simx,8,2026-09-14,d2941e5dc,8,32,pointer_pe,reg32_halfbank_ise,all_ise,4220976,8393151,8390738,PASS,PASS,build32_ntt_keccak_merge/rv64_regression/mlkem_final_m8_simx.log
+64,simx,1,2026-09-14,d2941e5dc,8,32,pointer_pe,reg32_halfbank_ise,all_ise,506517,5823807,5821894,PASS,PASS,build64_ntt_keccak_compare/rv64_validation/mlkem_final_m1_simx.log
+64,simx,8,2026-09-14,d2941e5dc,8,32,pointer_pe,reg32_halfbank_ise,all_ise,4052136,8992667,8990331,PASS,PASS,build64_ntt_keccak_compare/rv64_validation/mlkem_final_m8_simx.log
+64,rtlsim,1,2026-09-14,d2941e5dc,8,32,pointer_pe,reg32_halfbank_ise,all_ise,506517,5804986,5803255,PASS,PASS,build64_ntt_keccak_compare/rv64_validation/mlkem_final_m1_rtlsim.log
+64,xrt,1,2026-09-14,d2941e5dc,8,32,pointer_pe,reg32_halfbank_ise,all_ise,506517,5804365,5802629,PASS,PASS,build64_ntt_keccak_compare/rv64_validation/mlkem_final_m1_xrtsim.log

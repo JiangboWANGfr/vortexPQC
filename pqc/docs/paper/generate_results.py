@@ -298,6 +298,41 @@ for backend, xrt_row in unified_xrt.items():
     macros["UnifiedXrtGap" + ("Stage" if backend == "sg25_stages" else "Round")] = \
         number(100 * gap, 3) + "\\%"
 
+xlen_rows = read("rv32_rv64_mlkem")
+assert all(r["result"] == "PASS" and r["kat"] == "PASS" for r in xlen_rows)
+for field in ("git_commit", "warps", "threads", "keccak_backend",
+              "ntt_backend", "arith_backend"):
+    assert len({r[field] for r in xlen_rows}) == 1, field
+xlen_simx = {(int(r["xlen"]), int(r["requests"])): r
+             for r in xlen_rows if r["driver"] == "simx"}
+assert set(xlen_simx) == {(32, 1), (32, 8), (64, 1), (64, 8)}
+table("xlen", [["RV" + str(xlen),
+                 integer(xlen_simx[xlen, 1]["retired_instructions"]),
+                 million(xlen_simx[xlen, 1]["device_cycles"]),
+                 integer(xlen_simx[xlen, 8]["retired_instructions"]),
+                 million(xlen_simx[xlen, 8]["device_cycles"])]
+                for xlen in (32, 64)])
+rv32_m1, rv32_m8 = (xlen_simx[32, requests] for requests in (1, 8))
+rv64_m1, rv64_m8 = (xlen_simx[64, requests] for requests in (1, 8))
+macros["RvSixtyFourInstructionReduction"] = percent(
+    1 - int(rv64_m1["retired_instructions"]) /
+    int(rv32_m1["retired_instructions"]))
+assert macros["RvSixtyFourInstructionReduction"] == percent(
+    1 - int(rv64_m8["retired_instructions"]) /
+    int(rv32_m8["retired_instructions"]))
+macros["RvSixtyFourMOneCycleReduction"] = percent(
+    1 - int(rv64_m1["device_cycles"]) / int(rv32_m1["device_cycles"]))
+macros["RvSixtyFourMEightCycleIncrease"] = percent(
+    int(rv64_m8["device_cycles"]) / int(rv32_m8["device_cycles"]) - 1)
+rv64_controls = {r["driver"]: r for r in xlen_rows
+                 if r["xlen"] == "64" and r["requests"] == "1" and
+                 r["driver"] != "simx"}
+assert set(rv64_controls) == {"rtlsim", "xrt"}
+for row in rv64_controls.values():
+    assert row["retired_instructions"] == rv64_m1["retired_instructions"]
+    assert abs(int(row["device_cycles"]) - int(rv64_m1["device_cycles"])) / \
+        int(row["device_cycles"]) < 0.01
+
 backend_ppa = {r["variant"]: r for r in read("ntt_keccak_backend_ppa")}
 backend_names = {"ntt_only": "NTT only", "ntt_stage": "NTT + stages",
                  "ntt_kround": "NTT + whole round", "ntt_pointer": "NTT + pointer PE"}
@@ -316,6 +351,67 @@ table("core_ppa", [[name, integer(r["total_luts"]),
                     "--" if key == "ntt_only" else "+" + integer(int(r["ffs"])-base_ff),
                     integer(r["dsps"]), r["wns_ns"]]
                    for key, name in backend_names.items() for r in [backend_ppa[key]]])
+
+xlen_ppa_rows = read("ntt_keccak_rv64_ppa")
+xlen_ppa = {(int(r["xlen"]), r["variant"]): r for r in xlen_ppa_rows}
+assert set(xlen_ppa) == {(32, "ntt_only"), (32, "ntt_pointer"),
+                         (64, "ntt_only"), (64, "ntt_pointer")}
+assert all(r["routing_errors"] == "0" for r in xlen_ppa_rows)
+for field in ("tool", "device", "stage", "target_mhz", "warps", "threads"):
+    assert len({r[field] for r in xlen_ppa_rows}) == 1, field
+for r in xlen_ppa_rows:
+    expected = "met" if float(r["wns_ns"]) >= 0 else "timing_unmet"
+    assert r["status"] == expected
+    assert float(r["bram_tiles"]) == int(r["ramb36"]) + int(r["ramb18"]) / 2
+for xlen in (32, 64):
+    ntt_only = xlen_ppa[xlen, "ntt_only"]
+    pointer = xlen_ppa[xlen, "ntt_pointer"]
+    assert ntt_only["bram_tiles"] == pointer["bram_tiles"]
+    assert ntt_only["dsps"] == pointer["dsps"]
+    assert ntt_only["ntt_hier_dsps"] == pointer["ntt_hier_dsps"] == "16"
+xlen_ppa_names = {"ntt_only": "NTT only", "ntt_pointer": "+ pointer PE"}
+table("xlen_ppa", [["RV" + str(xlen) + " " + xlen_ppa_names[variant],
+                     integer(r["total_luts"]), integer(r["ffs"]),
+                     number(r["bram_tiles"], 1), integer(r["dsps"]),
+                     number(r["wns_ns"], 3), number(r["fmax_mhz"], 1)]
+                    for xlen in (32, 64)
+                    for variant in ("ntt_only", "ntt_pointer")
+                    for r in [xlen_ppa[xlen, variant]]])
+rv32_ntt = xlen_ppa[32, "ntt_only"]
+rv32_pointer = xlen_ppa[32, "ntt_pointer"]
+rv64_ntt = xlen_ppa[64, "ntt_only"]
+rv64_pointer = xlen_ppa[64, "ntt_pointer"]
+macros["RvSixtyFourNttLutOverhead"] = percent(
+    int(rv64_ntt["total_luts"]) / int(rv32_ntt["total_luts"]) - 1)
+macros["RvSixtyFourNttFfOverhead"] = percent(
+    int(rv64_ntt["ffs"]) / int(rv32_ntt["ffs"]) - 1)
+macros["RvSixtyFourNttBramOverhead"] = percent(
+    float(rv64_ntt["bram_tiles"]) / float(rv32_ntt["bram_tiles"]) - 1)
+macros["RvSixtyFourNttDspOverhead"] = percent(
+    int(rv64_ntt["dsps"]) / int(rv32_ntt["dsps"]) - 1)
+macros["RvThirtyTwoPointerLutDelta"] = integer(
+    int(rv32_pointer["total_luts"]) - int(rv32_ntt["total_luts"]))
+macros["RvThirtyTwoPointerLutOverhead"] = percent(
+    int(rv32_pointer["total_luts"]) / int(rv32_ntt["total_luts"]) - 1)
+macros["RvThirtyTwoPointerFfDelta"] = integer(
+    int(rv32_pointer["ffs"]) - int(rv32_ntt["ffs"]))
+macros["RvThirtyTwoPointerFfOverhead"] = percent(
+    int(rv32_pointer["ffs"]) / int(rv32_ntt["ffs"]) - 1)
+macros["RvSixtyFourPointerLutDelta"] = integer(
+    int(rv64_pointer["total_luts"]) - int(rv64_ntt["total_luts"]))
+macros["RvSixtyFourPointerLutOverhead"] = percent(
+    int(rv64_pointer["total_luts"]) / int(rv64_ntt["total_luts"]) - 1)
+macros["RvSixtyFourPointerFfDelta"] = integer(
+    int(rv64_pointer["ffs"]) - int(rv64_ntt["ffs"]))
+macros["RvSixtyFourPointerFfOverhead"] = percent(
+    int(rv64_pointer["ffs"]) / int(rv64_ntt["ffs"]) - 1)
+macros["RvSixtyFourNttFmax"] = number(rv64_ntt["fmax_mhz"], 1)
+macros["RvSixtyFourPointerFmax"] = number(rv64_pointer["fmax_mhz"], 1)
+macros["RvThirtyTwoFpuLuts"] = integer(rv32_ntt["fpu_hier_luts"])
+macros["RvSixtyFourFpuLuts"] = integer(rv64_ntt["fpu_hier_luts"])
+macros["RvThirtyTwoFpuDsps"] = integer(rv32_ntt["fpu_hier_dsps"])
+macros["RvSixtyFourFpuDsps"] = integer(rv64_ntt["fpu_hier_dsps"])
+macros["FinalNttDsps"] = integer(rv64_ntt["ntt_hier_dsps"])
 
 ntt_ppa_rows = read("ntt_v80_ppa")
 ntt_ppa = {r["variant"]: r for r in ntt_ppa_rows}

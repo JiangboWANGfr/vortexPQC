@@ -133,6 +133,89 @@ No tolerance or golden baseline was changed.
 Detailed configuration, kernel/runtime/source hashes, and individual results:
 [integration measurements](../../pqc/results/ntt_keccak_integration.json).
 
+## Matched RV32/RV64 validation
+
+The final pointer-Keccak configuration now runs at both XLEN values. Both use
+one core, W8T32, the final half-bank NTT, all three cooperative ML-KEM
+arithmetic replacements, serial FIPS-202, and the same FIPS 203 KAT input.
+The hardware enable set is limited to NTT plus the pointer Keccak PE so that
+unused stage or whole-round units cannot affect multi-warp scheduling.
+
+The first RV64 attempt used an LLVM 18 installation that ignored RV64
+`+xvortex` and omitted the kernel-entry lowering expected by the command
+processor. An isolated installation of the repository-pinned LLVM 20.1.8,
+RV64 libc, and RV64 libcrt fixes the failure without changing the existing
+tool tree. The generated RTL simulator source lists also place `VX_tlb_pkg`
+before `Vortex.sv`. Stack-address bookkeeping and the naked cooperative
+dispatcher save/restore sequences now follow the selected XLEN ABI.
+
+| XLEN / driver | Requests | Retired instructions | Device cycles | Batch makespan |
+| --- | ---: | ---: | ---: | ---: |
+| RV32 SimX | 1 | 527,622 | 5,911,500 | 5,909,478 |
+| RV32 SimX | 8 | 4,220,976 | 8,393,151 | 8,390,738 |
+| RV64 SimX | 1 | 506,517 | 5,823,807 | 5,821,894 |
+| RV64 SimX | 8 | 4,052,136 | 8,992,667 | 8,990,331 |
+| RV64 RTL | 1 | 506,517 | 5,804,986 | 5,803,255 |
+| RV64 XRT | 1 | 506,517 | 5,804,365 | 5,802,629 |
+
+Every row passes the complete KAT. RV64 retires 4.00% fewer instructions at
+both request counts. Relative to RV32, RV64 device cycles fall by 1.48% at M1
+and rise by 7.14% at M8. M1 SimX/RTL cycles differ by 0.324%; XRT/RTL differ
+by 0.011%, with exact instruction agreement. Direct RV64 NTTMUL, NTTBF, and
+forward/inverse register-NTT checks also pass. Structured data are in
+[the XLEN comparison](../../pqc/results/rv32_rv64_mlkem.csv).
+
+## Matched RV32/RV64 synthesis
+
+The physical XLEN comparison keeps the V80 device, one-core W8T32 geometry,
+Vivado 2025.1, OPT3, 250 MHz target, and final half-bank NTT fixed. It includes
+an NTT-only denominator and an NTT-plus-pointer build for each XLEN. The RV32
+rows reuse the completed `8798cb61a` reports; the RV64 rows use `d2941e5dc`.
+`git diff 8798cb61a..d2941e5dc -- hw` is empty, so the intervening RV64
+software and simulator fixes do not change the synthesized RTL.
+
+The two RV64 implementations were run from the separate configured tree:
+
+```sh
+cd build64_ntt_keccak_compare/hw/syn/xilinx/dut
+source /data/Xilinx/2025.1/Vivado/settings64.sh
+
+make -C v80_rv64_ntt_only_core DUT=core ROOT_DIR="$PWD/../../../.." \
+    DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=250 OPT_LEVEL=3 \
+    CONFIGS='-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32'
+
+make -C v80_rv64_ntt_pointer_core DUT=core ROOT_DIR="$PWD/../../../.." \
+    DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=250 OPT_LEVEL=3 \
+    CONFIGS='-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32'
+```
+
+| XLEN / build | LUT | FF | BRAM tiles | DSP | WNS | STA Fmax |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| RV32 NTT-only | 330,530 | 267,838 | 133.0 | 176 | +0.000 ns | 250.0 MHz |
+| RV32 NTT + Pointer | 341,751 | 271,058 | 133.0 | 176 | +0.004 ns | 250.3 MHz |
+| RV64 NTT-only | 654,260 | 386,391 | 261.5 | 368 | -0.260 ns | 234.7 MHz |
+| RV64 NTT + Pointer | 671,205 | 394,996 | 261.5 | 368 | -0.190 ns | 238.7 MHz |
+
+All four implementations complete post-route physical optimization with zero
+routing-error nets. Both RV32 rows close 250 MHz; both RV64 rows remain setup
+negative and are recorded as `timing_unmet`, rather than described as timing
+closed. Their hold timing closes. The RV64 NTT-only worst path is an LSU
+lane-gather route; the RV64 pointer worst path runs from the issue dispatcher
+to the integer ALU response buffer.
+
+Relative to RV32 NTT-only, RV64 NTT-only increases LUTs by 97.943%, FFs by
+44.263%, BRAM tiles by 96.617%, and DSPs by 109.091%. These are full-core
+configuration costs. `VX_config.toml` enables D and FLEN=64 at RV64; the FPU
+hierarchy grows from 94,535 LUT/64 DSP to 182,786 LUT/352 DSP, while the NTT
+stays at 16 DSP. Within one XLEN, the pointer PE is the appropriate increment:
+11,221 LUT/3,220 FF at RV32 and 16,945 LUT/8,605 FF at RV64, with no BRAM or
+DSP change.
+
+Structured measurements and exact report directories are in
+[the XLEN PPA comparison](../../pqc/results/ntt_keccak_rv64_ppa.csv).
+Vectorless power is archived there only for audit; it has neither workload
+activity nor environmental constraints and does not support energy claims.
+
 ## Physical verification and evidence
 
 The physical run uses Vivado 2025.1, V80 `xcv80-lsva4737-2MHP-e-S`,

@@ -1,0 +1,32 @@
+# Matched RV32/RV64 full-core V80 post-route comparison. All rows use one
+# core, W8/T32, Vivado 2025.1, OPT3, and a 4.000 ns clock constraint. NTT-only
+# enables the final half-bank NTT; NTT+Pointer additionally enables the
+# pointer Keccak PE. Each row is an independent non-incremental run.
+#
+# RV32 reuses the completed reports from hardware commit 8798cb61a. RV64 uses
+# d2941e5dc; `git diff 8798cb61a..d2941e5dc -- hw` is empty, so no RTL changed
+# between the two PPA source revisions. RV64 automatically enables D and
+# FLEN=64 through VX_config.toml, so cross-XLEN full-core deltas include the
+# wider issue/execute/memory paths and the double-precision FPU. They are not
+# NTT or Keccak unit costs. Pointer deltas within one XLEN are the appropriate
+# integration-cost comparison.
+#
+# BRAM tiles equal RAMB36 + 0.5*RAMB18. All route reports contain zero nets
+# with routing errors. Both RV32 builds meet 250 MHz; both RV64 builds route
+# successfully but do not meet the 250 MHz setup constraint. Vectorless power
+# lacks workload activity and environmental constraints and is not an energy
+# measurement. Stage and KROUND are RV32-only interfaces and are excluded.
+xlen,variant,date,git_commit,tool,device,stage,target_mhz,warps,threads,keccak_backend,total_luts,logic_luts,lutrams,srls,ffs,ramb36,ramb18,bram_tiles,uram,dsps,wns_ns,tns_ns,whs_ns,ths_ns,fmax_mhz,vectorless_dynamic_w,total_onchip_w,keccak_hier_luts,keccak_hier_ffs,ntt_hier_luts,ntt_hier_ffs,ntt_hier_dsps,fpu_hier_luts,fpu_hier_ffs,fpu_hier_dsps,issue_hier_luts,execute_hier_luts,mem_hier_luts,routing_errors,status,report_dir
+32,ntt_only,2026-09-14,8798cb61a,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,none,330530,318144,8286,4100,267838,113,40,133.0,0,176,0.000,0.000,0.000,0.000,250.0,8.132,30.166,0,0,5179,5040,16,94535,131729,64,112162,134407,75986,0,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_ntt_keccak_merge/hw/syn/xilinx/dut/v80_ntt_only_core
+32,ntt_pointer,2026-09-14,8798cb61a,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,pointer_keccakf,341751,329365,8286,4100,271058,113,40,133.0,0,176,0.004,0.000,0.012,0.000,250.3,8.230,30.266,10414,4556,5105,5040,16,94337,131742,64,112010,145453,76785,0,met,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_ntt_keccak_merge/hw/syn/xilinx/dut/v80_ntt_pointer_core
+64,ntt_only,2026-09-14,d2941e5dc,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,none,654260,634252,14918,5090,386391,257,9,261.5,0,368,-0.260,-3604.432,0.000,0.000,234.7,14.128,36.200,0,0,5018,6080,16,182786,148606,352,256449,252585,128376,0,timing_unmet,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build64_ntt_keccak_compare/hw/syn/xilinx/dut/v80_rv64_ntt_only_core
+64,ntt_pointer,2026-09-14,d2941e5dc,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,pointer_keccakf,671205,650917,15198,5090,394996,257,9,261.5,0,368,-0.190,-2361.077,0.000,0.000,238.7,13.335,35.408,11642,4823,4987,5468,16,182752,149015,352,257789,267973,130024,0,timing_unmet,/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build64_ntt_keccak_compare/hw/syn/xilinx/dut/v80_rv64_ntt_pointer_core
+#
+# Within-XLEN pointer integration deltas:
+# RV32: +11,221 LUT (+3.395%), +3,220 FF (+1.202%), no BRAM/DSP change.
+# RV64: +16,945 LUT (+2.590%), +8,605 FF (+2.227%), no BRAM/DSP change.
+# Cross-XLEN full-core deltas:
+# NTT-only: +323,730 LUT (+97.943%), +118,553 FF (+44.263%),
+#           +128.5 BRAM tiles (+96.617%), +192 DSP (+109.091%).
+# NTT+Pointer: +329,454 LUT (+96.402%), +123,938 FF (+45.724%),
+#              +128.5 BRAM tiles (+96.617%), +192 DSP (+109.091%).

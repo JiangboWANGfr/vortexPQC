@@ -499,18 +499,24 @@ scalar-library denominator, the complete instruction-enabled path is
 **1.524124x** faster at M1 and **1.478252x** at M8.
 
 The RV64 W32 arithmetic unit passes the same combined NTTMUL/NTTBF unit test.
-RV64 software, the test kernel, and SimX driver also build successfully, but
-the full-system run did not produce RV64 correctness or timing evidence. Both
-`nttmul_k` and an unrelated RV64 `demo` control stall at command-processor
-sequence 26 while
-waiting for target 27, so the SimX failure is not specific to this instruction.
-The RV64 RTL build stops earlier because the generated rtlsim source list does
-not provide `VX_tlb_pkg` before `Vortex.sv` imports it. These are infrastructure
-blockers; RV64 parity must be rerun after they are fixed.
+The earlier full-system stall was traced to an LLVM 18 installation that did
+not implement RV64 `+xvortex`; it omitted the kernel-entry lowering required by
+the command processor. Reconfiguring against the repository-pinned LLVM 20.1.8
+toolchain fixes both the `demo` control and PQC programs. The generated RTL
+source lists now also place `VX_tlb_pkg` before `Vortex.sv` imports it.
 
-Data: [NTTMUL.K validation](../../pqc/results/nttmul_k_validation.csv).
-RV32 logs are under `build32_nttmul/nttmul_validation/`; the RV64 build and
-blocker evidence are under `build64_nttmul/nttmul_rv64_validation/`. No
+With these infrastructure faults fixed, RV64 NTTMUL and NTTBF pass SimX and
+RTL with exact retired-instruction agreement and cycle gaps of 0.85% and
+0.55%, respectively. The direct register-resident forward/inverse NTT passes
+five input patterns with zero coefficient mismatches. The final pointer
+Keccak, half-bank NTT, and cooperative-arithmetic ML-KEM configuration passes
+the complete M1 KAT in SimX, RTL, and XRT, and all eight requests at M8 in
+SimX. M1 SimX/RTL device cycles differ by 0.324%; XRT/RTL differ by 0.011%.
+
+Data: [NTTMUL.K validation](../../pqc/results/nttmul_k_validation.csv) and
+[matched RV32/RV64 ML-KEM](../../pqc/results/rv32_rv64_mlkem.csv).
+Historical RV32 logs are under `build32_nttmul/nttmul_validation/`; current
+RV64 evidence is under `build64_ntt_keccak_compare/rv64_validation/`. No
 synthesis-only measurement isolates `NTTMUL.K`; the post-route result below
 measures the combined NTTMUL/SG2 unit integrated into the full core.
 
@@ -858,7 +864,8 @@ CT II=1, GS/NTTMUL II=2, latency 6/7, paired and half-warp masks, complete
 headers, and stable outputs under backpressure. A coverage assertion requires
 backpressure to occur while `pending_second` is set. Build-local scalar-only
 checks also pass 48 requests each with physical one- and four-lane ALUs.
-These tests do not establish full-system RV64 support.
+These unit tests alone do not establish full-system RV64 support; the complete
+KAT and parity runs above provide that evidence for the final ML-KEM path.
 
 The dependent RAW64 probe, running one active lane on the physical W32 bank,
 increases from 920/917 SimX/RTL cycles to 984/981. Both retire 146 instructions;

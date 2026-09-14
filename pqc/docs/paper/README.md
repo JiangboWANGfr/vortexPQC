@@ -4,9 +4,9 @@
 
 中文工作题目：**面向 RV32 SIMT GPU 的瓶颈驱动 Keccak 加速设计**。
 
-本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 10 页，含 17 张表、5 幅图和 11 条参考文献。
+本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 11 页，含 19 张表、5 幅图和 11 条参考文献。
 
-论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新重新执行了五种 Keccak 后端的统一 SimX 矩阵，以及 stage/whole-round 的 XRT 端到端验证。
+论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新加入最终 NTT + pointer 路径的 RV32/RV64 功能、性能和 Vivado post-route 对比。
 
 [Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
 
@@ -20,7 +20,7 @@
 2. 在 RV32 上实现分阶段 subgroup Keccak 接口：状态由 25 个 lane 的普通 GPR 保存，使用显式低/高半字、单目的寄存器写回；给出完整的八组合阶段消融。
 3. 实现 GPR 型整轮比较器，与三阶段实现及 pointer PE 在相同主平台比较，联系置换吞吐、完整 ML-KEM、LSU 操作数、FPGA 整核面积/时序及独立单元 ASIC 面积。
 
-当前实现不需要改为 RV64。64 位 Keccak word 在 RV32 上由两个 32 位寄存器表示；三阶段每轮六次 collective issue，整轮比较器每轮两次。这些是发射数，不是完整操作的周期数，也不是整个内核的峰值寄存器用量。
+论文主设计仍为 RV32。64 位 Keccak word 在 RV32 上由两个 32 位寄存器表示；三阶段每轮六次 collective issue，整轮比较器每轮两次。这些是发射数，不是完整操作的周期数，也不是整个内核的峰值寄存器用量。最终 NTT + pointer 路径另有匹配 RV64 实验，用来验证可移植性并量化整核宽化成本。
 
 不主张“首次使用 25 个线程实现 Keccak”或“首个 warp collective Keccak round”。ML-Cube 已描述 25-thread shuffle 映射；NVIDIA 的 US 2026/0222190 A1 已公开整轮 collective 语义。本稿的 KROUND 是本项目实现的 RV32 比较器，其周期和 PPA 不是 NVIDIA 硬件的数据。参考文献中提供了对应来源。
 
@@ -102,6 +102,15 @@ SG5 保留为历史布局对照，其已归档比较使用 16-thread build，不
 
 M=1 时 stage 和 KROUND 分别比 pointer PE 快 1.093× 和 1.137×；M=8 时 pointer 分别快 1.376× 和 1.342×。这是真正的延迟/吞吐交叉，不能只选一个 batch 点下结论。stage 和 KROUND 的 XRT M=1 均通过，分别为 5,409,552 和 5,203,321 cycles，与 SimX 的 whole-launch 差为 0.004% 和 0.093%。
 
+匹配的 RV32/RV64 实验只启用最终 half-bank NTT 和 pointer Keccak PE，软件固定 `KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise SERIAL=1`。两种 XLEN 使用同一 FIPS 203 KAT 输入和 W8T32 配置：
+
+| XLEN | M=1 instructions | M=1 cycles | M=8 instructions | M=8 cycles |
+| --- | ---: | ---: | ---: | ---: |
+| RV32 | 527,622 | 5,911,500 | 4,220,976 | 8,393,151 |
+| RV64 | 506,517 | 5,823,807 | 4,052,136 | 8,992,667 |
+
+RV64 在两个 batch 都少执行 4.00% 指令；M=1 cycles 减少 1.48%，M=8 cycles 反而增加 7.14%。RV64 的 SimX、RTL 和 XRT M=1 均通过完整 KAT，退休指令完全一致，SimX/RTL 与 XRT/RTL 的 cycle 差分别为 0.324% 和 0.011%。这说明 RV64 功能路径已经打通，但少执行指令不等于饱和吞吐更高。
+
 ## 6. 成本与频率的写法
 
 NTT 不是只有一种候选。仓库先后保留了 scalar library、shared-array
@@ -136,11 +145,29 @@ errors。Stage、KROUND、Pointer 层级分别为 902/2,025、2,503/6,130、
 保留在 `keccak_sg25_ppa.csv`，只用于独立单元及旧配置说明，不再作为最终整核
 Keccak 面积分母。
 
+RV32/RV64 物理对比固定同一 V80、W8T32、OPT3、250 MHz 约束和 half-bank NTT，
+每个 XLEN 分别实现 NTT-only 与 NTT + pointer：
+
+| XLEN / 构建 | LUT | FF | BRAM tiles | DSP | WNS | STA Fmax |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| RV32 NTT-only | 330,530 | 267,838 | 133.0 | 176 | +0.000 ns | 250.0 MHz |
+| RV32 NTT + Pointer | 341,751 | 271,058 | 133.0 | 176 | +0.004 ns | 250.3 MHz |
+| RV64 NTT-only | 654,260 | 386,391 | 261.5 | 368 | −0.260 ns | 234.7 MHz |
+| RV64 NTT + Pointer | 671,205 | 394,996 | 261.5 | 368 | −0.190 ns | 238.7 MHz |
+
+四组 route report 都是零 routing errors。RV64 两组完成 post-route physical
+optimization，但没有闭合 250 MHz。NTT-only 从 RV32 到 RV64 增加 97.943% LUT、
+44.263% FF、96.617% BRAM tiles 和 109.091% DSP；这是整核配置成本。RV64 会自动
+启用 D/FLEN64，FPU 层级从 94,535 LUT/64 DSP 增至 182,786 LUT/352 DSP，而窄
+NTT 始终为 16 DSP。Pointer 在 RV32 内增加 11,221 LUT/3,220 FF，在 RV64 内增加
+16,945 LUT/8,605 FF，两者都不增加 BRAM 或 DSP。每行只有一个 OOC seed；不能将
+差值外推为器件或布局无关结论。
+
 整轮独立单元的 FPGA LUT 少于三阶段，但 FF 约为其 2.99×；ASAP7 下总 cell area 约为其 2.123×。整轮在本次纯置换的整核 throughput/LUT 指标上仍然领先约 4.115×，因此不能预设三阶段在所有面积归一化指标上获胜。
 
 ## 7. 表格与来源映射
 
-以下路径均相对仓库根目录的 pqc/results/；生成清单保存 18 个源文件的 SHA-256。
+以下路径均相对仓库根目录的 pqc/results/；生成清单保存 20 个源文件的 SHA-256。
 
 | 正文内容 | 源文件 |
 | --- | --- |
@@ -156,9 +183,11 @@ Keccak 面积分母。
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
 | 表 XIII 最终 NTT+Keccak 五后端完整 ML-KEM | keccak_ntt_unified_mlkem.csv |
-| 表 XIV、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
-| 表 XV、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
-| 表 XVI–XVII、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
+| 表 XIV、匹配 RV32/RV64 完整 ML-KEM | rv32_rv64_mlkem.csv |
+| 表 XV、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
+| 表 XVI、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
+| 表 XVII、匹配 RV32/RV64 整核 PPA | ntt_keccak_rv64_ppa.csv |
+| 表 XVIII–XIX、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |
 
@@ -176,7 +205,7 @@ make -C ../pqc/docs/paper
 
 也可在本目录直接执行 make。此目标只生成文档，不编译 Vortex 核心或测试程序。所有中间结果进入仓库 build/ieee_pqc/，最终 PDF 保存在本目录。
 
-[generate_results.py](generate_results.py) 从 14 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和，以及四组综合配置的闭合状态。另将文字引用的四份历史文件纳入哈希清单，共记录 18 个输入文件；这些历史文件不是重新执行实验后的结果。
+[generate_results.py](generate_results.py) 从 16 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和、RV32/RV64 KAT 与 model parity，以及两组 XLEN 的综合配置、路由和闭合状态。另将文字引用的四份历史文件纳入哈希清单，共记录 20 个输入文件；这些历史文件不是重新执行实验后的结果。
 
 独立源码包含已生成的表格、图、原始 CSV 快照和 provenance.json，可在 Overleaf 选择 pdfLaTeX 编译 main.tex，也可在解压目录执行：
 

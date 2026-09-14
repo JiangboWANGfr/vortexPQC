@@ -50,6 +50,10 @@ At a common 250 MHz target, the stage extension increases full-core LUTs by
 permutation throughput by another \RoundThroughputGain{} times, but improves
 the final integrated ML-KEM by only \UnifiedRoundOne{} and
 \UnifiedRoundEight{} times.
+A matched RV64 port retires \RvSixtyFourInstructionReduction{} fewer instructions,
+reduces one-request cycles by \RvSixtyFourMOneCycleReduction{}, but raises
+eight-request cycles by \RvSixtyFourMEightCycleIncrease{} and routed NTT-only
+full-core LUTs by \RvSixtyFourNttLutOverhead{}.
 Collective granularity trades pipeline storage against benefits that
 shrink substantially at application scope.
 \end{abstract}
@@ -100,7 +104,9 @@ granularity to RTL throughput, ML-KEM latency, memory-operation counts,
 FPGA full-core area/timing, and isolated ASIC cell area.
 \item We select a register-resident W32 NTT with a shared 16-multiplier bank,
 validate its complete-KEM behavior, and hold this implementation fixed in
-the final Keccak performance and full-core area comparison.
+the final Keccak performance and full-core area comparison. A matched RV64
+portability experiment measures both complete-KEM behavior and implementation
+cost without changing the narrow NTT arithmetic.
 \end{enumerate}
 
 We do not claim the 25-thread state layout or whole-round warp collectives
@@ -145,8 +151,9 @@ experiments to explain the design choice, but use the 8-warp, 32-thread
 experiments for the collective comparison.
 
 \begin{table*}[t]
-\caption{Experimental families. All use RV32 and one core. $W$ is resident warp
-capacity, $T$ is hardware threads per warp. A request count is a separate quantity.}
+\caption{Experimental families. All use one core and RV32 except the matched
+RV32/RV64 portability rows. $W$ is resident warp capacity, $T$ is hardware
+threads per warp. A request count is a separate quantity.}
 \label{tab:config}
 \centering\footnotesize
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{.17\textwidth}p{.09\textwidth}>{\raggedright\arraybackslash}p{.20\textwidth}>{\raggedright\arraybackslash}p{.20\textwidth}>{\raggedright\arraybackslash}p{.24\textwidth}@{}}
@@ -159,7 +166,7 @@ Batch and x4 mapping & $8\times4$ & $M=1,2,4,8$; $L=1,2,4$ where archived & Each
 SG25 stages / round & $8\times32$ & 32-wide SIMD/ALU; 1 or 8 states & Synchronized permutation span & Shuffle, stage-use ablation, whole round \\
 Complete SG25 ML-KEM & $8\times32$ & Serial FIPS-202; 143 permutations/request & Whole-launch cycles at fixed $M$ & SG1, shuffle, stages, whole round, pointer \\
 Final NTT+Keccak ML-KEM & $8\times32$ & W32 NTT/arithmetic; KAT; 140 permutations/request & Whole-launch cycles at fixed $M$ & Five Keccak backends with all other arms fixed \\
-Physical implementation & $8\times32$ & Full core, or isolated units explicitly labeled & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency \\
+Physical implementation & $8\times32$ & RV32 backend builds; matched RV32/RV64 NTT/pointer builds; isolated units & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency within each family \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -825,6 +832,39 @@ all-enabled core for the functional and cycle comparison. Section~VI uses
 four separate builds that retain the same NTT and enable either no Keccak
 hardware, stages, whole round, or the pointer PE.
 
+\subsection{Matched RV32/RV64 portability}
+Table~\ref{tab:xlen} recompiles the final pointer-PE configuration at RV32 and
+RV64 while holding the source revision, W8T32 geometry, KAT input, cache
+configuration, NTT, and cooperative arithmetic fixed. The RV64 port uses the
+same repository-pinned LLVM 20.1.8 revision as RV32. SimX, RTL, and XRT reproduce the M1
+KAT and retire exactly 506,517 instructions; the SimX/RTL and XRT/RTL cycle
+gaps are 0.324\% and 0.011\%, respectively. All eight RV64 SimX requests also
+pass byte-for-byte.
+
+\begin{table}[t]
+\caption{Matched pointer-PE ML-KEM at RV32 and RV64 on SimX. Cycles are
+millions per complete launch.}
+\label{tab:xlen}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+ISA & M1 instr. & M1 cycles & M8 instr. & M8 cycles \\
+\midrule
+\tablerows{xlen.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/rv32_rv64_mlkem.csv}
+\end{table}
+
+RV64 retires \RvSixtyFourInstructionReduction{} fewer instructions at both batch
+sizes. Its M1 cycles fall by \RvSixtyFourMOneCycleReduction{}, but its M8 cycles rise
+by \RvSixtyFourMEightCycleIncrease{}. The instruction reduction therefore does not
+predict saturated throughput; wider core state, memory operations, and
+resource scheduling also affect cycles. This comparison uses the pointer PE
+because the stage and whole-round Keccak interfaces encode each 64-bit state
+word as two RV32 register halves and are not implemented for RV64. The routed
+cost of the same final NTT/pointer pair appears in Table~\ref{tab:xlenppa}.
+
 \section{Implementation Cost}
 \subsection{Final NTT architecture and selection}
 The final NTT maps one transform to one 32-lane warp. Coefficients remain in
@@ -901,6 +941,48 @@ builds close 250 MHz, with WNS from 0.000 to 0.006 ns. The routed stage,
 whole-round, and pointer hierarchies contain 902/2,025, 2,503/6,130, and
 10,414/4,556 LUT/FF, respectively. The whole-round critical path remains in
 issue-to-integer-ALU routing rather than inside the new unit.
+
+\subsection{Matched RV32/RV64 implementation}
+Table~\ref{tab:xlenppa} holds the V80 device, W8T32 geometry, 250 MHz target,
+Vivado version, optimization level, and selected half-bank NTT fixed. It
+compares NTT-only and NTT-plus-pointer builds at each XLEN. Every row is an
+independent, non-incremental post-route run. Both RV64 builds route with zero
+routing errors but miss setup: their STA frequencies are
+\RvSixtyFourNttFmax{} and \RvSixtyFourPointerFmax{} MHz.
+
+\begin{table}[t]
+\caption{Matched RV32/RV64 V80 post-route results. BRAM is tile-equivalent,
+WNS is ns, and STA frequency is MHz under a 250 MHz target.}
+\label{tab:xlenppa}
+\centering\scriptsize\setlength{\tabcolsep}{1.7pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Core & LUT & FF & BRAM & DSP & WNS & STA MHz \\
+\midrule
+\tablerows{xlen_ppa.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/ntt_keccak_rv64_ppa.csv}
+\end{table}
+
+Relative to RV32 NTT-only, RV64 NTT-only uses
+\RvSixtyFourNttLutOverhead{} more LUTs,
+\RvSixtyFourNttFfOverhead{} more FFs,
+\RvSixtyFourNttBramOverhead{} more BRAM tiles, and
+\RvSixtyFourNttDspOverhead{} more DSPs. These are full-core XLEN deltas.
+In this configuration, RV64 also enables D and sets FLEN to 64; the FPU
+hierarchy grows from \RvThirtyTwoFpuLuts{} LUT/\RvThirtyTwoFpuDsps{} DSP to
+\RvSixtyFourFpuLuts{} LUT/\RvSixtyFourFpuDsps{} DSP, while the narrow NTT
+remains at \FinalNttDsps{} DSP. The comparison therefore measures the
+implemented RV64 configuration rather than an isolated integer-width change.
+
+Within RV32, the pointer PE adds \RvThirtyTwoPointerLutDelta{} LUT
+(\RvThirtyTwoPointerLutOverhead{}) and \RvThirtyTwoPointerFfDelta{} FF
+(\RvThirtyTwoPointerFfOverhead{}). Within RV64, it adds
+\RvSixtyFourPointerLutDelta{} LUT (\RvSixtyFourPointerLutOverhead{}) and
+\RvSixtyFourPointerFfDelta{} FF (\RvSixtyFourPointerFfOverhead{}).
+Neither increment changes BRAM or DSP count. The RV64 worst paths terminate
+in LSU or issue-to-integer-ALU logic rather than the Keccak or NTT hierarchy.
 
 The wide core itself must also be charged. The historical 300 MHz base
 configuration grid uses 42,553 LUTs at $8w\times4t$, 148,827 at
@@ -1018,6 +1100,8 @@ deterministic simulation nor quantiles from the incomplete host sweep.
 Evidence includes XRT integration simulation and out-of-context full-core
 FPGA routing. Board execution, complete-system PPA, full-core routed ASIC
 results, and activity-driven energy remain outside the demonstrated scope.
+Each XLEN physical row is one implementation seed, and neither RV64 row
+closes the 250 MHz setup target.
 Register residence alone does not establish side-channel resistance.
 
 \section{Conclusion}
@@ -1035,7 +1119,9 @@ over shuffles and, with the final NTT path fixed, complete ML-KEM by
 one/eight requests.
 Whole-round fusion adds about fourfold permutation throughput but only
 2--4\% application speedup, while the pointer PE remains strongest in the
-eight-request launch. The result is an implemented set of design choices
+eight-request launch. RV64 reduces instructions but does not improve the
+eight-request cycle result, and its routed full core is substantially larger.
+The result is an implemented set of design choices
 with measured tradeoffs, rather than a universal ranking inferred from
 one primitive benchmark.
 
