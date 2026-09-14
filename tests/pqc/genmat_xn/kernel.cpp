@@ -47,7 +47,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   const unsigned tid = (unsigned)vx_thread_id();
   const unsigned W   = arg->lanes;
 
-  uint32_t sp0;
+  uintptr_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);
 
   uint8_t seed[MLKEM_SYMBYTES];

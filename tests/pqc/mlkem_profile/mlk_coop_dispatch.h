@@ -35,21 +35,32 @@ extern "C" __attribute__((noinline, used)) void mlk_profile_ntt_lanes() {
 #endif
 }
 
+#if __riscv_xlen == 64
+#define MLK_NTT_SAVE_RA "sd ra, 8(sp)\n\t"
+#define MLK_NTT_RESTORE_RA "ld ra, 8(sp)\n\t"
+#else
+#define MLK_NTT_SAVE_RA "sw ra, 12(sp)\n\t"
+#define MLK_NTT_RESTORE_RA "lw ra, 12(sp)\n\t"
+#endif
+
 // Only the leader has a live caller frame; workers enter with their own KMU stacks.
 extern "C" __attribute__((naked, noinline)) void mlk_profile_ntt_expand(unsigned) {
   asm volatile (
       "addi sp, sp, -16\n\t"
-      "sw ra, 12(sp)\n\t"
+      MLK_NTT_SAVE_RA
       ".insn r %0, 0, 0, x0, a0, x0\n\t"
       "call mlk_profile_ntt_lanes\n\t"
       ".insn r %0, 7, 0, x0, x0, x0\n\t"
       "li t0, 1\n\t"
       ".insn r %0, 0, 0, x0, t0, x0\n\t"
-      "lw ra, 12(sp)\n\t"
+      MLK_NTT_RESTORE_RA
       "addi sp, sp, 16\n\t"
       "ret"
       :: "i"(RISCV_CUSTOM0));
 }
+
+#undef MLK_NTT_RESTORE_RA
+#undef MLK_NTT_SAVE_RA
 
 extern "C" void mlk_profile_ntt(int16_t* p, unsigned inverse) {
   auto& args = mlk_coop_args[vx_warp_id()];

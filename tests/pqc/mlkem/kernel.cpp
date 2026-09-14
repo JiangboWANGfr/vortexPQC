@@ -40,7 +40,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto cycles    = reinterpret_cast<uint64_t*>(arg->cycles_addr)+ req * MLKEM_CY_COUNT;
   auto probe     = reinterpret_cast<uint32_t*>(arg->probe_addr) + req * MLKEM_PR_COUNT;
 
-  uint32_t sp0;
+  uintptr_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);
 
   uint64_t t0 = vx_rdcycle();

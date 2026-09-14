@@ -32,7 +32,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr);
   auto arena  = reinterpret_cast<uint32_t*>(arg->arena_addr);
 
-  uint32_t sp0;
+  uintptr_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);
 
   // The arena is not freed in LIFO order, so it is reset between operations

@@ -15,15 +15,9 @@ VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
 
 ifeq ($(NTT),reg32)
-ifneq ($(XLEN),32)
-$(error NTT=reg32 currently requires XLEN=32)
-endif
 	VX_CFLAGS += -DPQC_NTT_REG32
 	CXXFLAGS  += -DPQC_NTT_REG32
 else ifeq ($(NTT),smem32)
-ifneq ($(XLEN),32)
-$(error NTT=smem32 currently requires XLEN=32)
-endif
 	VX_CFLAGS += -DPQC_NTT_SMEM32
 	CXXFLAGS  += -DPQC_NTT_SMEM32
 else ifneq ($(NTT),)

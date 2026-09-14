@@ -35,8 +35,8 @@
 
 #include <vx_intrinsics.h>
 
-static inline uint32_t pqc_sp(void) {
-  uint32_t v;
+static inline uintptr_t pqc_sp(void) {
+  uintptr_t v;
   __asm__ volatile("mv %0, sp" : "=r"(v));
   return v;
 }
@@ -44,27 +44,27 @@ static inline uint32_t pqc_sp(void) {
 // vx_start.S sets sp = VX_MEM_STACK_BASE_ADDR - (mhartid << STACK_LOG2_SIZE),
 // so hart h owns [BASE - (h+1)*SLAB, BASE - h*SLAB). Deriving the floor from
 // mhartid rather than by masking sp keeps it correct once sp has moved.
-static inline uint32_t pqc_slab_floor(void) {
-  return (uint32_t)VX_MEM_STACK_BASE_ADDR
-       - (((uint32_t)vx_hart_id() + 1u) << VX_MEM_STACK_LOG2_SIZE);
+static inline uintptr_t pqc_slab_floor(void) {
+  return (uintptr_t)VX_MEM_STACK_BASE_ADDR
+       - (((uintptr_t)vx_hart_id() + 1u) << VX_MEM_STACK_LOG2_SIZE);
 }
 
 // Paints and returns the paintable span, i.e. the largest peak the scan can
 // still distinguish from an overflow.
-static inline uint32_t pqc_stack_paint(uint32_t *sp0_out) {
-  const uint32_t sp0 = pqc_sp();
-  const uint32_t floor_addr = pqc_slab_floor();
-  const uint32_t paint_hi = sp0 - PQC_GUARD;
-  for (uint32_t a = floor_addr; a < paint_hi; a += 4)
+static inline uint32_t pqc_stack_paint(uintptr_t *sp0_out) {
+  const uintptr_t sp0 = pqc_sp();
+  const uintptr_t floor_addr = pqc_slab_floor();
+  const uintptr_t paint_hi = sp0 - PQC_GUARD;
+  for (uintptr_t a = floor_addr; a < paint_hi; a += 4)
     *(volatile uint32_t*)a = PQC_PAINT;
   *sp0_out = sp0;
   return sp0 - floor_addr;
 }
 
-static inline uint32_t pqc_stack_watermark(uint32_t sp0) {
-  const uint32_t floor_addr = pqc_slab_floor();
-  const uint32_t paint_hi = sp0 - PQC_GUARD;
-  for (uint32_t a = floor_addr; a < paint_hi; a += 4)
+static inline uint32_t pqc_stack_watermark(uintptr_t sp0) {
+  const uintptr_t floor_addr = pqc_slab_floor();
+  const uintptr_t paint_hi = sp0 - PQC_GUARD;
+  for (uintptr_t a = floor_addr; a < paint_hi; a += 4)
     if (*(volatile uint32_t*)a != PQC_PAINT)
       return sp0 - a;          // equals the span when the slab filled
   return PQC_GUARD;            // nothing below the guard was touched

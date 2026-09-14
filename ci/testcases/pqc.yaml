@@ -504,10 +504,19 @@ tests:
 - id: mlkem_profile_arith_xrt
   via: blackbox
   drivers: [xrt]
+  xlen: [32, 64]
   app: pqc/mlkem_profile
   configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   flags: --target=xrtsim
+  args: -b 1 -t 32
+- id: mlkem_profile_arith_rv64
+  via: blackbox
+  drivers: [simx]
+  xlen: [64]
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, SERIAL: "1", NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: all, ARITH_MUL: ise}
   args: -b 1 -t 32
 - id: mlkem_profile_arith_sg25_xrt
   via: blackbox

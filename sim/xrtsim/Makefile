@@ -46,7 +46,8 @@ SRCS = $(SW_COMMON_DIR)/util.cpp $(SIM_COMMON_DIR)/mem.cpp $(SW_COMMON_DIR)/soft
 SRCS += $(DPI_DIR)/dpi_util.cpp $(DPI_DIR)/dpi_float.cpp
 SRCS += $(SRC_DIR)/xrt_c.cpp $(SRC_DIR)/xrt_sim.cpp
 
-RTL_PKGS += $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv
+RTL_PKGS += $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv \
+	$(RTL_DIR)/vm/VX_tlb_pkg.sv
 
 FPU_INCLUDE = -I$(RTL_DIR)/fpu
 ifneq (,$(filter -DVX_CFG_FPU_TYPE_FPNEW, $(XCONFIGS)))

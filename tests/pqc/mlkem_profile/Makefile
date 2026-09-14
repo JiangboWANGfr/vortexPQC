@@ -92,9 +92,6 @@ ifneq ($(NTT),)
 ifneq ($(filter coop reg32 smem32,$(NTT)),$(NTT))
 $(error NTT must be coop, reg32, smem32, or unset -- got '$(NTT)')
 endif
-ifneq ($(XLEN),32)
-$(error cooperative NTT currently requires XLEN=32)
-endif
 ifneq ($(ABLATE),)
 $(error cooperative NTT requires ABLATE unset)
 endif

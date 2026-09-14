@@ -43,22 +43,33 @@ extern "C" __attribute__((noinline, used)) void mlk_profile_arith_lanes() {
   __syncthreads();
 }
 
+#if __riscv_xlen == 64
+#define MLK_ARITH_SAVE_RA "sd ra, 8(sp)\n\t"
+#define MLK_ARITH_RESTORE_RA "ld ra, 8(sp)\n\t"
+#else
+#define MLK_ARITH_SAVE_RA "sw ra, 12(sp)\n\t"
+#define MLK_ARITH_RESTORE_RA "lw ra, 12(sp)\n\t"
+#endif
+
 // Workers return to the leader-only continuation with their KMU stacks intact.
 extern "C" __attribute__((naked, noinline)) void mlk_profile_arith_expand() {
   asm volatile (
       "addi sp, sp, -16\n\t"
-      "sw ra, 12(sp)\n\t"
+      MLK_ARITH_SAVE_RA
       "li t0, -1\n\t"
       ".insn r %0, 0, 0, x0, t0, x0\n\t"
       "call mlk_profile_arith_lanes\n\t"
       ".insn r %0, 7, 0, x0, x0, x0\n\t"
       "li t0, 1\n\t"
       ".insn r %0, 0, 0, x0, t0, x0\n\t"
-      "lw ra, 12(sp)\n\t"
+      MLK_ARITH_RESTORE_RA
       "addi sp, sp, 16\n\t"
       "ret"
       :: "i"(RISCV_CUSTOM0));
 }
+
+#undef MLK_ARITH_RESTORE_RA
+#undef MLK_ARITH_SAVE_RA
 
 static inline void mlk_arith_dispatch(unsigned operation, int16_t* output,
                                       const int16_t* a, const int16_t* b,

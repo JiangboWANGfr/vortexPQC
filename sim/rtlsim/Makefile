@@ -34,7 +34,8 @@ override CONFIGS += -DSIMULATION -DSV_DPI
 XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
 
 DBG_FLAGS += -DVX_DBG_DEBUG_LEVEL=$(DEBUG) $(DBG_TRACE_FLAGS)
-RTL_PKGS = $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv
+RTL_PKGS = $(RTL_DIR)/VX_gpu_pkg.sv $(RTL_DIR)/fpu/VX_fpu_pkg.sv \
+	$(RTL_DIR)/vm/VX_tlb_pkg.sv
 
 FPU_INCLUDE = -I$(RTL_DIR)/fpu
 ifneq (,$(filter -DVX_CFG_FPU_TYPE_FPNEW -DVX_CFG_TCU_TYPE_FPNEW, $(XCONFIGS)))

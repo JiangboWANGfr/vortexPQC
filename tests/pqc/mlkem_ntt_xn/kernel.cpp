@@ -55,7 +55,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   auto result = reinterpret_cast<ntt_result_t*>(arg->results_addr) + slot;
   mlk_poly* p = &ntt_work[req];
 
-  uint32_t sp0 = 0;
+  uintptr_t sp0 = 0;
   uint32_t span = 0;
   if (tid == 0) {
     span = pqc_stack_paint(&sp0);

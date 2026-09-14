@@ -89,7 +89,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   const unsigned tid = (unsigned)vx_thread_id();
   const unsigned L   = arg->lanes;
 
-  uint32_t sp0;
+  uintptr_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);
 
   const unsigned wid = (unsigned)vx_warp_id() & (NTT_MAX_WARPS - 1);
