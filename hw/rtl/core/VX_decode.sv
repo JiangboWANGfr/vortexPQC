@@ -778,14 +778,24 @@ module VX_decode import
                 `ifdef VX_CFG_EXT_KSG25_ENABLE
                     7'h06: begin
                         case (funct3)
+                        `ifdef VX_CFG_XLEN_64
+                            3'h0, 3'h2, 3'h4: begin
+                        `else
                             3'h0, 3'h1, 3'h2, 3'h3, 3'h4, 3'h5: begin
+                        `endif
                                 ex_type = EX_ALU;
                                 op_args.alu.xtype = ALU_TYPE_OTHER;
                                 op_args.alu.is_w = 0;
                                 op_type = INST_OP_BITS'(INST_KTHETA_L) + INST_OP_BITS'(funct3);
                                 `USED_IREG (rd);
                                 `USED_IREG (rs1);
+                            `ifdef VX_CFG_XLEN_64
+                                if (funct3 == 3'h4) begin
+                                    `USED_IREG (rs2);
+                                end
+                            `else
                                 `USED_IREG (rs2);
+                            `endif
                             end
                             default:;
                         endcase
@@ -944,7 +954,11 @@ module VX_decode import
             end
         `ifdef VX_CFG_EXT_KROUND25_ENABLE
             INST_EXT3: begin
+            `ifdef VX_CFG_XLEN_64
+                if (funct7 < 24 && funct3 == 0) begin
+            `else
                 if (funct7 < 24 && funct3 < 2) begin
+            `endif
                     ex_type = EX_ALU;
                     op_type = INST_OP_BITS'(INST_KROUND);
                     op_args.alu.xtype = ALU_TYPE_OTHER;
@@ -952,7 +966,9 @@ module VX_decode import
                     op_args.alu.imm20 = {14'b0, funct3[0], funct7[4:0]};
                     `USED_IREG (rd);
                     `USED_IREG (rs1);
+                `ifndef VX_CFG_XLEN_64
                     `USED_IREG (rs2);
+                `endif
                 end
             end
         `endif

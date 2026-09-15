@@ -25,14 +25,14 @@
 using namespace vortex;
 
 #ifdef VX_CFG_EXT_KSG25_ENABLE
-static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_THREADS == 32
+static_assert(VX_CFG_NUM_THREADS == 32
            && VX_CFG_SIMD_WIDTH == 32 && VX_CFG_NUM_ALU_LANES == 32,
-              "KSG25 requires RV32 and 32 threads, SIMD lanes, and ALU lanes");
+              "KSG25 requires 32 threads, SIMD lanes, and ALU lanes");
 #endif
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
-static_assert(VX_CFG_XLEN == 32 && VX_CFG_NUM_THREADS == 32
+static_assert(VX_CFG_NUM_THREADS == 32
            && VX_CFG_SIMD_WIDTH == 32 && VX_CFG_NUM_ALU_LANES == 32,
-              "KROUND25 requires RV32 and 32 threads, SIMD lanes, and ALU lanes");
+              "KROUND25 requires 32 threads, SIMD lanes, and ALU lanes");
 #endif
 #ifdef VX_CFG_EXT_NTT_ENABLE
 namespace {
@@ -213,8 +213,12 @@ void AluUnit::execute(instr_trace_t* trace) {
     std::array<uint64_t, 25> state{}, rhopi{};
     std::array<uint64_t, 5> parity{};
     for (uint32_t t = 0; t < 25; ++t) {
+#if (VX_CFG_XLEN == 64)
+      state[t] = trace->src_data[0][t].u64;
+#else
       state[t] = (uint64_t(trace->src_data[1][t].u32) << 32)
                | trace->src_data[0][t].u32;
+#endif
       parity[t % 5] ^= state[t];
     }
     for (uint32_t t = 0; t < 25; ++t) {
@@ -237,8 +241,12 @@ void AluUnit::execute(instr_trace_t* trace) {
       if (t == 0) {
         value ^= round_constants[round];
       }
+#if (VX_CFG_XLEN == 64)
+      trace->dst_data[t].u64 = value;
+#else
       trace->dst_data[t].u32 = (*type == Kround25Type::ROUND_L)
                             ? uint32_t(value) : uint32_t(value >> 32);
+#endif
     }
     DT(3, this->name() << " execute: op=" << *type << ", " << *trace);
     return;
@@ -252,8 +260,8 @@ void AluUnit::execute(instr_trace_t* trace) {
                 << std::dec << ", mask=" << trace->tmask << std::endl;
       std::abort();
     }
-    const auto& lo = trace->src_data[0];
-    const auto& hi = trace->src_data[1];
+    const auto& state_in = trace->src_data[0];
+    const auto& aux_in = trace->src_data[1];
     if (*type == Ksg25Type::RHOPI_L || *type == Ksg25Type::RHOPI_H) {
       static const uint8_t rho[25] = {
         0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43,
@@ -262,11 +270,19 @@ void AluUnit::execute(instr_trace_t* trace) {
       trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
       for (uint32_t t = 0; t < 25; ++t) {
         uint32_t source = ((t % 5 + 3 * (t / 5)) % 5) + 5 * (t % 5);
-        uint64_t word = (uint64_t(hi[source].u32) << 32) | lo[source].u32;
+#if (VX_CFG_XLEN == 64)
+        uint64_t word = state_in[source].u64;
+#else
+        uint64_t word = (uint64_t(aux_in[source].u32) << 32) | state_in[source].u32;
+#endif
         uint32_t shift = rho[source];
         uint64_t value = (word << shift) | (word >> ((64 - shift) & 63));
+#if (VX_CFG_XLEN == 64)
+        trace->dst_data[t].u64 = value;
+#else
         trace->dst_data[t].u32 = (*type == Ksg25Type::RHOPI_L)
                               ? uint32_t(value) : uint32_t(value >> 32);
+#endif
       }
       return;
     }
@@ -285,9 +301,9 @@ void AluUnit::execute(instr_trace_t* trace) {
         0x8000000080008081ULL, 0x8000000000008080ULL,
         0x0000000080000001ULL, 0x8000000080008008ULL,
       };
-      uint32_t round = hi[0].u32;
+      uint32_t round = aux_in[0].u32;
       for (uint32_t t = 0; t < 32; ++t) {
-        if (round >= 24 || hi[t].u32 != round) {
+        if (round >= 24 || aux_in[t].u32 != round) {
           std::cerr << *type << " requires a uniform round in 0..23" << std::endl;
           std::abort();
         }
@@ -295,25 +311,47 @@ void AluUnit::execute(instr_trace_t* trace) {
       trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
       for (uint32_t t = 0; t < 25; ++t) {
         uint32_t row = 5 * (t / 5), x = t % 5;
-        trace->dst_data[t].u32 = lo[t].u32 ^ (~lo[row + (x+1)%5].u32 & lo[row + (x+2)%5].u32);
+#if (VX_CFG_XLEN == 64)
+        trace->dst_data[t].u64 = state_in[t].u64
+          ^ (~state_in[row + (x+1)%5].u64 & state_in[row + (x+2)%5].u64);
+#else
+        trace->dst_data[t].u32 = state_in[t].u32
+          ^ (~state_in[row + (x+1)%5].u32 & state_in[row + (x+2)%5].u32);
+#endif
       }
+#if (VX_CFG_XLEN == 64)
+      trace->dst_data[0].u64 ^= round_constants[round];
+#else
       trace->dst_data[0].u32 ^= (*type == Ksg25Type::CHII_L)
                             ? uint32_t(round_constants[round]) : uint32_t(round_constants[round] >> 32);
+#endif
       return;
     }
     std::array<uint64_t, 5> parity{};
     for (uint32_t t = 0; t < 25; ++t) {
-      parity[t % 5] ^= (uint64_t(hi[t].u32) << 32) | lo[t].u32;
+#if (VX_CFG_XLEN == 64)
+      parity[t % 5] ^= state_in[t].u64;
+#else
+      parity[t % 5] ^= (uint64_t(aux_in[t].u32) << 32) | state_in[t].u32;
+#endif
     }
     trace->dst_data.assign(VX_CFG_NUM_THREADS, reg_data_t{});
     for (uint32_t t = 0; t < 25; ++t) {
       uint32_t x = t % 5;
       uint64_t next = parity[(x + 1) % 5];
-      uint64_t state = (uint64_t(hi[t].u32) << 32) | lo[t].u32;
+#if (VX_CFG_XLEN == 64)
+      uint64_t state = state_in[t].u64;
+#else
+      uint64_t state = (uint64_t(aux_in[t].u32) << 32) | state_in[t].u32;
+#endif
       uint64_t value = state ^ parity[(x + 4) % 5]
                     ^ ((next << 1) | (next >> 63));
+#if (VX_CFG_XLEN == 64)
+      trace->dst_data[t].u64 = value;
+#else
       trace->dst_data[t].u32 = (*type == Ksg25Type::THETA_L)
                             ? uint32_t(value) : uint32_t(value >> 32);
+#endif
     }
     DT(3, this->name() << " execute: op=" << *type << ", " << *trace);
     return;

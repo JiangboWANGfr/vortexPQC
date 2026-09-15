@@ -338,6 +338,15 @@ enum class Ksg25Type {
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Ksg25Type& type) {
+#if (VX_CFG_XLEN == 64)
+  switch (type) {
+  case Ksg25Type::THETA_L: os << "KTHETA.SG25"; break;
+  case Ksg25Type::RHOPI_L: os << "KRHOPI.SG25"; break;
+  case Ksg25Type::CHII_L: os << "KCHII.SG25"; break;
+  default:
+    std::abort();
+  }
+#else
   switch (type) {
   case Ksg25Type::THETA_L: os << "KTHETA.L.SG25"; break;
   case Ksg25Type::THETA_H: os << "KTHETA.H.SG25"; break;
@@ -348,6 +357,7 @@ inline std::ostream &operator<<(std::ostream &os, const Ksg25Type& type) {
   default:
     std::abort();
   }
+#endif
   return os;
 }
 #endif
@@ -361,7 +371,13 @@ enum class Kround25Type {
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Kround25Type& type) {
+#if (VX_CFG_XLEN == 64)
+  if (type != Kround25Type::ROUND_L)
+    std::abort();
+  os << "KROUND.SG25";
+#else
   os << (type == Kround25Type::ROUND_L ? "KROUND.L.SG25" : "KROUND.H.SG25");
+#endif
   return os;
 }
 #endif

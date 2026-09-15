@@ -1,10 +1,24 @@
 ROOT_DIR := $(realpath ../..)
 include $(ROOT_DIR)/config.mk
 
+XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
+
 ifeq ($(XLEN),64)
-CFLAGS += -march=rv64imafd -mabi=lp64d
+	ifneq (,$(filter -DVX_CFG_EXT_D_ENABLED=1,$(XCONFIGS)))
+		CFLAGS += -march=rv64imafd_zicsr -mabi=lp64d
+	else ifneq (,$(filter -DVX_CFG_EXT_F_ENABLED=1,$(XCONFIGS)))
+		CFLAGS += -march=rv64imaf_zicsr -mabi=lp64f
+	else
+		CFLAGS += -march=rv64im_zicsr -mabi=lp64
+	endif
 else
-CFLAGS += -march=rv32imaf -mabi=ilp32f
+	ifneq (,$(filter -DVX_CFG_EXT_D_ENABLED=1,$(XCONFIGS)))
+		CFLAGS += -march=rv32imafd_zicsr -mabi=ilp32d
+	else ifneq (,$(filter -DVX_CFG_EXT_F_ENABLED=1,$(XCONFIGS)))
+		CFLAGS += -march=rv32imaf_zicsr -mabi=ilp32f
+	else
+		CFLAGS += -march=rv32im_zicsr -mabi=ilp32
+	endif
 endif
 
 INC_DIR := $(VORTEX_HOME)/sw/kernel/include
@@ -30,7 +44,6 @@ CP  = $(RISCV_TOOLCHAIN_PATH)/bin/$(RISCV_PREFIX)-objcopy
 
 CFLAGS += -O3 -mcmodel=medany -fno-exceptions -fdata-sections -ffunction-sections -D__VORTEX__
 CFLAGS += -I$(INC_DIR) -I$(ROOT_DIR)/sw -I$(ROOT_DIR)/hw
-XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
 CFLAGS += $(XCONFIGS)
 
 PROJECT := libvortex

@@ -7,7 +7,6 @@
 #include <vx_intrinsics.h>
 
 #if defined(PQC_KECCAK_SG25)
-static_assert(VX_CFG_XLEN == 32, "SG25 requires RV32");
 static_assert(VX_CFG_NUM_THREADS == 32 && VX_CFG_SIMD_WIDTH == 32 &&
               VX_CFG_NUM_ALU_LANES == 32,
               "SG25 requires a complete 32-lane ALU vector");
@@ -33,8 +32,8 @@ extern "C" {
 
 #include "common.h"
 
-static inline uint32_t read_sp() {
-  uint32_t v;
+static inline uintptr_t read_sp() {
+  uintptr_t v;
   asm volatile("mv %0, sp" : "=r"(v));
   return v;
 }
@@ -65,13 +64,14 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   // masking the live sp finds its floor. Painting is what turns a silent
   // overflow into a measured number -- at one lane there is no neighbour to
   // corrupt, so nothing ever reports it.
-  const uint32_t sp0 = read_sp();
+  const uintptr_t sp0 = read_sp();
 #ifndef PQC_PAINT_SLABS
 #define PQC_PAINT_SLABS 1
 #endif
-  const uint32_t floor_addr = (sp0 & ~8191u) - (PQC_PAINT_SLABS - 1) * 8192u;
-  const uint32_t paint_hi = sp0 - 128;
-  for (uint32_t a = floor_addr; a < paint_hi; a += 4)
+  const uintptr_t floor_addr = (sp0 & ~uintptr_t(8191))
+                             - (PQC_PAINT_SLABS - 1) * uintptr_t(8192);
+  const uintptr_t paint_hi = sp0 - 128;
+  for (uintptr_t a = floor_addr; a < paint_hi; a += 4)
     *reinterpret_cast<volatile uint32_t*>(a) = MLKW_PAINT;
 
   vx_fence();
@@ -99,13 +99,13 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[2] = t3 - t2;
 
   // Low-water mark: the first still-painted word walking up from the floor.
-  uint32_t low = paint_hi;
-  for (uint32_t a = floor_addr; a < paint_hi; a += 4) {
+  uintptr_t low = paint_hi;
+  for (uintptr_t a = floor_addr; a < paint_hi; a += 4) {
     if (*reinterpret_cast<volatile uint32_t*>(a) != MLKW_PAINT) { low = a; break; }
   }
   if (threadIdx.x == 0) {
-    stack[0] = sp0 - low;              // peak depth below entry sp
-    stack[1] = sp0 - floor_addr;       // paintable span; equality means the
+    stack[0] = uint32_t(sp0 - low);              // peak depth below entry sp
+    stack[1] = uint32_t(sp0 - floor_addr);       // paintable span; equality means the
                                        // slab is full and the number is a floor
     const uint32_t h = mlk_arena_index();
     stack[2] = mlk_arena_peak[h];   // arena index comes from

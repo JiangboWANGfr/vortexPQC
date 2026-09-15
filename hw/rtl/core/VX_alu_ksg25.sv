@@ -25,7 +25,6 @@ module VX_alu_ksg25 import VX_gpu_pkg::*; #(
     `UNUSED_VAR ({execute_if.data.op_args, execute_if.data.rs3_data})
     `UNUSED_VAR (execute_if.data.rs1_data[31:25])
 
-    `STATIC_ASSERT(`VX_CFG_XLEN == 32, ("KSG25 requires RV32"))
     `STATIC_ASSERT(`VX_CFG_NUM_THREADS == 32, ("KSG25 requires 32 threads"))
     `STATIC_ASSERT(`VX_CFG_SIMD_WIDTH == 32, ("KSG25 requires SIMD width 32"))
     `STATIC_ASSERT(`VX_CFG_NUM_ALU_LANES == 32, ("KSG25 requires 32 ALU lanes"))
@@ -34,11 +33,13 @@ module VX_alu_ksg25 import VX_gpu_pkg::*; #(
 
     typedef struct packed {
         alu_header_t        header;
+    `ifndef VX_CFG_XLEN_64
         logic               high_half;
+    `endif
         logic               is_theta;
         logic               is_chii;
-        logic [31:0]        round_constant;
-        logic [24:0][31:0]  state_half;
+        logic [`VX_CFG_XLEN-1:0] round_constant;
+        logic [24:0][`VX_CFG_XLEN-1:0] state_value;
         logic [4:0][63:0]   parity;
     } stage_t;
 
@@ -51,7 +52,9 @@ module VX_alu_ksg25 import VX_gpu_pkg::*; #(
     wire is_chii = execute_if.data.op_type >= INST_OP_BITS'(INST_KCHII_L);
     assign stage_in.is_theta = is_theta;
     assign stage_in.is_chii = is_chii;
+`ifndef VX_CFG_XLEN_64
     assign stage_in.high_half = ~execute_if.data.op_type[0];
+`endif
     localparam logic [63:0] RC [24] = '{
         64'h0000000000000001,
         64'h0000000000008082,
@@ -79,7 +82,11 @@ module VX_alu_ksg25 import VX_gpu_pkg::*; #(
         64'h8000000080008008
     };
     wire [63:0] rc = RC[execute_if.data.rs2_data[0][4:0]];
+`ifdef VX_CFG_XLEN_64
+    assign stage_in.round_constant = rc;
+`else
     assign stage_in.round_constant = stage_in.high_half ? rc[63:32] : rc[31:0];
+`endif
     for (genvar t = 0; t < 32; ++t) begin : g_round_contract
         `RUNTIME_ASSERT(!execute_if.valid || !is_chii
                      || (execute_if.data.rs2_data[t] == execute_if.data.rs2_data[0]
@@ -95,22 +102,42 @@ module VX_alu_ksg25 import VX_gpu_pkg::*; #(
         localparam X = t % 5;
         localparam ROW = (t / 5) * 5;
         localparam SRC = ((X + 3 * (t / 5)) % 5) + 5 * X;
+`ifdef VX_CFG_XLEN_64
+        wire [63:0] word_in = execute_if.data.rs1_data[SRC];
+`else
         wire [63:0] word_in = {execute_if.data.rs2_data[SRC], execute_if.data.rs1_data[SRC]};
+`endif
         wire [63:0] rotated = (word_in << RHO[SRC]) | (word_in >> ((64 - RHO[SRC]) % 64));
-        assign stage_in.state_half[t] = is_theta
+        assign stage_in.state_value[t] = is_theta
+`ifdef VX_CFG_XLEN_64
+            ? execute_if.data.rs1_data[t]
+`else
             ? (stage_in.high_half ? execute_if.data.rs2_data[t] : execute_if.data.rs1_data[t])
+`endif
             : is_chii
             ? (execute_if.data.rs1_data[t] ^ (~execute_if.data.rs1_data[ROW + (X+1)%5]
                                           & execute_if.data.rs1_data[ROW + (X+2)%5]))
+`ifdef VX_CFG_XLEN_64
+            : rotated;
+`else
             : (stage_in.high_half ? rotated[63:32] : rotated[31:0]);
+`endif
     end
 
     for (genvar x = 0; x < 5; ++x) begin : g_parity
+`ifdef VX_CFG_XLEN_64
+        assign stage_in.parity[x] = execute_if.data.rs1_data[x]
+                                  ^ execute_if.data.rs1_data[x+5]
+                                  ^ execute_if.data.rs1_data[x+10]
+                                  ^ execute_if.data.rs1_data[x+15]
+                                  ^ execute_if.data.rs1_data[x+20];
+`else
         assign stage_in.parity[x] = {execute_if.data.rs2_data[x], execute_if.data.rs1_data[x]}
                                  ^ {execute_if.data.rs2_data[x+5], execute_if.data.rs1_data[x+5]}
                                  ^ {execute_if.data.rs2_data[x+10], execute_if.data.rs1_data[x+10]}
                                  ^ {execute_if.data.rs2_data[x+15], execute_if.data.rs1_data[x+15]}
                                  ^ {execute_if.data.rs2_data[x+20], execute_if.data.rs1_data[x+20]};
+`endif
     end
 
     VX_pipe_buffer #(
@@ -126,23 +153,28 @@ module VX_alu_ksg25 import VX_gpu_pkg::*; #(
         .valid_out (stage_valid)
     );
 
-    wire [4:0][31:0] correction;
+    wire [4:0][`VX_CFG_XLEN-1:0] correction;
     for (genvar x = 0; x < 5; ++x) begin : g_correction
         localparam PREV = (x + 4) % 5;
         localparam NEXT = (x + 1) % 5;
+`ifdef VX_CFG_XLEN_64
+        assign correction[x] = stage_out.parity[PREV]
+                             ^ {stage_out.parity[NEXT][62:0], stage_out.parity[NEXT][63]};
+`else
         assign correction[x] = stage_out.high_half
                              ? stage_out.parity[PREV][63:32]
                                ^ {stage_out.parity[NEXT][62:32], stage_out.parity[NEXT][31]}
                              : stage_out.parity[PREV][31:0]
                                ^ {stage_out.parity[NEXT][30:0], stage_out.parity[NEXT][63]};
+`endif
     end
 
     assign result.header = stage_out.header;
     for (genvar t = 0; t < `VX_CFG_NUM_ALU_LANES; ++t) begin : g_result
         if (t < 25) begin : g_state
-            assign result.data[t] = stage_out.state_half[t]
-                                 ^ (stage_out.is_theta ? correction[t % 5] : 32'b0)
-                                 ^ ((stage_out.is_chii && t == 0) ? stage_out.round_constant : 32'b0);
+            assign result.data[t] = stage_out.state_value[t]
+                                 ^ (stage_out.is_theta ? correction[t % 5] : `VX_CFG_XLEN'b0)
+                                 ^ ((stage_out.is_chii && t == 0) ? stage_out.round_constant : `VX_CFG_XLEN'b0);
         end else begin : g_padding
             assign result.data[t] = '0;
         end

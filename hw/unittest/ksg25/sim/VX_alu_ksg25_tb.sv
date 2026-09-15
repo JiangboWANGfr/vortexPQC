@@ -1,12 +1,17 @@
 `include "VX_define.vh"
 
 module VX_alu_ksg25_tb import VX_gpu_pkg::*; ();
-    localparam COUNT = 288;
+`ifdef VX_CFG_XLEN_64
+    localparam OPS = 3;
+`else
+    localparam OPS = 6;
+`endif
+    localparam COUNT = 48 * OPS;
     localparam integer RHO [25] = '{0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14};
 
     logic clk;
     logic reset;
-    always #5 clk = ~clk;
+    always #5 clk <= ~clk;
 
     VX_execute_if #(
         .data_t (alu_execute_t)
@@ -53,6 +58,8 @@ module VX_alu_ksg25_tb import VX_gpu_pkg::*; ();
         logic [24:0][63:0] state_words;
         logic [4:0][63:0] columns;
         logic [63:0] word_out, next_column;
+        int op_index;
+        int round_index;
         alu_execute_t request;
         request = '0;
         request.header.uuid = UUID_WIDTH'(index);
@@ -65,17 +72,34 @@ module VX_alu_ksg25_tb import VX_gpu_pkg::*; ();
         request.header.wb = 1;
         request.header.rd = NUM_REGS_BITS'(index % 31 + 1);
         request.header.bytesel = BYTESEL_BITS'(index);
-        request.op_type = INST_OP_BITS'(INST_KTHETA_L + index % 6);
+        op_index = index % OPS;
+        round_index = index / OPS % 24;
+`ifdef VX_CFG_XLEN_64
+        request.op_type = INST_OP_BITS'(INST_KTHETA_L) + INST_OP_BITS'(2 * op_index);
+`else
+        request.op_type = INST_OP_BITS'(INST_KTHETA_L) + INST_OP_BITS'(op_index);
+`endif
         request.op_args.alu.xtype = ALU_TYPE_OTHER;
         for (int t = 0; t < 32; ++t) begin
+`ifdef VX_CFG_XLEN_64
+            request.rs1_data[t] = {random_word(), random_word()};
+            request.rs2_data[t] = (op_index == 2) ? `VX_CFG_XLEN'(round_index) : '0;
+`else
             request.rs1_data[t] = random_word();
-            request.rs2_data[t] = (index % 6 >= 4) ? 32'(index / 6 % 24) : random_word();
-            if (index == 4 && $test$plusargs("bad_round")) request.rs2_data[t] = 24;
+            request.rs2_data[t] = (op_index >= 4) ? `VX_CFG_XLEN'(round_index) : random_word();
+`endif
+            if (op_index == OPS - 1
+             && $test$plusargs("bad_round")) request.rs2_data[t] = 24;
         end
         if (index == 0 && $test$plusargs("bad_mask")) request.header.tmask[31] = 0;
-        if (index == 4 && $test$plusargs("nonuniform_round")) request.rs2_data[31] = 1;
+        if (op_index == OPS - 1
+         && round_index == 0 && $test$plusargs("nonuniform_round")) request.rs2_data[31] = 1;
         for (int t = 0; t < 25; ++t) begin
+`ifdef VX_CFG_XLEN_64
+            state_words[t] = request.rs1_data[t];
+`else
             state_words[t] = {request.rs2_data[t], request.rs1_data[t]};
+`endif
         end
         columns = '0;
         for (int y = 0; y < 5; ++y) begin
@@ -87,21 +111,33 @@ module VX_alu_ksg25_tb import VX_gpu_pkg::*; ();
         expected[index].header = request.header;
         for (int y = 0; y < 5; ++y) begin
             for (int x = 0; x < 5; ++x) begin
-                if (index % 6 < 2) begin
+                if (op_index < (OPS / 3)) begin
                     next_column = columns[(x+1) % 5];
                     word_out = state_words[x + 5*y] ^ columns[(x+4) % 5]
                              ^ ((next_column << 1) | (next_column >> 63));
+`ifdef VX_CFG_XLEN_64
+                    expected[index].data[x + 5*y] = word_out;
+`else
                     expected[index].data[x + 5*y] = index[0] ? word_out[63:32] : word_out[31:0];
-                end else if (index % 6 < 4) begin
+`endif
+                end else if (op_index < (2 * OPS / 3)) begin
                     word_out = state_words[x + 5*y];
                     word_out = (word_out << RHO[x + 5*y]) | (word_out >> ((64 - RHO[x + 5*y]) % 64));
+`ifdef VX_CFG_XLEN_64
+                    expected[index].data[y + 5*((2*x + 3*y)%5)] = word_out;
+`else
                     expected[index].data[y + 5*((2*x + 3*y)%5)] = index[0] ? word_out[63:32] : word_out[31:0];
+`endif
                 end else begin
                     expected[index].data[x + 5*y] = request.rs1_data[x + 5*y]
                         ^ (~request.rs1_data[(x+1)%5 + 5*y] & request.rs1_data[(x+2)%5 + 5*y]);
                     if (x == 0 && y == 0) begin
-                        word_out = round_constant(index / 6 % 24);
+                        word_out = round_constant(round_index);
+`ifdef VX_CFG_XLEN_64
+                        expected[index].data[0] ^= word_out;
+`else
                         expected[index].data[0] ^= index[0] ? word_out[63:32] : word_out[31:0];
+`endif
                     end
                 end
             end

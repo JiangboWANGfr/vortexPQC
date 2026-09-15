@@ -42,6 +42,7 @@ tests:
   env: {THETA: "0", RHOPI: "0", CHII: "0"}
 - id: ksg25-unit
   via: script
+  xlen: [32, 64]
   run: "make -C hw/unittest/ksg25 run"
   touches: [hw/rtl/core/VX_alu_ksg25.sv, hw/unittest/ksg25]
 - id: ksg25-watchdog
@@ -50,6 +51,7 @@ tests:
   touches: [VX_config.toml, hw/rtl/core/VX_scoreboard.sv, hw/unittest/issue]
 - id: kround25-unit
   via: script
+  xlen: [32, 64]
   run: "make -C hw/unittest/kround25 run"
   touches: [hw/rtl/core/VX_alu_kround25.sv, hw/unittest/kround25]
 - id: kround25-watchdog
@@ -143,6 +145,7 @@ tests:
   touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/mlkem, tests/pqc/mlkem_width, sw/kernel/include/pqc/vx_kround25.h]
 - id: model_parity-kround25-1warp
   check: model_parity
+  xlen: [32, 64]
   app: pqc/keccak_sg25
   configs: -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -p 4 -b 1
@@ -157,6 +160,7 @@ tests:
   touches: [hw/rtl/core, hw/rtl/VX_gpu_pkg.sv, sim/simx, tests/pqc/keccak_sg25]
 - id: model_parity-ksg25-1warp
   check: model_parity
+  xlen: [32, 64]
   app: pqc/keccak_sg25
   configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -p 4 -b 1

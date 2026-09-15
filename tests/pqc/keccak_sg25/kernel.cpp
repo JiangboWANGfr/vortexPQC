@@ -14,7 +14,6 @@
 #endif
 #endif
 
-static_assert(VX_CFG_XLEN == 32, "SG25 software baseline requires RV32");
 static_assert(VX_CFG_NUM_THREADS == 32 && VX_CFG_NUM_ALU_LANES == 32,
               "SG25 requires a complete 32-lane ALU vector");
 
@@ -47,9 +46,13 @@ static const uint8_t rho[SG25_WORDS] = {
 
 #if !defined(SG25_THETA_ISA) || !defined(SG25_RHOPI_ISA) || !defined(SG25_CHII_ISA)
 static inline uint64_t shuffle(uint64_t value, unsigned source) {
+#if __riscv_xlen == 64
+  return vx_shfl_idx(value, source, 31, 0);
+#else
   const uint32_t lo = vx_shfl_idx(static_cast<uint32_t>(value), source, 31, 0);
   const uint32_t hi = vx_shfl_idx(static_cast<uint32_t>(value >> 32), source, 31, 0);
   return (static_cast<uint64_t>(hi) << 32) | lo;
+#endif
 }
 
 #endif
@@ -72,11 +75,15 @@ static inline __attribute__((always_inline)) uint64_t keccak_round(
   (void)lane;
 #endif
 #ifdef SG25_THETA_ISA
+#if __riscv_xlen == 64
+  a = vx_ktheta_sg25(a);
+#else
   const uint32_t lo = static_cast<uint32_t>(a);
   const uint32_t hi = static_cast<uint32_t>(a >> 32);
   const uint32_t theta_lo = vx_ktheta_l_sg25(lo, hi);
   const uint32_t theta_hi = vx_ktheta_h_sg25(lo, hi);
   a = (static_cast<uint64_t>(theta_hi) << 32) | theta_lo;
+#endif
 #else
   const uint64_t pair = a ^ shuffle(a, x + 5 * ((y + 1) % 5));
   const uint64_t four = pair ^ shuffle(pair, x + 5 * ((y + 2) % 5));
@@ -86,17 +93,25 @@ static inline __attribute__((always_inline)) uint64_t keccak_round(
 #endif
 
 #ifdef SG25_RHOPI_ISA
+#if __riscv_xlen == 64
+  const uint64_t b = vx_krhopi_sg25(a);
+#else
   const uint32_t rho_lo = vx_krhopi_l_sg25(uint32_t(a), uint32_t(a >> 32));
   const uint32_t rho_hi = vx_krhopi_h_sg25(uint32_t(a), uint32_t(a >> 32));
   const uint64_t b = (uint64_t(rho_hi) << 32) | rho_lo;
+#endif
 #else
   const uint64_t rotated = rotate(a, rho[t]);
   const uint64_t b = shuffle(rotated, (x + 3 * y) % 5 + 5 * x);
 #endif
 #ifdef SG25_CHII_ISA
+#if __riscv_xlen == 64
+  return vx_kchii_sg25(b, round);
+#else
   const uint32_t chi_lo = vx_kchii_l_sg25(uint32_t(b), round);
   const uint32_t chi_hi = vx_kchii_h_sg25(uint32_t(b >> 32), round);
   return (uint64_t(chi_hi) << 32) | chi_lo;
+#endif
 #else
   a = b ^ (~shuffle(b, (x + 1) % 5 + 5 * y)
          & shuffle(b, (x + 2) % 5 + 5 * y));
@@ -107,6 +122,11 @@ static inline __attribute__((always_inline)) uint64_t keccak_round(
 #endif
 
 #ifdef SG25_KROUND_ISA
+#if __riscv_xlen == 64
+#define SG25_KROUND_STEP(round) do {                                      \
+  a = vx_kround_sg25(a, round);                                          \
+} while (0)
+#else
 #define SG25_KROUND_STEP(round) do {                                      \
   const uint32_t lo = static_cast<uint32_t>(a);                           \
   const uint32_t hi = static_cast<uint32_t>(a >> 32);                     \
@@ -114,6 +134,7 @@ static inline __attribute__((always_inline)) uint64_t keccak_round(
   const uint32_t out_hi = vx_kround_h_sg25(lo, hi, round);                \
   a = (static_cast<uint64_t>(out_hi) << 32) | out_lo;                     \
 } while (0)
+#endif
 
 static __attribute__((noinline)) uint64_t kround_dispatch(
     uint64_t a, unsigned round) {
@@ -234,6 +255,21 @@ static __attribute__((noinline)) void benchmark(kernel_arg_t* arg, unsigned lane
 }
 
 #ifdef SG25_ISE
+#if __riscv_xlen == 64
+template <unsigned Op>
+static __attribute__((noinline)) uint64_t stage_instruction(
+    uint64_t state, uint64_t second, unsigned) {
+  uint64_t result;
+  if constexpr (Op == 4) {
+    __asm__ volatile (".insn r 0x0b, 4, 6, %0, %1, %2"
+        : "=r"(result) : "r"(state), "r"(second));
+  } else {
+    __asm__ volatile (".insn r 0x0b, %2, 6, %0, %1, x0"
+        : "=r"(result) : "r"(state), "i"(Op));
+  }
+  return result;
+}
+#else
 template <unsigned Op>
 static __attribute__((noinline)) uint32_t stage_instruction(
     uint32_t first, uint32_t second, unsigned variant) {
@@ -265,12 +301,24 @@ static __attribute__((noinline)) uint32_t stage_instruction(
   }
   return result;
 }
+#endif
 
 static __attribute__((noinline)) void test_stage(kernel_arg_t* arg, unsigned lane,
                                                unsigned state) {
   auto input = reinterpret_cast<const uint64_t*>(arg->input_addr);
   auto output = reinterpret_cast<uint64_t*>(arg->output_addr);
   const uint64_t a = input[state * 32 + lane];
+#if __riscv_xlen == 64
+  uint64_t result;
+  if (arg->mode == SG25_MODE_THETA) {
+    result = stage_instruction<0>(a, 0, arg->stage_variant);
+  } else if (arg->mode == SG25_MODE_RHOPI) {
+    result = stage_instruction<2>(a, 0, arg->stage_variant);
+  } else {
+    result = stage_instruction<4>(a, arg->round, arg->stage_variant);
+  }
+  output[state * 32 + lane] = result;
+#else
   uint32_t lo = uint32_t(a), hi = uint32_t(a >> 32);
   uint32_t result_lo, result_hi;
   const unsigned variant = arg->stage_variant;
@@ -288,6 +336,7 @@ static __attribute__((noinline)) void test_stage(kernel_arg_t* arg, unsigned lan
     result_hi = stage_instruction<5>(hi, round, variant);
   }
   output[state * 32 + lane] = (uint64_t(result_hi) << 32) | result_lo;
+#endif
 }
 #endif
 

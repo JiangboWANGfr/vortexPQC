@@ -11,7 +11,11 @@
 #define SG25_MODE_THETA 3
 #define SG25_MODE_RHOPI 4
 #define SG25_MODE_CHII 5
+#if VX_CFG_XLEN == 64
+#define SG25_STAGE_VARIANTS 1
+#else
 #define SG25_STAGE_VARIANTS 7
+#endif
 
 struct sg25_timing_t {
   uint64_t start;

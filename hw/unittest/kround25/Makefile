@@ -9,6 +9,7 @@ THREADS ?= 1
 
 override CONFIGS += -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 \
     -DVX_CFG_NUM_THREADS=32 -DVX_CFG_SIMD_WIDTH=32 -DVX_CFG_NUM_ALU_LANES=32
+XCONFIGS := $(shell python3 $(ROOT_DIR)/ci/gen_config.py --config=$(VORTEX_HOME)/VX_config.toml --cflags='$(CONFIGS) -DVX_CFG_XLEN=$(XLEN)')
 
 RTL_INCLUDE := -I$(ROOT_DIR)/hw -I$(ROOT_DIR)/sw -I$(RTL_DIR) \
     -I$(RTL_DIR)/libs -I$(RTL_DIR)/interfaces -I$(RTL_DIR)/core
@@ -21,9 +22,9 @@ all: $(OBJ_DIR)/V$(TOP)
 
 $(OBJ_DIR)/V$(TOP): $(RTL_SOURCES) $(RTL_DEPS) $(ROOT_DIR)/hw/VX_config.vh Makefile
 	$(VERILATOR_PATH)/bin/verilator --binary --timing --assert -Wall \
-	    -Wno-DECLFILENAME -Wno-REDEFMACRO -Wno-GENUNNAMED \
-	    ../verilator.vlt -j $(THREADS) -DSIMULATION -DVX_CFG_XLEN=$(XLEN) \
-	    $(CONFIGS) $(RTL_INCLUDE) $(RTL_SOURCES) \
+	    -Wno-DECLFILENAME -Wno-REDEFMACRO -Wno-GENUNNAMED -Wno-UNOPTFLAT \
+	    ../verilator.vlt -j $(THREADS) -DSIMULATION $(XCONFIGS) \
+	    $(RTL_INCLUDE) $(RTL_SOURCES) \
 	    --top-module $(TOP) --Mdir $(OBJ_DIR)
 
 run: all

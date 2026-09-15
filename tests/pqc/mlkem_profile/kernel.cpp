@@ -30,7 +30,6 @@ extern "C" {
 #include "common.h"
 
 #if defined(PQC_KECCAK_SG25)
-static_assert(VX_CFG_XLEN == 32, "SG25 requires RV32");
 static_assert(VX_CFG_NUM_THREADS == 32 && VX_CFG_SIMD_WIDTH == 32 &&
               VX_CFG_NUM_ALU_LANES == 32,
               "SG25 requires a complete 32-lane ALU vector");

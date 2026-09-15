@@ -36,10 +36,22 @@ else
 endif
 
 ifeq ($(XLEN),64)
-	VX_CFLAGS += -march=rv64imafd$(C_EXT)$(ZACAS_EXT) -mabi=lp64d
+	ifneq (,$(filter -DVX_CFG_EXT_D_ENABLED=1,$(XCONFIGS)))
+		VX_CFLAGS += -march=rv64imafd$(C_EXT)_zicsr$(ZACAS_EXT) -mabi=lp64d
+	else ifneq (,$(filter -DVX_CFG_EXT_F_ENABLED=1,$(XCONFIGS)))
+		VX_CFLAGS += -march=rv64imaf$(C_EXT)_zicsr$(ZACAS_EXT) -mabi=lp64f
+	else
+		VX_CFLAGS += -march=rv64im$(C_EXT)_zicsr$(ZACAS_EXT) -mabi=lp64
+	endif
 	STARTUP_ADDR ?= 0x180000000
 else
-	VX_CFLAGS += -march=rv32imaf$(C_EXT)$(ZACAS_EXT) -mabi=ilp32f
+	ifneq (,$(filter -DVX_CFG_EXT_D_ENABLED=1,$(XCONFIGS)))
+		VX_CFLAGS += -march=rv32imafd$(C_EXT)_zicsr$(ZACAS_EXT) -mabi=ilp32d
+	else ifneq (,$(filter -DVX_CFG_EXT_F_ENABLED=1,$(XCONFIGS)))
+		VX_CFLAGS += -march=rv32imaf$(C_EXT)_zicsr$(ZACAS_EXT) -mabi=ilp32f
+	else
+		VX_CFLAGS += -march=rv32im$(C_EXT)_zicsr$(ZACAS_EXT) -mabi=ilp32
+	endif
 	STARTUP_ADDR ?= 0x80000000
 endif
 

@@ -1,7 +1,11 @@
 `include "VX_define.vh"
 
 module VX_alu_kround25_tb import VX_gpu_pkg::*; ();
+`ifdef VX_CFG_XLEN_64
+    localparam COUNT = 96;
+`else
     localparam COUNT = 192;
+`endif
     localparam integer RHO [25] = '{
         0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3,
         10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14
@@ -9,7 +13,7 @@ module VX_alu_kround25_tb import VX_gpu_pkg::*; ();
 
     logic clk;
     logic reset;
-    always #5 clk = ~clk;
+    always #5 clk <= ~clk;
 
     VX_execute_if #(
         .data_t (alu_execute_t)
@@ -72,8 +76,13 @@ module VX_alu_kround25_tb import VX_gpu_pkg::*; ();
         request.header.bytesel = BYTESEL_BITS'(index);
         request.op_type = INST_OP_BITS'(INST_KROUND);
         request.op_args.alu.xtype = ALU_TYPE_OTHER;
+`ifdef VX_CFG_XLEN_64
+        round_index = index % 24;
+        request.op_args.alu.imm20 = {14'b0, 1'b0, round_index[4:0]};
+`else
         round_index = index / 2 % 24;
         request.op_args.alu.imm20 = {14'b0, index[0], round_index[4:0]};
+`endif
         if (index == 0 && $test$plusargs("bad_round")) begin
             request.op_args.alu.imm20[4:0] = 24;
         end
@@ -84,11 +93,20 @@ module VX_alu_kround25_tb import VX_gpu_pkg::*; ();
         rhopi_words = '0;
         columns = '0;
         for (int t = 0; t < 32; ++t) begin
+`ifdef VX_CFG_XLEN_64
+            request.rs1_data[t] = {random_word(), random_word()};
+            request.rs2_data[t] = '0;
+`else
             request.rs1_data[t] = random_word();
             request.rs2_data[t] = random_word();
+`endif
         end
         for (int t = 0; t < 25; ++t) begin
+`ifdef VX_CFG_XLEN_64
+            state_words[t] = request.rs1_data[t];
+`else
             state_words[t] = {request.rs2_data[t], request.rs1_data[t]};
+`endif
             columns[t % 5] ^= state_words[t];
         end
         for (int t = 0; t < 25; ++t) begin
@@ -108,7 +126,11 @@ module VX_alu_kround25_tb import VX_gpu_pkg::*; ();
                   ^ (~rhopi_words[(t % 5 + 1) % 5 + 5 * (t / 5)]
                    & rhopi_words[(t % 5 + 2) % 5 + 5 * (t / 5)]);
             if (t == 0) value ^= round_constant(round_index);
+`ifdef VX_CFG_XLEN_64
+            expected[index].data[t] = value;
+`else
             expected[index].data[t] = index[0] ? value[63:32] : value[31:0];
+`endif
         end
         execute_if.data = request;
     endtask

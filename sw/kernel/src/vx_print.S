@@ -65,12 +65,17 @@ vx_putchar:                                     // a0 = character
     sw    t5, 0(t3)                             // publish wr+1
     ret
 .Lvx_putchar_drop:
-    // Ring full: drop the byte, atomically bump lost[slot] so the host
-    // can surface "[#N: lost K bytes]" on the next drain. Atomic because
-    // multiple harts can share a slot when total_harts > SLOTS.
+    // Multiple harts can share a slot when total_harts > SLOTS.
     li    a1, (VX_MEM_IO_COUT_SLOTS*8 + VX_MEM_IO_COUT_SLOTS*VX_MEM_IO_COUT_RING)
     add   a1, a1, t1                            // a1 = &lost[0]
     add   a1, a1, t2                            // + slot*4 = &lost[slot]
+  #ifdef VX_CFG_EXT_A_ENABLE
     li    a2, 1
     amoadd.w zero, a2, (a1)                     // lost[slot] += 1
+  #else
+    // The diagnostic count may under-report if writers race without A.
+    lw    a2, 0(a1)
+    addi  a2, a2, 1
+    sw    a2, 0(a1)
+  #endif
     ret

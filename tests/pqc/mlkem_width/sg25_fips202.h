@@ -59,9 +59,13 @@ static const uint64_t mlksg_round_constants[24] = {
 };
 
 static MLK_INLINE uint64_t mlksg_shuffle(uint64_t value, unsigned source) {
+#if __riscv_xlen == 64
+  return vx_shfl_idx(value, source, 31, 0);
+#else
   uint32_t lo = vx_shfl_idx((uint32_t)value, source, 31, 0);
   uint32_t hi = vx_shfl_idx((uint32_t)(value >> 32), source, 31, 0);
   return ((uint64_t)hi << 32) | lo;
+#endif
 }
 
 static MLK_INLINE uint64_t mlksg_rotate(uint64_t value, unsigned shift) {
@@ -69,28 +73,33 @@ static MLK_INLINE uint64_t mlksg_rotate(uint64_t value, unsigned shift) {
 }
 #endif
 
-static MLK_INLINE uint32_t mlksg_broadcast_lane0(uint32_t value) {
+static MLK_INLINE size_t mlksg_broadcast_lane0(size_t value) {
   return vx_shfl_idx(value, 0, 31, 0);
 }
 
 static MLK_INLINE uint8_t *mlksg_broadcast_output(uint8_t *output) {
   return (uint8_t *)(uintptr_t)mlksg_broadcast_lane0(
-      (uint32_t)(uintptr_t)output);
+      (uintptr_t)output);
 }
 
 static MLK_INLINE const uint8_t *mlksg_broadcast_input(
     const uint8_t *input) {
   return (const uint8_t *)(uintptr_t)mlksg_broadcast_lane0(
-      (uint32_t)(uintptr_t)input);
+      (uintptr_t)input);
 }
 
 static MLK_INLINE mlk_shake128ctx *mlksg_broadcast_state(
     mlk_shake128ctx *state) {
   return (mlk_shake128ctx *)(uintptr_t)mlksg_broadcast_lane0(
-      (uint32_t)(uintptr_t)state);
+      (uintptr_t)state);
 }
 
 #if defined(PQC_KECCAK_KROUND25)
+#if __riscv_xlen == 64
+#define MLKSG_KROUND_STEP(round) do {                                     \
+  a = vx_kround_sg25(a, round);                                          \
+} while (0)
+#else
 #define MLKSG_KROUND_STEP(round) do {                                     \
   const uint32_t lo = (uint32_t)a;                                       \
   const uint32_t hi = (uint32_t)(a >> 32);                               \
@@ -98,6 +107,7 @@ static MLK_INLINE mlk_shake128ctx *mlksg_broadcast_state(
   const uint32_t out_hi = vx_kround_h_sg25(lo, hi, round);               \
   a = ((uint64_t)out_hi << 32) | out_lo;                                 \
 } while (0)
+#endif
 #endif
 
 static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
@@ -138,6 +148,11 @@ static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
     const uint64_t mask = UINT64_C(0) - (uint64_t)(lane == 0);
     a ^= mlksg_round_constants[round] & mask;
 #else
+#if __riscv_xlen == 64
+    a = vx_ktheta_sg25(a);
+    a = vx_krhopi_sg25(a);
+    a = vx_kchii_sg25(a, round);
+#else
     uint32_t alo = (uint32_t)a;
     uint32_t ahi = (uint32_t)(a >> 32);
     uint32_t tlo = vx_ktheta_l_sg25(alo, ahi);
@@ -147,6 +162,7 @@ static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
     alo = vx_kchii_l_sg25(blo, round);
     ahi = vx_kchii_h_sg25(bhi, round);
     a = ((uint64_t)ahi << 32) | alo;
+#endif
 #endif
   }
 #endif

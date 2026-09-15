@@ -30,10 +30,14 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
                   execute_if.data.op_args.alu.is_w,
                   execute_if.data.op_args.alu.xtype,
                   execute_if.data.op_args.alu.imm20[19:6],
-                  execute_if.data.rs1_data[31:25], execute_if.data.rs2_data[31:25],
+                  execute_if.data.rs1_data[31:25],
                   execute_if.data.rs3_data})
+`ifdef VX_CFG_XLEN_64
+    `UNUSED_VAR (execute_if.data.rs2_data)
+`else
+    `UNUSED_VAR (execute_if.data.rs2_data[31:25])
+`endif
 
-    `STATIC_ASSERT(`VX_CFG_XLEN == 32, ("KROUND25 requires RV32"))
     `STATIC_ASSERT(`VX_CFG_NUM_THREADS == 32, ("KROUND25 requires 32 threads"))
     `STATIC_ASSERT(`VX_CFG_SIMD_WIDTH == 32, ("KROUND25 requires SIMD width 32"))
     `STATIC_ASSERT(`VX_CFG_NUM_ALU_LANES == 32, ("KROUND25 requires 32 ALU lanes"))
@@ -76,7 +80,9 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
 
     typedef struct packed {
         alu_header_t       header;
+    `ifndef VX_CFG_XLEN_64
         logic              high_half;
+    `endif
         logic [4:0]        round;
         logic [24:0][63:0] state;
         logic [4:0][63:0]  parity;
@@ -84,7 +90,9 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
 
     typedef struct packed {
         alu_header_t       header;
+    `ifndef VX_CFG_XLEN_64
         logic              high_half;
+    `endif
         logic [4:0]        round;
         logic [24:0][63:0] state;
     } state_stage_t;
@@ -98,10 +106,16 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
     wire rhopi_valid, rhopi_ready;
 
     assign parity_in.header = execute_if.data.header;
+`ifndef VX_CFG_XLEN_64
     assign parity_in.high_half = execute_if.data.op_args.alu.imm20[5];
+`endif
     assign parity_in.round = execute_if.data.op_args.alu.imm20[4:0];
     for (genvar t = 0; t < 25; ++t) begin : g_input_state
+`ifdef VX_CFG_XLEN_64
+        assign parity_in.state[t] = execute_if.data.rs1_data[t];
+`else
         assign parity_in.state[t] = {execute_if.data.rs2_data[t], execute_if.data.rs1_data[t]};
+`endif
     end
     for (genvar x = 0; x < 5; ++x) begin : g_parity
         assign parity_in.parity[x] = parity_in.state[x]
@@ -125,7 +139,9 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
     );
 
     assign theta_in.header = parity_out.header;
+`ifndef VX_CFG_XLEN_64
     assign theta_in.high_half = parity_out.high_half;
+`endif
     assign theta_in.round = parity_out.round;
     for (genvar t = 0; t < 25; ++t) begin : g_theta
         localparam X = t % 5;
@@ -149,7 +165,9 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
     );
 
     assign rhopi_in.header = theta_out.header;
+`ifndef VX_CFG_XLEN_64
     assign rhopi_in.high_half = theta_out.high_half;
+`endif
     assign rhopi_in.round = theta_out.round;
     for (genvar t = 0; t < 25; ++t) begin : g_rhopi
         localparam X = t % 5;
@@ -182,7 +200,11 @@ module VX_alu_kround25 import VX_gpu_pkg::*; #(
                             ^ (~rhopi_out.state[ROW + (X+1)%5]
                              & rhopi_out.state[ROW + (X+2)%5])
                             ^ ((t == 0) ? RC[rhopi_out.round] : 64'b0);
+`ifdef VX_CFG_XLEN_64
+            assign result.data[t] = chi;
+`else
             assign result.data[t] = rhopi_out.high_half ? chi[63:32] : chi[31:0];
+`endif
         end else begin : g_padding
             assign result.data[t] = '0;
         end

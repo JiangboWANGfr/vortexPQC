@@ -1003,9 +1003,20 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
       default:
         std::abort();
       }
+#if (VX_CFG_XLEN == 64)
+      if ((funct3 & 1) != 0) {
+        std::abort();
+      }
+#endif
       instr->set_dest_reg(rd, RegType::Integer);
       instr->set_src_reg(0, rs1, RegType::Integer);
+#if (VX_CFG_XLEN == 64)
+      if (funct3 == 4) {
+        instr->set_src_reg(1, rs2, RegType::Integer);
+      }
+#else
       instr->set_src_reg(1, rs2, RegType::Integer);
+#endif
     } break;
 #endif
   #ifdef VX_CFG_EXT_TCU_ENABLE
@@ -1234,7 +1245,11 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
   } break;
 #ifdef VX_CFG_EXT_KROUND25_ENABLE
   case Opcode::EXT3: {
-    if (funct7 >= 24 || funct3 >= 2) {
+    if (funct7 >= 24 || funct3 >= 2
+#if (VX_CFG_XLEN == 64)
+        || funct3 != 0
+#endif
+    ) {
       std::abort();
     }
     instr->set_fu_type(FUType::ALU);
@@ -1243,7 +1258,9 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
     instr->set_args(IntrAluArgs{0, 0, funct7});
     instr->set_dest_reg(rd, RegType::Integer);
     instr->set_src_reg(0, rs1, RegType::Integer);
+#if (VX_CFG_XLEN == 32)
     instr->set_src_reg(1, rs2, RegType::Integer);
+#endif
   } break;
 #endif
   default:

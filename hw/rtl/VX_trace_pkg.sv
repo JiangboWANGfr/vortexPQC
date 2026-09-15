@@ -115,17 +115,33 @@ package VX_trace_pkg;
                 end
                 ALU_TYPE_OTHER: begin
                     if (op_type == INST_OP_BITS'(INST_KROUND)) begin
+                    `ifdef VX_CFG_XLEN_64
+                        `TRACE(level, ("KROUND.SG25"))
+                    `else
                         `TRACE(level, (op_args.alu.imm20[5] ? "KROUND.H.SG25" : "KROUND.L.SG25"))
+                    `endif
                     end else if (op_type == INST_OP_BITS'(INST_KTHETA_L)) begin
+                    `ifdef VX_CFG_XLEN_64
+                        `TRACE(level, ("KTHETA.SG25"))
+                    `else
                         `TRACE(level, ("KTHETA.L.SG25"))
+                    `endif
                     end else if (op_type == INST_OP_BITS'(INST_KTHETA_H)) begin
                         `TRACE(level, ("KTHETA.H.SG25"))
                     end else if (op_type == INST_OP_BITS'(INST_KRHOPI_L)) begin
+                    `ifdef VX_CFG_XLEN_64
+                        `TRACE(level, ("KRHOPI.SG25"))
+                    `else
                         `TRACE(level, ("KRHOPI.L.SG25"))
+                    `endif
                     end else if (op_type == INST_OP_BITS'(INST_KRHOPI_H)) begin
                         `TRACE(level, ("KRHOPI.H.SG25"))
                     end else if (op_type == INST_OP_BITS'(INST_KCHII_L)) begin
+                    `ifdef VX_CFG_XLEN_64
+                        `TRACE(level, ("KCHII.SG25"))
+                    `else
                         `TRACE(level, ("KCHII.L.SG25"))
+                    `endif
                     end else if (op_type == INST_OP_BITS'(INST_KCHII_H)) begin
                         `TRACE(level, ("KCHII.H.SG25"))
                     end else if (op_type[3]) begin
