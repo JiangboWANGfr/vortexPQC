@@ -50,10 +50,12 @@ At a common 250 MHz target, the stage extension increases full-core LUTs by
 permutation throughput by another \RoundThroughputGain{} times, but improves
 the final integrated ML-KEM by only \UnifiedRoundOne{} and
 \UnifiedRoundEight{} times.
-A matched RV64 port retires \RvSixtyFourInstructionReduction{} fewer instructions,
-reduces one-request cycles by \RvSixtyFourMOneCycleReduction{}, but raises
-eight-request cycles by \RvSixtyFourMEightCycleIncrease{} and routed NTT-only
-full-core LUTs by \RvSixtyFourNttLutOverhead{}.
+A matched integer-only RV64 port halves the Keccak collective issue count.
+At application scope it reduces Stage/KROUND instructions by
+\RvSixtyFourStageInstructionReduction{}/\RvSixtyFourRoundInstructionReduction{}
+and one-request cycles by
+\RvSixtyFourStageMOneCycleReduction{}/\RvSixtyFourRoundMOneCycleReduction{},
+while eight-request cycles rise slightly.
 Collective granularity trades pipeline storage against benefits that
 shrink substantially at application scope.
 \end{abstract}
@@ -94,8 +96,8 @@ Our contributions are as follows.
 optimized RV32 Keccak assembly, request batching, cooperative software NTT,
 and component ablation. The study distinguishes measured cycle differences
 from extrapolated or algebraic quantities.
-\item We implement an RV32 stage-factored subgroup interface with ordinary
-GPR state, explicit low/high destinations, and a full-warp execution contract.
+\item We implement a stage-factored subgroup interface with ordinary GPR state,
+explicit RV32 low/high destinations, an RV64 full-word port, and a full-warp contract.
 All eight combinations of software and instruction stages are evaluated on
 the same hardware.
 \item We implement a whole-round GPR comparator and evaluate it alongside
@@ -113,7 +115,7 @@ We do not claim the 25-thread state layout or whole-round warp collectives
 as new concepts. ML-Cube uses 25-thread Keccak with
 shuffles~\cite{mlcube}, and an NVIDIA patent application describes a
 64-bit warp-collective Keccak round~\cite{collectivepatent}.
-Our focus is the explicit RV32 interface, its open implementation, and the
+Our focus is the explicit RV32/RV64 interface, its open implementation, and the
 controlled comparison of granularities. The measured results do not select
 one universal winner: the whole-round unit leads the GPR permutation test,
 while the pointer PE leads the eight-request ML-KEM test.
@@ -166,7 +168,7 @@ Batch and x4 mapping & $8\times4$ & $M=1,2,4,8$; $L=1,2,4$ where archived & Each
 SG25 stages / round & $8\times32$ & 32-wide SIMD/ALU; 1 or 8 states & Synchronized permutation span & Shuffle, stage-use ablation, whole round \\
 Complete SG25 ML-KEM & $8\times32$ & Serial FIPS-202; 143 permutations/request & Whole-launch cycles at fixed $M$ & SG1, shuffle, stages, whole round, pointer \\
 Final NTT+Keccak ML-KEM & $8\times32$ & W32 NTT/arithmetic; KAT; 140 permutations/request & Whole-launch cycles at fixed $M$ & Five Keccak backends with all other arms fixed \\
-Physical implementation & $8\times32$ & RV32 backend builds; matched RV32/RV64 NTT/pointer builds; isolated units & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency within each family \\
+Physical implementation & $8\times32$ & RV32 backend builds; matched integer-only RV32/RV64 NTT/Stage/KROUND builds; isolated units & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency within each family \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -435,10 +437,10 @@ Budget & $L$ & Mcycles & Arena bytes & Gain \\
 \src{pqc/results/mldsa_ram_x_lane.csv}
 \end{table}
 
-\section{An RV32 Subgroup Keccak Interface}
+\section{A Subgroup Keccak Interface}
 \subsection{State placement and programming contract}
 One 32-thread warp holds one state. Lanes 0--24 each hold a 64-bit word as
-two ordinary 32-bit GPR values. Lanes 25--31 carry no state and return zero.
+two ordinary RV32 GPR values or one RV64 GPR value. Lanes 25--31 carry no state and return zero.
 All 32 lanes must execute each collective with the full mask at the same
 instruction. In particular, guarding the collective with
 \code{lane < 25} violates the contract. Guarded loads/stores are allowed
@@ -450,14 +452,14 @@ hidden round counter, or private architectural state. Ordinary RAW hazards,
 backpressure, and writeback arbitration still apply. Transient pipeline
 registers are microarchitectural storage and are included in the area cost.
 
-The initial implementation requires RV32, 32 threads, a 32-wide SIMD
-datapath, and 32 ALU lanes. A narrower packetized ALU would need operand
+The implementation supports RV32 and RV64 and requires 32 threads, a 32-wide
+SIMD datapath, and 32 ALU lanes. A narrower packetized ALU would need operand
 collection across packets; warp width alone is insufficient.
 The 25-of-32 state layout uses 78.125\% of lanes for state words. The
 remaining lanes still consume execution resources. We do not assume that
 this utilization loss is free.
 
-\subsection{Three stages, six single-destination instructions}
+\subsection{Three stages with single-destination instructions}
 For $t=x+5y$, let $A[x,y]$ combine the low/high inputs.
 All coordinates wrap modulo five. THETA computes
 \begin{align}
@@ -487,9 +489,11 @@ Only lane zero then XORs its half of $RC[q]$. Unlike THETA/RHOPI,
 not both state halves. All lanes, including padding lanes, must supply the
 same index in $0,\ldots,23$.
 
-The six encodings use CUSTOM0 (\code{0x0b}), \code{funct7=0x06},
-with \code{funct3=0..5}. The extension uses two source-vector reads and
-one destination-vector write per instruction.
+The six RV32 encodings use CUSTOM0 (\code{0x0b}), \code{funct7=0x06},
+with \code{funct3=0..5}. Each uses two source-vector reads and one
+destination-vector write. RV64 uses \code{funct3=0/2/4} for full-word
+THETA/RHOPI/CHII outputs; THETA and RHOPI leave the second source unused,
+while CHII reads the uniform round index there.
 THETA and RHOPI low/high operations must read the same old state:
 \begin{equation}
 (a_l,a_h)\rightarrow(t_l,t_h)\rightarrow(b_l,b_h)
@@ -521,8 +525,8 @@ require a different integration and its own synthesis evidence.
   box/.style={draw,rounded corners=1pt,align=center,minimum height=9mm,font=\small},
   arr/.style={-{Latex[length=2mm]},thick}]
 \node[box,minimum width=32mm] (regs) at (0,0) {Lane GPR vectors\\25 words / 32 lanes};
-\node[box,minimum width=44mm] (stage) at (5.0,0.7) {Stage unit: THETA / RHOPI / CHII\\2 pipeline stages; 6 issues/round};
-\node[box,minimum width=44mm] (round) at (5.0,-0.8) {Whole-round GPR unit\\4 pipeline stages; 2 issues/round};
+\node[box,minimum width=44mm] (stage) at (5.0,0.7) {Stage unit: THETA / RHOPI / CHII\\2 pipeline stages; 6 RV32 or 3 RV64 issues/round};
+\node[box,minimum width=44mm] (round) at (5.0,-0.8) {Whole-round GPR unit\\4 pipeline stages; 2 RV32 or 1 RV64 issues/round};
 \node[box,minimum width=26mm] (wb) at (10.1,0) {ALU arbitration\\single-vector writeback};
 \draw[arr] (regs.east) -- ++(.45,0) |- (stage.west);
 \draw[arr] (regs.east) -- ++(.45,0) |- (round.west);
@@ -540,19 +544,21 @@ memory-resident state. Pipeline storage is charged to each implementation.}
 \label{fig:architecture}
 \end{figure*}
 
-The independent whole-round extension uses CUSTOM2 (\code{0x5b}).
-\code{funct3=0/1} selects \code{KROUND.L/H.SG25}; \code{funct7} carries
-a literal round index. Both source vectors contain the old low/high state,
-and each issue computes one selected half of a complete round.
+The independent whole-round extension uses CUSTOM2 (\code{0x5b}). On RV32,
+\code{funct3=0/1} selects \code{KROUND.L/H.SG25}; both source vectors contain
+the old low/high state, and each issue computes one selected half. On RV64,
+\code{funct3=0} selects \code{KROUND.SG25}, one source vector contains the
+complete state word, and one issue computes the complete round.
+In both forms, \code{funct7} carries a literal round index.
 The four registered stages are column parity, THETA, RHOPI, and CHII/IOTA.
 Direct latency is four cycles and initiation interval is one.
 There is no hidden state retained between issued instructions.
 The low/high pair recomputes from the same old state; it is not a
 dual-writeback macro-operation.
 
-Literal round encoding expands 24 rounds into 48 instructions. The
-stage kernel retains a round loop with six collectives, an increment,
-and a branch per round. Consequently, the measured comparison includes
+Literal round encoding expands 24 rounds into 48 RV32 or 24 RV64
+instructions. The stage kernel retains a round loop with six RV32 or three
+RV64 collectives, an increment, and a branch per round. Consequently, the measured comparison includes
 both the instruction granularity and its present code generation.
 It is not an isolated comparison with identical loop-control instructions.
 
@@ -586,7 +592,8 @@ not be attributed solely to the Keccak instructions.
 \subsection{Correctness and timing methodology}
 Stage tests cover aliases, zero registers, high/low bit crossings, padding
 lanes, all round constants, metadata, and backpressure. The mixed stage
-RTL unit test has 288 transactions; the whole-round test has 192.
+RTL unit test has 288 RV32 and 144 RV64 transactions; the whole-round test
+has 192 RV32 and 96 RV64 transactions.
 Contract tests diagnose partial masks and invalid rounds, plus nonuniform
 round operands for CHII. These checks diagnose unsupported programming
 conditions; they do not define a production trap ABI.
@@ -832,17 +839,17 @@ all-enabled core for the functional and cycle comparison. Section~VI uses
 four separate builds that retain the same NTT and enable either no Keccak
 hardware, stages, whole round, or the pointer PE.
 
-\subsection{Matched RV32/RV64 portability}
-Table~\ref{tab:xlen} recompiles the final pointer-PE configuration at RV32 and
-RV64 while holding the source revision, W8T32 geometry, KAT input, cache
-configuration, NTT, and cooperative arithmetic fixed. The RV64 port uses the
-same repository-pinned LLVM 20.1.8 revision as RV32. SimX, RTL, and XRT reproduce the M1
-KAT and retire exactly 506,517 instructions; the SimX/RTL and XRT/RTL cycle
-gaps are 0.324\% and 0.011\%, respectively. All eight RV64 SimX requests also
+\subsection{Matched integer-only RV32/RV64 portability}
+Table~\ref{tab:xlen} recompiles Stage and KROUND at RV32IM and RV64IM while
+holding the source revision, W8T32 geometry, KAT input, cache configuration,
+NTT, and cooperative arithmetic fixed. F and D are disabled at both XLENs;
+ELF attributes and disassembly confirm soft-float IM binaries without
+floating-point or atomic instructions. SimX, RTL, and XRT reproduce every M1
+KAT with exact retired-instruction agreement. All eight SimX requests also
 pass byte-for-byte.
 
 \begin{table}[t]
-\caption{Matched pointer-PE ML-KEM at RV32 and RV64 on SimX. Cycles are
+\caption{Matched integer-only ML-KEM at RV32 and RV64 on SimX. Cycles are
 millions per complete launch.}
 \label{tab:xlen}
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
@@ -853,17 +860,21 @@ ISA & M1 instr. & M1 cycles & M8 instr. & M8 cycles \\
 \tablerows{xlen.tex}
 \bottomrule
 \end{tabular}
-\src{pqc/results/rv32_rv64_mlkem.csv}
+\src{pqc/results/rv32im_rv64im_keccak.csv}
 \end{table}
 
-RV64 retires \RvSixtyFourInstructionReduction{} fewer instructions at both batch
-sizes. Its M1 cycles fall by \RvSixtyFourMOneCycleReduction{}, but its M8 cycles rise
-by \RvSixtyFourMEightCycleIncrease{}. The instruction reduction therefore does not
-predict saturated throughput; wider core state, memory operations, and
-resource scheduling also affect cycles. This comparison uses the pointer PE
-because the stage and whole-round Keccak interfaces encode each 64-bit state
-word as two RV32 register halves and are not implemented for RV64. The routed
-cost of the same final NTT/pointer pair appears in Table~\ref{tab:xlenppa}.
+RV64 reduces Stage instructions by
+\RvSixtyFourStageInstructionReduction{} and KROUND instructions by
+\RvSixtyFourRoundInstructionReduction{}. Their M1 cycles fall by
+\RvSixtyFourStageMOneCycleReduction{} and
+\RvSixtyFourRoundMOneCycleReduction{}, respectively, while M8 cycles rise by
+\RvSixtyFourStageMEightCycleIncrease{} and
+\RvSixtyFourRoundMEightCycleIncrease{}. The saved Keccak issues are only part
+of the complete launch: NTT, sampling, encoding, memory traffic, and remaining
+arithmetic do not halve with the issue count. At M8, the higher cycles per
+retired instruction offset the smaller stream. The routed cost of the same
+integer-only NTT/Stage/KROUND configurations appears in
+Table~\ref{tab:xlenppa}.
 
 \section{Implementation Cost}
 \subsection{Final NTT architecture and selection}
@@ -942,16 +953,18 @@ whole-round, and pointer hierarchies contain 902/2,025, 2,503/6,130, and
 10,414/4,556 LUT/FF, respectively. The whole-round critical path remains in
 issue-to-integer-ALU routing rather than inside the new unit.
 
-\subsection{Matched RV32/RV64 implementation}
+\subsection{Matched integer-only RV32/RV64 implementation}
 Table~\ref{tab:xlenppa} holds the V80 device, W8T32 geometry, 250 MHz target,
-Vivado version, optimization level, and selected half-bank NTT fixed. It
-compares NTT-only and NTT-plus-pointer builds at each XLEN. Every row is an
-independent, non-incremental post-route run. Both RV64 builds route with zero
-routing errors but miss setup: their STA frequencies are
-\RvSixtyFourNttFmax{} and \RvSixtyFourPointerFmax{} MHz.
+Vivado version, optimization level, and selected half-bank NTT fixed. F and D
+are disabled at both XLENs. It compares NTT-only, Stage, and KROUND builds;
+every row is an independent, non-incremental post-route run with zero routing
+errors. Negative WNS rows are reported as timing misses rather than closed
+implementations. RV64 Stage has WNS \RvSixtyFourStageWns{} ns at
+\RvSixtyFourStageFmax{} MHz, while RV64 KROUND reaches
+\RvSixtyFourRoundWns{} ns and \RvSixtyFourRoundFmax{} MHz.
 
 \begin{table}[t]
-\caption{Matched RV32/RV64 V80 post-route results. BRAM is tile-equivalent,
+\caption{Matched integer-only RV32/RV64 V80 post-route results. BRAM is tile-equivalent,
 WNS is ns, and STA frequency is MHz under a 250 MHz target.}
 \label{tab:xlenppa}
 \centering\scriptsize\setlength{\tabcolsep}{1.7pt}
@@ -962,27 +975,28 @@ Core & LUT & FF & BRAM & DSP & WNS & STA MHz \\
 \tablerows{xlen_ppa.tex}
 \bottomrule
 \end{tabular}
-\src{pqc/results/ntt_keccak_rv64_ppa.csv}
+\src{pqc/results/rv32im_rv64im_keccak_ppa.csv}
 \end{table}
 
-Relative to RV32 NTT-only, RV64 NTT-only uses
-\RvSixtyFourNttLutOverhead{} more LUTs,
-\RvSixtyFourNttFfOverhead{} more FFs,
-\RvSixtyFourNttBramOverhead{} more BRAM tiles, and
-\RvSixtyFourNttDspOverhead{} more DSPs. These are full-core XLEN deltas.
-In this configuration, RV64 also enables D and sets FLEN to 64; the FPU
-hierarchy grows from \RvThirtyTwoFpuLuts{} LUT/\RvThirtyTwoFpuDsps{} DSP to
-\RvSixtyFourFpuLuts{} LUT/\RvSixtyFourFpuDsps{} DSP, while the narrow NTT
-remains at \FinalNttDsps{} DSP. The comparison therefore measures the
-implemented RV64 configuration rather than an isolated integer-width change.
+Relative to RV32 NTT-only, the RV64 NTT-only full-core resource changes are
+\RvSixtyFourNttLutOverhead{} for LUTs,
+\RvSixtyFourNttFfOverhead{} for FFs,
+\RvSixtyFourNttBramOverhead{} for BRAM tiles, and
+\RvSixtyFourNttDspOverhead{} for DSPs. Both FPU hierarchies are absent, while
+the narrow NTT remains at \FinalNttDsps{} DSP. The DSP decrease comes from the
+general multiply/divide unit: the RV32 implementation uses
+\RvThirtyTwoMuldivDsps{} DSPs there, whereas the serial RV64 implementation
+uses \RvSixtyFourMuldivDsps{}.
 
-Within RV32, the pointer PE adds \RvThirtyTwoPointerLutDelta{} LUT
-(\RvThirtyTwoPointerLutOverhead{}) and \RvThirtyTwoPointerFfDelta{} FF
-(\RvThirtyTwoPointerFfOverhead{}). Within RV64, it adds
-\RvSixtyFourPointerLutDelta{} LUT (\RvSixtyFourPointerLutOverhead{}) and
-\RvSixtyFourPointerFfDelta{} FF (\RvSixtyFourPointerFfOverhead{}).
-Neither increment changes BRAM or DSP count. The RV64 worst paths terminate
-in LSU or issue-to-integer-ALU logic rather than the Keccak or NTT hierarchy.
+Within RV32, Stage adds \RvThirtyTwoStageLutDelta{} LUT
+(\RvThirtyTwoStageLutOverhead{}) and \RvThirtyTwoStageFfDelta{} FF
+(\RvThirtyTwoStageFfOverhead{}); KROUND adds
+\RvThirtyTwoRoundLutDelta{} LUT (\RvThirtyTwoRoundLutOverhead{}) and
+\RvThirtyTwoRoundFfDelta{} FF (\RvThirtyTwoRoundFfOverhead{}).
+Within RV64, the corresponding increments are
+\RvSixtyFourStageLutDelta{}/\RvSixtyFourStageFfDelta{} LUT/FF for Stage and
+\RvSixtyFourRoundLutDelta{}/\RvSixtyFourRoundFfDelta{} LUT/FF for KROUND.
+None changes BRAM or DSP count.
 
 The wide core itself must also be charged. The historical 300 MHz base
 configuration grid uses 42,553 LUTs at $8w\times4t$, 148,827 at
@@ -1067,8 +1081,8 @@ Listing~3 of NVIDIA's published application describes
 input/output words and a warp-collective invocation performs one
 round~\cite{collectivepatent}. The text also discusses multiple-round
 forms. It supplies a concrete semantic predecessor, not measurements
-for our platform. Our comparator has explicitly implemented RV32
-low/high destinations, literal rounds, a four-stage datapath, and
+for our platform. Our comparator has explicitly implemented RV32 low/high
+and RV64 full-word destinations, literal rounds, a four-stage datapath, and
 single-vector writeback. Its timing and PPA numbers belong to this
 implementation and are not measurements of NVIDIA hardware.
 
@@ -1100,8 +1114,7 @@ deterministic simulation nor quantiles from the incomplete host sweep.
 Evidence includes XRT integration simulation and out-of-context full-core
 FPGA routing. Board execution, complete-system PPA, full-core routed ASIC
 results, and activity-driven energy remain outside the demonstrated scope.
-Each XLEN physical row is one implementation seed, and neither RV64 row
-closes the 250 MHz setup target.
+Each XLEN physical row is one implementation seed.
 Register residence alone does not establish side-channel resistance.
 
 \section{Conclusion}
@@ -1119,8 +1132,9 @@ over shuffles and, with the final NTT path fixed, complete ML-KEM by
 one/eight requests.
 Whole-round fusion adds about fourfold permutation throughput but only
 2--4\% application speedup, while the pointer PE remains strongest in the
-eight-request launch. RV64 reduces instructions but does not improve the
-eight-request cycle result, and its routed full core is substantially larger.
+eight-request launch. Integer-only RV64 halves the Keccak issue count, reduces
+complete-launch instructions by 5.7--7.0\%, and slightly raises the
+eight-request cycle result.
 The result is an implemented set of design choices
 with measured tradeoffs, rather than a universal ranking inferred from
 one primitive benchmark.

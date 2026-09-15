@@ -298,40 +298,48 @@ for backend, xrt_row in unified_xrt.items():
     macros["UnifiedXrtGap" + ("Stage" if backend == "sg25_stages" else "Round")] = \
         number(100 * gap, 3) + "\\%"
 
-xlen_rows = read("rv32_rv64_mlkem")
+xlen_rows = read("rv32im_rv64im_keccak")
 assert all(r["result"] == "PASS" and r["kat"] == "PASS" for r in xlen_rows)
-for field in ("git_commit", "warps", "threads", "keccak_backend",
-              "ntt_backend", "arith_backend"):
+for field in ("git_commit", "warps", "threads", "ntt_backend", "arith_backend"):
     assert len({r[field] for r in xlen_rows}) == 1, field
-xlen_simx = {(int(r["xlen"]), int(r["requests"])): r
+xlen_simx = {(r["keccak_backend"], int(r["xlen"]), int(r["requests"])): r
              for r in xlen_rows if r["driver"] == "simx"}
-assert set(xlen_simx) == {(32, 1), (32, 8), (64, 1), (64, 8)}
-table("xlen", [["RV" + str(xlen),
-                 integer(xlen_simx[xlen, 1]["retired_instructions"]),
-                 million(xlen_simx[xlen, 1]["device_cycles"]),
-                 integer(xlen_simx[xlen, 8]["retired_instructions"]),
-                 million(xlen_simx[xlen, 8]["device_cycles"])]
+assert set(xlen_simx) == {(backend, xlen, requests)
+                         for backend in ("stage", "whole_round")
+                         for xlen in (32, 64) for requests in (1, 8)}
+xlen_names = {"stage": "Stage", "whole_round": "KROUND"}
+table("xlen", [[xlen_names[backend] + " RV" + str(xlen) + "IM",
+                 integer(xlen_simx[backend, xlen, 1]["retired_instructions"]),
+                 million(xlen_simx[backend, xlen, 1]["device_cycles"]),
+                 integer(xlen_simx[backend, xlen, 8]["retired_instructions"]),
+                 million(xlen_simx[backend, xlen, 8]["device_cycles"])]
+                for backend in ("stage", "whole_round")
                 for xlen in (32, 64)])
-rv32_m1, rv32_m8 = (xlen_simx[32, requests] for requests in (1, 8))
-rv64_m1, rv64_m8 = (xlen_simx[64, requests] for requests in (1, 8))
-macros["RvSixtyFourInstructionReduction"] = percent(
-    1 - int(rv64_m1["retired_instructions"]) /
-    int(rv32_m1["retired_instructions"]))
-assert macros["RvSixtyFourInstructionReduction"] == percent(
-    1 - int(rv64_m8["retired_instructions"]) /
-    int(rv32_m8["retired_instructions"]))
-macros["RvSixtyFourMOneCycleReduction"] = percent(
-    1 - int(rv64_m1["device_cycles"]) / int(rv32_m1["device_cycles"]))
-macros["RvSixtyFourMEightCycleIncrease"] = percent(
-    int(rv64_m8["device_cycles"]) / int(rv32_m8["device_cycles"]) - 1)
-rv64_controls = {r["driver"]: r for r in xlen_rows
-                 if r["xlen"] == "64" and r["requests"] == "1" and
-                 r["driver"] != "simx"}
-assert set(rv64_controls) == {"rtlsim", "xrt"}
-for row in rv64_controls.values():
-    assert row["retired_instructions"] == rv64_m1["retired_instructions"]
-    assert abs(int(row["device_cycles"]) - int(rv64_m1["device_cycles"])) / \
-        int(row["device_cycles"]) < 0.01
+for backend, prefix in (("stage", "Stage"), ("whole_round", "Round")):
+    rv32_m1, rv32_m8 = (xlen_simx[backend, 32, requests]
+                         for requests in (1, 8))
+    rv64_m1, rv64_m8 = (xlen_simx[backend, 64, requests]
+                         for requests in (1, 8))
+    macros["RvSixtyFour" + prefix + "InstructionReduction"] = percent(
+        1 - int(rv64_m1["retired_instructions"]) /
+        int(rv32_m1["retired_instructions"]))
+    assert macros["RvSixtyFour" + prefix + "InstructionReduction"] == percent(
+        1 - int(rv64_m8["retired_instructions"]) /
+        int(rv32_m8["retired_instructions"]))
+    macros["RvSixtyFour" + prefix + "MOneCycleReduction"] = percent(
+        1 - int(rv64_m1["device_cycles"]) / int(rv32_m1["device_cycles"]))
+    macros["RvSixtyFour" + prefix + "MEightCycleIncrease"] = percent(
+        int(rv64_m8["device_cycles"]) / int(rv32_m8["device_cycles"]) - 1)
+    controls = {(int(r["xlen"]), r["driver"]): r for r in xlen_rows
+                if r["keccak_backend"] == backend and r["requests"] == "1"
+                and r["driver"] != "simx"}
+    assert set(controls) == {(xlen, driver) for xlen in (32, 64)
+                            for driver in ("rtlsim", "xrt")}
+    for (xlen, _), row in controls.items():
+        simx_row = xlen_simx[backend, xlen, 1]
+        assert row["retired_instructions"] == simx_row["retired_instructions"]
+        assert abs(int(row["device_cycles"]) - int(simx_row["device_cycles"])) / \
+            int(row["device_cycles"]) < 0.01
 
 backend_ppa = {r["variant"]: r for r in read("ntt_keccak_backend_ppa")}
 backend_names = {"ntt_only": "NTT only", "ntt_stage": "NTT + stages",
@@ -352,35 +360,42 @@ table("core_ppa", [[name, integer(r["total_luts"]),
                     integer(r["dsps"]), r["wns_ns"]]
                    for key, name in backend_names.items() for r in [backend_ppa[key]]])
 
-xlen_ppa_rows = read("ntt_keccak_rv64_ppa")
+xlen_ppa_rows = read("rv32im_rv64im_keccak_ppa")
 xlen_ppa = {(int(r["xlen"]), r["variant"]): r for r in xlen_ppa_rows}
-assert set(xlen_ppa) == {(32, "ntt_only"), (32, "ntt_pointer"),
-                         (64, "ntt_only"), (64, "ntt_pointer")}
+assert set(xlen_ppa) == {(xlen, variant)
+                         for xlen in (32, 64)
+                         for variant in ("ntt_only", "ntt_stage", "ntt_kround")}
 assert all(r["routing_errors"] == "0" for r in xlen_ppa_rows)
 for field in ("tool", "device", "stage", "target_mhz", "warps", "threads"):
     assert len({r[field] for r in xlen_ppa_rows}) == 1, field
 for r in xlen_ppa_rows:
     expected = "met" if float(r["wns_ns"]) >= 0 else "timing_unmet"
     assert r["status"] == expected
-    assert float(r["bram_tiles"]) == int(r["ramb36"]) + int(r["ramb18"]) / 2
+    assert r["f_enabled"] == r["d_enabled"] == "0"
+    assert r["ntt_hier_dsps"] == "16"
+    assert r["fpu_hier_luts"] == r["fpu_hier_ffs"] == r["fpu_hier_dsps"] == "0"
 for xlen in (32, 64):
     ntt_only = xlen_ppa[xlen, "ntt_only"]
-    pointer = xlen_ppa[xlen, "ntt_pointer"]
-    assert ntt_only["bram_tiles"] == pointer["bram_tiles"]
-    assert ntt_only["dsps"] == pointer["dsps"]
-    assert ntt_only["ntt_hier_dsps"] == pointer["ntt_hier_dsps"] == "16"
-xlen_ppa_names = {"ntt_only": "NTT only", "ntt_pointer": "+ pointer PE"}
+    for variant in ("ntt_stage", "ntt_kround"):
+        row = xlen_ppa[xlen, variant]
+        assert ntt_only["bram_tiles"] == row["bram_tiles"]
+        assert ntt_only["dsps"] == row["dsps"]
+        assert ntt_only["muldiv_hier_dsps"] == row["muldiv_hier_dsps"]
+assert {xlen_ppa[32, variant]["muldiv_hier_dsps"]
+        for variant in ("ntt_only", "ntt_stage", "ntt_kround")} == {"96"}
+assert {xlen_ppa[64, variant]["muldiv_hier_dsps"]
+        for variant in ("ntt_only", "ntt_stage", "ntt_kround")} == {"0"}
+xlen_ppa_names = {"ntt_only": "NTT only", "ntt_stage": "NTT + stages",
+                  "ntt_kround": "NTT + whole round"}
 table("xlen_ppa", [["RV" + str(xlen) + " " + xlen_ppa_names[variant],
                      integer(r["total_luts"]), integer(r["ffs"]),
                      number(r["bram_tiles"], 1), integer(r["dsps"]),
                      number(r["wns_ns"], 3), number(r["fmax_mhz"], 1)]
                     for xlen in (32, 64)
-                    for variant in ("ntt_only", "ntt_pointer")
+                    for variant in ("ntt_only", "ntt_stage", "ntt_kround")
                     for r in [xlen_ppa[xlen, variant]]])
 rv32_ntt = xlen_ppa[32, "ntt_only"]
-rv32_pointer = xlen_ppa[32, "ntt_pointer"]
 rv64_ntt = xlen_ppa[64, "ntt_only"]
-rv64_pointer = xlen_ppa[64, "ntt_pointer"]
 macros["RvSixtyFourNttLutOverhead"] = percent(
     int(rv64_ntt["total_luts"]) / int(rv32_ntt["total_luts"]) - 1)
 macros["RvSixtyFourNttFfOverhead"] = percent(
@@ -389,28 +404,23 @@ macros["RvSixtyFourNttBramOverhead"] = percent(
     float(rv64_ntt["bram_tiles"]) / float(rv32_ntt["bram_tiles"]) - 1)
 macros["RvSixtyFourNttDspOverhead"] = percent(
     int(rv64_ntt["dsps"]) / int(rv32_ntt["dsps"]) - 1)
-macros["RvThirtyTwoPointerLutDelta"] = integer(
-    int(rv32_pointer["total_luts"]) - int(rv32_ntt["total_luts"]))
-macros["RvThirtyTwoPointerLutOverhead"] = percent(
-    int(rv32_pointer["total_luts"]) / int(rv32_ntt["total_luts"]) - 1)
-macros["RvThirtyTwoPointerFfDelta"] = integer(
-    int(rv32_pointer["ffs"]) - int(rv32_ntt["ffs"]))
-macros["RvThirtyTwoPointerFfOverhead"] = percent(
-    int(rv32_pointer["ffs"]) / int(rv32_ntt["ffs"]) - 1)
-macros["RvSixtyFourPointerLutDelta"] = integer(
-    int(rv64_pointer["total_luts"]) - int(rv64_ntt["total_luts"]))
-macros["RvSixtyFourPointerLutOverhead"] = percent(
-    int(rv64_pointer["total_luts"]) / int(rv64_ntt["total_luts"]) - 1)
-macros["RvSixtyFourPointerFfDelta"] = integer(
-    int(rv64_pointer["ffs"]) - int(rv64_ntt["ffs"]))
-macros["RvSixtyFourPointerFfOverhead"] = percent(
-    int(rv64_pointer["ffs"]) / int(rv64_ntt["ffs"]) - 1)
-macros["RvSixtyFourNttFmax"] = number(rv64_ntt["fmax_mhz"], 1)
-macros["RvSixtyFourPointerFmax"] = number(rv64_pointer["fmax_mhz"], 1)
-macros["RvThirtyTwoFpuLuts"] = integer(rv32_ntt["fpu_hier_luts"])
-macros["RvSixtyFourFpuLuts"] = integer(rv64_ntt["fpu_hier_luts"])
-macros["RvThirtyTwoFpuDsps"] = integer(rv32_ntt["fpu_hier_dsps"])
-macros["RvSixtyFourFpuDsps"] = integer(rv64_ntt["fpu_hier_dsps"])
+macros["RvThirtyTwoMuldivDsps"] = integer(rv32_ntt["muldiv_hier_dsps"])
+macros["RvSixtyFourMuldivDsps"] = integer(rv64_ntt["muldiv_hier_dsps"])
+for variant, name in (("ntt_stage", "Stage"),
+                      ("ntt_kround", "Round")):
+    row = xlen_ppa[64, variant]
+    macros["RvSixtyFour" + name + "Wns"] = number(row["wns_ns"], 3)
+    macros["RvSixtyFour" + name + "Fmax"] = number(row["fmax_mhz"], 1)
+for xlen, prefix in ((32, "RvThirtyTwo"), (64, "RvSixtyFour")):
+    base = xlen_ppa[xlen, "ntt_only"]
+    for variant, name in (("ntt_stage", "Stage"),
+                          ("ntt_kround", "Round")):
+        row = xlen_ppa[xlen, variant]
+        for field, suffix in (("total_luts", "Lut"), ("ffs", "Ff")):
+            value, base_value = int(row[field]), int(base[field])
+            macros[prefix + name + suffix + "Delta"] = integer(value - base_value)
+            macros[prefix + name + suffix + "Overhead"] = percent(
+                value / base_value - 1)
 macros["FinalNttDsps"] = integer(rv64_ntt["ntt_hier_dsps"])
 
 ntt_ppa_rows = read("ntt_v80_ppa")

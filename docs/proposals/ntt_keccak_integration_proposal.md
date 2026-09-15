@@ -16,6 +16,12 @@ in `funct3`; bit zero of `funct7` still selects GS. NTTMUL remains CUSTOM0
 `funct7=0x05, funct3=2`. Whole-round Keccak uses opcode `0x5b`
 (CUSTOM2, internally `EXT3`) and is unaffected.
 
+RV64 preserves these opcode families but consumes one complete 64-bit state
+word per lane. Stage uses `funct3=0/2/4` for THETA/RHOPI/CHII, and KROUND uses
+`funct3=0`; the omitted RV32 high-half encodings are illegal. This changes no
+NTT encoding: ML-KEM coefficients and NTT products retain their existing
+narrow signed arithmetic in both XLEN configurations.
+
 NTT kernels built before this integration must be rebuilt. There is no old
 NTTBF alias because it would decode as an existing Keccak operation. NTT app
 Makefiles now depend explicitly on `vx_pqc_defs.h`, including the end-to-end
@@ -101,8 +107,8 @@ in [the unified KEM results](../../pqc/results/keccak_ntt_unified_mlkem.csv).
 The NTT RTL unit bench passes 100 requests with measured CT II=1 and
 GS/NTTMUL II=2. It passes both RV32 and RV64 with NTT enabled, including
 decoder, mask, reset and backpressure checks.
-Keccak stage and whole-round benches pass 288 and 192 transactions,
-respectively, plus invalid-contract diagnostics. The AFU AXI arbitration
+Keccak stage and whole-round benches pass 288/192 RV32 and 144/96 RV64
+transactions, respectively, plus invalid-contract diagnostics. The AFU AXI arbitration
 bench passes six outstanding reads and six outstanding writes in separate
 phases, with stalls on all five channels.
 With all three extensions disabled, the default RV32 W4T4 SimX demo passes
@@ -135,86 +141,104 @@ Detailed configuration, kernel/runtime/source hashes, and individual results:
 
 ## Matched RV32/RV64 validation
 
-The final pointer-Keccak configuration now runs at both XLEN values. Both use
-one core, W8T32, the final half-bank NTT, all three cooperative ML-KEM
-arithmetic replacements, serial FIPS-202, and the same FIPS 203 KAT input.
-The hardware enable set is limited to NTT plus the pointer Keccak PE so that
-unused stage or whole-round units cannot affect multi-warp scheduling.
+The strict comparison uses RV32IM and RV64IM: F and D are disabled at both
+XLENs. Both use one core, W8T32, the final half-bank NTT, all cooperative
+ML-KEM arithmetic replacements, serial FIPS-202, and the same FIPS 203 KAT.
+RV64 Stage consumes one 64-bit state word per lane, reducing THETA/RHOPI/CHII
+from six to three instructions per round. RV64 KROUND consumes the same word
+and reduces a complete round from two instructions to one. NTTMUL.K and NTTBF
+remain narrow integer operations and need no RV64-specific duplicate.
 
-The first RV64 attempt used an LLVM 18 installation that ignored RV64
-`+xvortex` and omitted the kernel-entry lowering expected by the command
-processor. An isolated installation of the repository-pinned LLVM 20.1.8,
-RV64 libc, and RV64 libcrt fixes the failure without changing the existing
-tool tree. The generated RTL simulator source lists also place `VX_tlb_pkg`
-before `Vortex.sv`. Stack-address bookkeeping and the naked cooperative
-dispatcher save/restore sequences now follow the selected XLEN ABI.
-
-| XLEN / driver | Requests | Retired instructions | Device cycles | Batch makespan |
+| Backend / XLEN | M1 instructions | M1 cycles | M8 instructions | M8 cycles |
 | --- | ---: | ---: | ---: | ---: |
-| RV32 SimX | 1 | 527,622 | 5,911,500 | 5,909,478 |
-| RV32 SimX | 8 | 4,220,976 | 8,393,151 | 8,390,738 |
-| RV64 SimX | 1 | 506,517 | 5,823,807 | 5,821,894 |
-| RV64 SimX | 8 | 4,052,136 | 8,992,667 | 8,990,331 |
-| RV64 RTL | 1 | 506,517 | 5,804,986 | 5,803,255 |
-| RV64 XRT | 1 | 506,517 | 5,804,365 | 5,802,629 |
+| Stage RV32IM | 436,262 | 5,409,748 | 3,490,096 | 12,170,437 |
+| Stage RV64IM | 405,716 | 5,189,658 | 3,245,728 | 12,225,892 |
+| KROUND RV32IM | 415,822 | 5,198,475 | 3,326,576 | 11,937,913 |
+| KROUND RV64IM | 391,996 | 5,043,599 | 3,135,968 | 11,970,704 |
 
-Every row passes the complete KAT. RV64 retires 4.00% fewer instructions at
-both request counts. Relative to RV32, RV64 device cycles fall by 1.48% at M1
-and rise by 7.14% at M8. M1 SimX/RTL cycles differ by 0.324%; XRT/RTL differ
-by 0.011%, with exact instruction agreement. Direct RV64 NTTMUL, NTTBF, and
-forward/inverse register-NTT checks also pass. Structured data are in
-[the XLEN comparison](../../pqc/results/rv32_rv64_mlkem.csv).
+Every row passes the complete KAT. Stage RV64IM retires 7.002% fewer
+instructions, reduces M1 cycles by 4.068%, and raises M8 cycles by 0.456%.
+KROUND RV64IM retires 5.730% fewer instructions, reduces M1 cycles by 2.979%,
+and raises M8 cycles by 0.275%. The saved Keccak issues are only part of a
+complete ML-KEM launch; NTT, sampling, encoding, memory traffic, and remaining
+arithmetic do not halve when XLEN doubles. At M8, cycles per retired instruction
+increase enough to offset the smaller instruction stream.
 
-## Matched RV32/RV64 synthesis
+M1 SimX/RTL gaps are 0.059%/0.366% for Stage RV32IM/RV64IM and
+0.061%/0.515% for KROUND. XRT/RTL gaps remain at or below 0.055%, with exact
+instruction agreement. Direct RV64 NTTMUL, NTTBF, and forward/inverse
+register-NTT checks also pass. ELF attributes and disassembly confirm soft-float
+IM binaries with no floating-point or atomic instructions. The strict ABI used
+a local LLVM 20.1.8 libc/libcrt build; it must be repackaged through
+`vortex-toolchain-prebuilt` before enabling these exact F/D-off jobs in CI.
+Structured data are in
+[the integer-only XLEN comparison](../../pqc/results/rv32im_rv64im_keccak.csv).
 
-The physical XLEN comparison keeps the V80 device, one-core W8T32 geometry,
-Vivado 2025.1, OPT3, 250 MHz target, and final half-bank NTT fixed. It includes
-an NTT-only denominator and an NTT-plus-pointer build for each XLEN. The RV32
-rows reuse the completed `8798cb61a` reports; the RV64 rows use `d2941e5dc`.
-`git diff 8798cb61a..d2941e5dc -- hw` is empty, so the intervening RV64
-software and simulator fixes do not change the synthesized RTL.
+## Matched integer-only RV32/RV64 synthesis
 
-The two RV64 implementations were run from the separate configured tree:
+The XLEN comparison uses source commit `766b66a74` and keeps the V80 device,
+one-core W8T32 geometry, final half-bank NTT, Vivado 2025.1, OPT3, and the
+250 MHz target fixed. RV32IM and RV64IM both disable F and D. Each XLEN has an
+independent NTT-only denominator plus Stage and KROUND implementations; all six
+projects were built from scratch without incremental checkpoints.
+
+The configured `build32_im` and `build64_im` trees used this command sequence:
 
 ```sh
-cd build64_ntt_keccak_compare/hw/syn/xilinx/dut
 source /data/Xilinx/2025.1/Vivado/settings64.sh
-
-make -C v80_rv64_ntt_only_core DUT=core ROOT_DIR="$PWD/../../../.." \
-    DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=250 OPT_LEVEL=3 \
-    CONFIGS='-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32'
-
-make -C v80_rv64_ntt_pointer_core DUT=core ROOT_DIR="$PWD/../../../.." \
-    DEVICE=xcv80-lsva4737-2MHP-e-S CLK_FREQ_MHZ=250 OPT_LEVEL=3 \
-    CONFIGS='-DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32'
+for xlen in 32 64; do
+  (
+    cd build${xlen}_im/hw/syn/xilinx/dut
+    common="-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE \
+            -DVX_CFG_EXT_NTT_ENABLE \
+            -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+    for variant in only stage kround; do
+      case "$variant" in
+        only) feature="" ;;
+        stage) feature="-DVX_CFG_EXT_KSG25_ENABLE" ;;
+        kround) feature="-DVX_CFG_EXT_KROUND25_ENABLE" ;;
+      esac
+      make -C v80_rv${xlen}im_ntt_${variant}_core DUT=core \
+        ROOT_DIR="$PWD/../../../.." DEVICE=xcv80-lsva4737-2MHP-e-S \
+        CLK_FREQ_MHZ=250 OPT_LEVEL=3 CONFIGS="$common $feature"
+    done
+  )
+done
 ```
 
 | XLEN / build | LUT | FF | BRAM tiles | DSP | WNS | STA Fmax |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| RV32 NTT-only | 330,530 | 267,838 | 133.0 | 176 | +0.000 ns | 250.0 MHz |
-| RV32 NTT + Pointer | 341,751 | 271,058 | 133.0 | 176 | +0.004 ns | 250.3 MHz |
-| RV64 NTT-only | 654,260 | 386,391 | 261.5 | 368 | -0.260 ns | 234.7 MHz |
-| RV64 NTT + Pointer | 671,205 | 394,996 | 261.5 | 368 | -0.190 ns | 238.7 MHz |
+| RV32IM NTT-only | 220,950 | 131,798 | 133.0 | 112 | +0.004 ns | 250.3 MHz |
+| RV32IM NTT + Stage | 223,444 | 133,512 | 133.0 | 112 | +0.004 ns | 250.3 MHz |
+| RV32IM NTT + KROUND | 222,935 | 138,065 | 133.0 | 112 | +0.007 ns | 250.4 MHz |
+| RV64IM NTT-only | 429,067 | 228,266 | 261.5 | 16 | 0.000 ns | 250.0 MHz |
+| RV64IM NTT + Stage | 432,843 | 232,350 | 261.5 | 16 | -0.148 ns | 241.1 MHz |
+| RV64IM NTT + KROUND | 431,004 | 234,240 | 261.5 | 16 | -0.013 ns | 249.2 MHz |
 
-All four implementations complete post-route physical optimization with zero
-routing-error nets. Both RV32 rows close 250 MHz; both RV64 rows remain setup
-negative and are recorded as `timing_unmet`, rather than described as timing
-closed. Their hold timing closes. The RV64 NTT-only worst path is an LSU
-lane-gather route; the RV64 pointer worst path runs from the issue dispatcher
-to the integer ALU response buffer.
+All six designs route with zero routing-error nets. The three RV32IM rows and
+RV64IM NTT-only close 250 MHz. RV64IM Stage and KROUND complete post-route
+physical optimization but remain setup-negative and are recorded as
+`timing_unmet`. Their hold timing closes.
 
-Relative to RV32 NTT-only, RV64 NTT-only increases LUTs by 97.943%, FFs by
-44.263%, BRAM tiles by 96.617%, and DSPs by 109.091%. These are full-core
-configuration costs. `VX_config.toml` enables D and FLEN=64 at RV64; the FPU
-hierarchy grows from 94,535 LUT/64 DSP to 182,786 LUT/352 DSP, while the NTT
-stays at 16 DSP. Within one XLEN, the pointer PE is the appropriate increment:
-11,221 LUT/3,220 FF at RV32 and 16,945 LUT/8,605 FF at RV64, with no BRAM or
-DSP change.
+Relative to the same-XLEN NTT-only denominator, Stage adds 2,494 LUT/1,714 FF
+(+1.129%/+1.300%) at RV32IM and 3,776 LUT/4,084 FF (+0.880%/+1.789%) at
+RV64IM. KROUND adds 1,985 LUT/6,267 FF (+0.898%/+4.755%) at RV32IM and 1,937
+LUT/5,974 FF (+0.451%/+2.617%) at RV64IM. None of these Keccak additions
+changes BRAM or DSP count.
+
+The NTT hierarchy remains at 16 DSP in every row and the FPU hierarchy is
+absent. RV32IM's general multiply/divide unit uses 96 DSP, while the serial
+RV64IM implementation uses none. This explains the full-core DSP decrease from
+112 to 16 when XLEN changes; it is not an NTT resource reduction. RV64IM
+NTT-only changes full-core LUT/FF/BRAM/DSP by +94.192%/+73.194%/+96.617%/
+-85.714% relative to RV32IM NTT-only. Each row is one OOC seed, so these deltas
+are specific to this device and placement run.
 
 Structured measurements and exact report directories are in
-[the XLEN PPA comparison](../../pqc/results/ntt_keccak_rv64_ppa.csv).
-Vectorless power is archived there only for audit; it has neither workload
-activity nor environmental constraints and does not support energy claims.
+[the integer-only XLEN PPA comparison](../../pqc/results/rv32im_rv64im_keccak_ppa.csv).
+Vectorless power is archived in the build reports only for audit; it has neither
+workload activity nor environmental constraints and does not support energy
+claims.
 
 ## Physical verification and evidence
 

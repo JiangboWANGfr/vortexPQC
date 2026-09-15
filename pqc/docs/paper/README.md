@@ -6,7 +6,7 @@
 
 本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 11 页，含 19 张表、5 幅图和 11 条参考文献。
 
-论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新加入最终 NTT + pointer 路径的 RV32/RV64 功能、性能和 Vivado post-route 对比。
+论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新加入严格 RV32IM/RV64IM 的 Stage/KROUND 功能、性能和 Vivado post-route 对比。
 
 [Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
 
@@ -20,7 +20,7 @@
 2. 在 RV32 上实现分阶段 subgroup Keccak 接口：状态由 25 个 lane 的普通 GPR 保存，使用显式低/高半字、单目的寄存器写回；给出完整的八组合阶段消融。
 3. 实现 GPR 型整轮比较器，与三阶段实现及 pointer PE 在相同主平台比较，联系置换吞吐、完整 ML-KEM、LSU 操作数、FPGA 整核面积/时序及独立单元 ASIC 面积。
 
-论文主设计仍为 RV32。64 位 Keccak word 在 RV32 上由两个 32 位寄存器表示；三阶段每轮六次 collective issue，整轮比较器每轮两次。这些是发射数，不是完整操作的周期数，也不是整个内核的峰值寄存器用量。最终 NTT + pointer 路径另有匹配 RV64 实验，用来验证可移植性并量化整核宽化成本。
+论文主设计仍为 RV32。64 位 Keccak word 在 RV32 上由两个 32 位寄存器表示；三阶段每轮六次 collective issue，整轮比较器每轮两次。RV64 分别降为三次和一次。匹配实验在两种 XLEN 都关闭 F/D，并保持窄 NTT 指令不变，用来分离整数宽化和 Keccak 发射数变化。
 
 不主张“首次使用 25 个线程实现 Keccak”或“首个 warp collective Keccak round”。ML-Cube 已描述 25-thread shuffle 映射；NVIDIA 的 US 2026/0222190 A1 已公开整轮 collective 语义。本稿的 KROUND 是本项目实现的 RV32 比较器，其周期和 PPA 不是 NVIDIA 硬件的数据。参考文献中提供了对应来源。
 
@@ -102,14 +102,16 @@ SG5 保留为历史布局对照，其已归档比较使用 16-thread build，不
 
 M=1 时 stage 和 KROUND 分别比 pointer PE 快 1.093× 和 1.137×；M=8 时 pointer 分别快 1.376× 和 1.342×。这是真正的延迟/吞吐交叉，不能只选一个 batch 点下结论。stage 和 KROUND 的 XRT M=1 均通过，分别为 5,409,552 和 5,203,321 cycles，与 SimX 的 whole-launch 差为 0.004% 和 0.093%。
 
-匹配的 RV32/RV64 实验只启用最终 half-bank NTT 和 pointer Keccak PE，软件固定 `KECCAK=pe NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise SERIAL=1`。两种 XLEN 使用同一 FIPS 203 KAT 输入和 W8T32 配置：
+匹配实验使用 RV32IM/RV64IM，二者均关闭 F/D，固定最终 half-bank NTT、全部协作算术、同一 FIPS 203 KAT 输入和 W8T32 配置，只分别启用 Stage 或 KROUND：
 
-| XLEN | M=1 instructions | M=1 cycles | M=8 instructions | M=8 cycles |
+| 后端 / XLEN | M=1 instructions | M=1 cycles | M=8 instructions | M=8 cycles |
 | --- | ---: | ---: | ---: | ---: |
-| RV32 | 527,622 | 5,911,500 | 4,220,976 | 8,393,151 |
-| RV64 | 506,517 | 5,823,807 | 4,052,136 | 8,992,667 |
+| Stage RV32IM | 436,262 | 5,409,748 | 3,490,096 | 12,170,437 |
+| Stage RV64IM | 405,716 | 5,189,658 | 3,245,728 | 12,225,892 |
+| KROUND RV32IM | 415,822 | 5,198,475 | 3,326,576 | 11,937,913 |
+| KROUND RV64IM | 391,996 | 5,043,599 | 3,135,968 | 11,970,704 |
 
-RV64 在两个 batch 都少执行 4.00% 指令；M=1 cycles 减少 1.48%，M=8 cycles 反而增加 7.14%。RV64 的 SimX、RTL 和 XRT M=1 均通过完整 KAT，退休指令完全一致，SimX/RTL 与 XRT/RTL 的 cycle 差分别为 0.324% 和 0.011%。这说明 RV64 功能路径已经打通，但少执行指令不等于饱和吞吐更高。
+RV64 将两种 Keccak 后端的 collective issue 数减半，但完整 ML-KEM 的 Stage/KROUND 指令只减少 7.002%/5.730%。M=1 cycles 分别减少 4.068%/2.979%，M=8 则增加 0.456%/0.275%。SimX、RTL 和 XRT 的 M=1 KAT 全部通过且退休指令一致；最大 SimX/RTL 差为 0.515%，最大 XRT/RTL 差为 0.055%。
 
 ## 6. 成本与频率的写法
 
@@ -145,23 +147,27 @@ errors。Stage、KROUND、Pointer 层级分别为 902/2,025、2,503/6,130、
 保留在 `keccak_sg25_ppa.csv`，只用于独立单元及旧配置说明，不再作为最终整核
 Keccak 面积分母。
 
-RV32/RV64 物理对比固定同一 V80、W8T32、OPT3、250 MHz 约束和 half-bank NTT，
-每个 XLEN 分别实现 NTT-only 与 NTT + pointer：
+严格的整数 PPA 对比使用提交 `766b66a74`，固定 V80、1 core、W8T32、
+OPT3、250 MHz 和最终 half-bank NTT。RV32IM 与 RV64IM 都关闭 F/D；每个
+XLEN 分别从头实现 NTT-only、NTT + Stage 和 NTT + KROUND：
 
 | XLEN / 构建 | LUT | FF | BRAM tiles | DSP | WNS | STA Fmax |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| RV32 NTT-only | 330,530 | 267,838 | 133.0 | 176 | +0.000 ns | 250.0 MHz |
-| RV32 NTT + Pointer | 341,751 | 271,058 | 133.0 | 176 | +0.004 ns | 250.3 MHz |
-| RV64 NTT-only | 654,260 | 386,391 | 261.5 | 368 | −0.260 ns | 234.7 MHz |
-| RV64 NTT + Pointer | 671,205 | 394,996 | 261.5 | 368 | −0.190 ns | 238.7 MHz |
+| RV32IM NTT-only | 220,950 | 131,798 | 133.0 | 112 | +0.004 ns | 250.3 MHz |
+| RV32IM NTT + Stage | 223,444 | 133,512 | 133.0 | 112 | +0.004 ns | 250.3 MHz |
+| RV32IM NTT + KROUND | 222,935 | 138,065 | 133.0 | 112 | +0.007 ns | 250.4 MHz |
+| RV64IM NTT-only | 429,067 | 228,266 | 261.5 | 16 | 0.000 ns | 250.0 MHz |
+| RV64IM NTT + Stage | 432,843 | 232,350 | 261.5 | 16 | -0.148 ns | 241.1 MHz |
+| RV64IM NTT + KROUND | 431,004 | 234,240 | 261.5 | 16 | -0.013 ns | 249.2 MHz |
 
-四组 route report 都是零 routing errors。RV64 两组完成 post-route physical
-optimization，但没有闭合 250 MHz。NTT-only 从 RV32 到 RV64 增加 97.943% LUT、
-44.263% FF、96.617% BRAM tiles 和 109.091% DSP；这是整核配置成本。RV64 会自动
-启用 D/FLEN64，FPU 层级从 94,535 LUT/64 DSP 增至 182,786 LUT/352 DSP，而窄
-NTT 始终为 16 DSP。Pointer 在 RV32 内增加 11,221 LUT/3,220 FF，在 RV64 内增加
-16,945 LUT/8,605 FF，两者都不增加 BRAM 或 DSP。每行只有一个 OOC seed；不能将
-差值外推为器件或布局无关结论。
+六组 route report 都是零 routing errors。RV32IM 三组和 RV64IM NTT-only 闭合
+250 MHz；RV64IM Stage/KROUND 完成 post-route physical optimization，但仍按
+`timing_unmet` 记录。相对各自 NTT-only，Stage 在 RV32IM/RV64IM 增加
+2,494/3,776 LUT 和 1,714/4,084 FF；KROUND 增加 1,985/1,937 LUT 和
+6,267/5,974 FF。所有组的 FPU 层级均为零，NTT 始终为 16 DSP。整核 DSP 从
+RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为零 DSP 的
+串行 RV64 实现，不是 NTT 资源下降。每行只有一个 OOC seed，不能外推为器件或
+布局无关结论。
 
 整轮独立单元的 FPGA LUT 少于三阶段，但 FF 约为其 2.99×；ASAP7 下总 cell area 约为其 2.123×。整轮在本次纯置换的整核 throughput/LUT 指标上仍然领先约 4.115×，因此不能预设三阶段在所有面积归一化指标上获胜。
 
@@ -183,10 +189,10 @@ NTT 始终为 16 DSP。Pointer 在 RV32 内增加 11,221 LUT/3,220 FF，在 RV64
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
 | 表 XIII 最终 NTT+Keccak 五后端完整 ML-KEM | keccak_ntt_unified_mlkem.csv |
-| 表 XIV、匹配 RV32/RV64 完整 ML-KEM | rv32_rv64_mlkem.csv |
+| 表 XIV、匹配 RV32IM/RV64IM 完整 ML-KEM | rv32im_rv64im_keccak.csv |
 | 表 XV、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
 | 表 XVI、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
-| 表 XVII、匹配 RV32/RV64 整核 PPA | ntt_keccak_rv64_ppa.csv |
+| 表 XVII、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
 | 表 XVIII–XIX、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |

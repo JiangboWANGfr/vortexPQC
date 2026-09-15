@@ -1,0 +1,10 @@
+# Matched integer-only RV32/RV64 V80 post-route comparison.
+# Vivado 2025.1, xcv80-lsva4737-2MHP-e-S, 1 core, W8T32, 250 MHz, OPT3.
+# Every row enables NTT, disables F/D, and comes from an independent fresh project.
+xlen,variant,date,git_commit,tool,device,stage,target_mhz,warps,threads,f_enabled,d_enabled,keccak_backend,total_luts,lutrams,ffs,bram_tiles,uram,dsps,wns_ns,fmax_mhz,keccak_hier_luts,keccak_hier_ffs,keccak_hier_dsps,ntt_hier_luts,ntt_hier_ffs,ntt_hier_dsps,muldiv_hier_luts,muldiv_hier_ffs,muldiv_hier_dsps,fpu_hier_luts,fpu_hier_ffs,fpu_hier_dsps,routing_errors,status,report_dir
+32,ntt_only,2026-09-15,766b66a74,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,0,0,none,220950,6482,131798,133,0,112,0.004,250.3,0,0,0,5624,5155,16,12486,10986,96,0,0,0,0,met,build32_im/hw/syn/xilinx/dut/v80_rv32im_ntt_only_core
+32,ntt_stage,2026-09-15,766b66a74,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,0,0,stage,223444,6482,133512,133,0,112,0.004,250.3,838,2023,0,5652,5153,16,12548,10985,96,0,0,0,0,met,build32_im/hw/syn/xilinx/dut/v80_rv32im_ntt_stage_core
+32,ntt_kround,2026-09-15,766b66a74,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,0,0,whole_round,222935,6482,138065,133,0,112,0.007,250.4,2343,6126,0,5633,5153,16,12546,10989,96,0,0,0,0,met,build32_im/hw/syn/xilinx/dut/v80_rv32im_ntt_kround_core
+64,ntt_only,2026-09-15,766b66a74,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,0,0,none,429067,11282,228266,261.5,0,16,0.000,250.0,0,0,0,4765,5372,16,22544,18972,0,0,0,0,0,met,build64_im/hw/syn/xilinx/dut/v80_rv64im_ntt_only_core
+64,ntt_stage,2026-09-15,766b66a74,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,0,0,stage,432843,11282,232350,261.5,0,16,-0.148,241.1,1565,3642,0,4695,5486,16,22581,18968,0,0,0,0,0,timing_unmet,build64_im/hw/syn/xilinx/dut/v80_rv64im_ntt_stage_core
+64,ntt_kround,2026-09-15,766b66a74,Vivado_2025.1,xcv80-lsva4737-2MHP-e-S,post_route_phys_opt,250,8,32,0,0,whole_round,431004,11282,234240,261.5,0,16,-0.013,249.2,2226,6939,0,4705,5419,16,22533,18967,0,0,0,0,0,timing_unmet,build64_im/hw/syn/xilinx/dut/v80_rv64im_ntt_kround_core
