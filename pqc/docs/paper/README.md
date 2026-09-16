@@ -152,7 +152,9 @@ RV64 将两种 Keccak 后端的 collective issue 数减半，但完整 ML-KEM �
 
 后续同步对照新增 `MAPPING=sg5 SG5_SYNC=barrier`，使用每 warp 独立的两次 BAR，原两组差距降为 **1.387% / 1.193%**。但八 warp 的 S6/P2 和 S1/P8 仍有 **5.442% / 9.627%**；原 fence 在这两个点分别为 20.439% / 26.588%。双 warp barrier 的 11 组中有 9 组通过时序阈值，不能写成 SG5 全面闭合。CTA barrier、LMEM 和单次 barrier 也各有失败点。全部 31 对、62 次运行数值正确且成对退休指令完全一致，时序结果为 **20 对 PASS、11 对 FAIL**，未修改 5% 阈值。默认仍为 fence；barrier 保留为实验选项。
 
-来源：`keccak_w32_controls.csv`、`mlkem_w32_controls.csv`、`keccak_sg5_sync.csv`。后三种诊断实现的源码补丁归档于 `keccak_sg5_sync_sources.zip`，分别基于 `68845dd72`；保留的 fence/barrier 实现为 `1bd44cf34`。构建命令、原始日志目录和验证范围见 `docs/proposals/keccak_sg25_proposal.md`。这轮只改软件与实验入口，没有重新运行综合。
+之后的轨迹对照定位到独立的 cache 模型错误：RTL 从暂存的回填数据直接转发，SimX 却等待缓存数组写入完成。`6455855c2` 修正转发时机，并保留 write-through store 在回填期间的合并顺序。缓存单元测试覆盖数组深度、读写顺序、响应反压和回填附近的 store，在 RV32/RV64 均通过。保持同一 barrier ELF，重新运行全部 11 对 SimX/XRT 后，数值和指令数全部一致，整 launch 时序全部通过未修改的 5% 阈值；W8/S6/P2 与 W8/S1/P8 分别降为 **4.068% / 3.294%**，最大整 launch 差为 **4.225%**。但 W8/S2/P2 的独立置换区间仍差 **5.633%**。这轮没有复测其他同步方案，也没有补齐真实 fence flush；历史表格保留原模型快照。
+
+来源：`keccak_w32_controls.csv`、`mlkem_w32_controls.csv`、`keccak_sg5_sync.csv`，新增模型复测单列于 `keccak_sg5_cache_forward.csv`，轨迹摘要和回归证据见 `keccak_sg5_cache_forward_trace.json`。后三种诊断实现的源码补丁归档于 `keccak_sg5_sync_sources.zip`，分别基于 `68845dd72`；保留的 fence/barrier 实现为 `1bd44cf34`。构建命令、原始日志目录和验证范围见 `docs/proposals/keccak_sg25_proposal.md`。同步轮只改软件与实验入口，后续轮修正 SimX 模型；均未改 RTL 或重新综合。
 
 ## 6. 成本与频率的写法
 
@@ -214,7 +216,7 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 
 ## 7. 表格与来源映射
 
-以下路径均相对仓库根目录的 pqc/results/；生成清单保存 24 份 CSV 和 1 份诊断源码包，共 25 个输入文件的 SHA-256。
+以下路径均相对仓库根目录的 pqc/results/；生成清单保存 25 份 CSV、1 份诊断源码包和 1 份轨迹证据 JSON，共 27 个输入文件的 SHA-256。
 
 | 正文内容 | 源文件 |
 | --- | --- |
@@ -233,6 +235,7 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 | 表 XIV–XV、同 W32 软件映射与循环展开控制 | keccak_w32_controls.csv |
 | 表 XVI、同 W32 PQRV 与展开控制的完整 ML-KEM | mlkem_w32_controls.csv |
 | SG5 同步实现、失败点与源码对照 | keccak_sg5_sync.csv、keccak_sg5_sync_sources.zip |
+| SG5 cache 转发模型修复与复测 | keccak_sg5_cache_forward.csv、keccak_sg5_cache_forward_trace.json |
 | 表 XVII、最终 RV32IM 直接阶段 profile | mlkem_phase_profile.csv |
 | 表 XVIII、匹配 RV32IM/RV64IM 完整 ML-KEM | rv32im_rv64im_keccak.csv |
 | 表 XIX、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
@@ -256,7 +259,7 @@ make -C ../pqc/docs/paper
 
 也可在本目录直接执行 make。此目标只生成文档，不编译 Vortex 核心或测试程序。所有中间结果进入仓库 build/ieee_pqc/，最终 PDF 保存在本目录。
 
-[generate_results.py](generate_results.py) 从 20 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和、最终阶段 bucket 的互斥求和、探针开销与三模型一致性、RV32/RV64 KAT 与 model parity、SG5 同步实验的 PASS/FAIL 分类，以及两组 XLEN 的综合配置、路由和闭合状态。另将文字引用的四份历史 CSV 和一份 SG5 诊断源码包纳入哈希清单，共记录 25 个输入文件；这些历史文件不是重新执行实验后的结果。
+[generate_results.py](generate_results.py) 从 21 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和、最终阶段 bucket 的互斥求和、探针开销与三模型一致性、RV32/RV64 KAT 与 model parity、SG5 同步实验的 PASS/FAIL 分类、cache 修复前后的二进制与指令一致性及 launch/span 差距，以及两组 XLEN 的综合配置、路由和闭合状态。另将文字引用的四份历史 CSV、一份 SG5 诊断源码包和一份轨迹证据 JSON 纳入哈希清单，共记录 27 个输入文件；这些历史文件不是重新执行实验后的结果。
 
 独立源码包含已生成的表格、图、原始 CSV 快照和 provenance.json，可在 Overleaf 选择 pdfLaTeX 编译 main.tex，也可在解压目录执行：
 
@@ -279,7 +282,7 @@ provenance.json 记录本次文档生成时的仓库 HEAD、工作区是否有�
 
 最终 8w × 32t 的直接阶段计时、匹配软件映射与展开控制已完成。剩余优先项为：
 
-1. 对 SG5 无 fence 的 W8/S1/P8 残差做 BAR/LSU/cache/issue 时序轨迹对照，并补齐真实 fence 的 cache-flush 建模。同步、存储和单次 barrier 对照已完成，原两组问题改善，但尚无一个同步方案通过全部共同负载。
+1. 补齐真实 fence 的 cache-flush 建模，并追踪 SG5 W8/S2/P2 独立区间仍有的 5.633% 差距。BAR/LSU/cache 对照已定位并修复 fill 转发时机；保留的双 warp barrier 方案全部 11 对整 launch 已通过，但不能外推到其他同步方案或所有独立区间。
 2. 扩展多输入与混合 batch；如果论文覆盖 ML-DSA collective 性能，则完成其端到端集成和输入分布实验。
 3. 根据最终投稿目标补板上运行、功耗/能耗和更完整系统 PPA。现有 XRT 证据是集成仿真，ASIC 数据是独立单元映射结果。
 

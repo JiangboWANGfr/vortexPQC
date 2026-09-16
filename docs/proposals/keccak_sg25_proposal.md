@@ -782,15 +782,13 @@ CI catalog lint and collection pass; the new eight-warp barrier case is a
 **functional** SimX/XRT case, not a timing waiver or a claimed full CI run.
 The measurements here keep F/D disabled and use the local soft-ABI libraries.
 
-No synchronization variant passes every common workload, so the default
+In that experiment, no synchronization variant passed every common workload, so the default
 and historical paper denominator remain unchanged. BAR waits on the core's
 shared LSU drain in both models; assigning a warp-private barrier slot does
 not turn that drain into a warp-private resource. The fence-free failures show
 that cache-flush omission alone cannot explain all SG5 timing differences.
-The next model investigation must correlate BAR arrivals/releases, LSU
-request/response queues, and cache/issue stalls at W8/S1/P8; changing timing
-constants or selecting only passing workloads would not resolve the cause.
-No RTL, model constants, tolerance, or synthesis results changed in this work.
+This motivated the BAR/LSU/cache trace comparison below. No RTL, model
+constants, tolerance, or synthesis results changed in the synchronization experiment.
 
 #### Cache fill-forward investigation
 
@@ -812,6 +810,46 @@ The retained SG5 barrier matrix passes the unchanged whole-launch 5% gate
 in all eleven pairs; its maximum isolated-span gap is still 5.633%.
 Historical synchronization results stay intact and the fence/cache-flush
 limitation is not declared fixed by this change.
+
+The correction is committed as `6455855c2`. All eleven retained warp-barrier
+workloads were rerun on release SimX and XRT, using `PERF=1` and
+`VORTEX_PROFILING=4`. The same ELF and host hashes match the earlier experiment;
+all 22 runs pass output/guard checks and all eleven pairs retire identical
+instructions. Every XRT launch and isolated span reproduces its previous
+value exactly. Selected whole-launch results are:
+
+| Workload | Previous SimX | Corrected SimX | XRT | Previous gap | Corrected gap |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| W8/S1/P8 | 1,220,634 | 1,076,767 | 1,113,440 | 9.627% | 3.294% |
+| W8/S6/P2 | 1,574,342 | 1,553,825 | 1,493,084 | 5.442% | 4.068% |
+| W8/S2/P2 | 584,719 | 585,967 | 562,211 | 4.003% | 4.225% |
+
+The last row is the largest remaining launch gap. Its isolated permutation
+span is 490,962 versus 464,783 cycles (5.633%); it must not be described as
+agreement within 5% for every measured interval. The fence, CTA, LMEM, and
+single-barrier variants were not rerun with the corrected model. Historical
+paper throughput tables retain their original model snapshot.
+
+Data: [`keccak_sg5_cache_forward.csv`](../../pqc/results/keccak_sg5_cache_forward.csv).
+Source revisions, binary/runtime/log hashes, trace histograms, and regression
+scope are in
+[`keccak_sg5_cache_forward_trace.json`](../../pqc/results/keccak_sg5_cache_forward_trace.json).
+Raw logs and traces are under `build32_im/sg5_model/`. The first read following
+a fill took two bank cycles in all 92,535 old SimX samples; RTL forwards in
+one cycle for 91,274 of 91,311 samples. Corrected SimX forwards in one cycle
+for 94,474 of 94,554 samples, with response backpressure accounting for later
+responses. The initial DEBUG traces used an unsupported profiling selector
+and failed the final host perf dump; they are diagnostic evidence only.
+DEBUG XRT also has a different aggregate span from release XRT, so only the
+release runs enter the parity matrix.
+
+The native `sw-cache-forward` CI case passes at both XLENs. Additional release
+SimX/XRT runs pass numerical checks and exact instruction counts for
+`pqc_alu_mix`, `vecadd -n16384`, and `io_addr`. The first two have launch gaps
+2.562% and 0.616%. The tiny `io_addr` launch remains a functional-only pass:
+its gap is 12.445%, versus 12.708% before the correction. CI catalog lint and
+the software/simulator boundary check pass; this is not a full regression
+suite or a new synthesis run.
 
 With the build environment below, reproduce the retained control using
 `make -s -C tests/pqc/keccak_sg25 MAPPING=sg5 SG5_SYNC=barrier`; run the same

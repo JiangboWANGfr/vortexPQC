@@ -663,6 +663,46 @@ for name, arm, batch, states, permutations in (
 sync_sources = RESULTS / "keccak_sg5_sync_sources.zip"
 sources[str(sync_sources.relative_to(ROOT))] = hashlib.sha256(sync_sources.read_bytes()).hexdigest()
 
+forward_rows = read("keccak_sg5_cache_forward")
+forward_map = {(r["driver"], int(r["batch"]), int(r["states_per_warp"]),
+                int(r["permutations_per_state"])): r for r in forward_rows}
+assert len(forward_rows) == len(forward_map) == 22
+forward_gaps, forward_span_gaps = [], []
+for key, r in forward_map.items():
+    old = sync_map[("warp_barrier",) + key]
+    assert r["arm"] == "warp_barrier"
+    for field in ("kernel_sha256", "host_sha256", "retired_instructions", "source_snapshot"):
+        assert r[field] == old[field]
+    assert r["previous_model_device_cycles"] == old["device_cycles"]
+    assert r["previous_model_span_cycles"] == old["span_cycles"]
+    assert r["previous_cycle_gap_pct"] == old["cycle_gap_pct"]
+    assert r["result"] == r["parity_status"] == "PASS"
+    if r["driver"] != "xrt":
+        continue
+    s = forward_map[("simx",) + key[1:]]
+    assert r["device_cycles"] == old["device_cycles"]
+    assert r["span_cycles"] == old["span_cycles"]
+    gap = abs(int(r["device_cycles"]) - int(s["device_cycles"])) / int(r["device_cycles"])
+    span_gap = abs(int(r["span_cycles"]) - int(s["span_cycles"])) / int(r["span_cycles"])
+    assert gap <= 0.05
+    for row in (r, s):
+        assert abs(float(row["cycle_gap_pct"]) - 100 * gap) < 1e-6
+        assert abs(float(row["span_gap_pct"]) - 100 * span_gap) < 1e-6
+    forward_gaps.append(gap)
+    forward_span_gaps.append(span_gap)
+assert len(forward_gaps) == 11
+macros["SgFiveCacheMaxGap"] = percent(max(forward_gaps))
+macros["SgFiveCacheMaxSpanGap"] = percent(max(forward_span_gaps))
+for name, states, permutations in (("SgFiveCacheGapSingle", 1, 8), ("SgFiveCacheGapPacked", 6, 2)):
+    macros[name] = percent(float(forward_map["xrt", 8, states, permutations]["cycle_gap_pct"]) / 100)
+forward_evidence = RESULTS / "keccak_sg5_cache_forward_trace.json"
+sources[str(forward_evidence.relative_to(ROOT))] = hashlib.sha256(forward_evidence.read_bytes()).hexdigest()
+forward_summary = json.loads(forward_evidence.read_text())["release_matrix"]
+assert forward_summary["pairs"] == forward_summary["whole_launch_pairs_within_five_percent"] == 11
+assert forward_summary["data"]["sha256"] == sources["pqc/results/keccak_sg5_cache_forward.csv"]
+assert abs(forward_summary["max_cycle_gap_pct"] - 100 * max(forward_gaps)) < 1e-6
+assert abs(forward_summary["max_span_gap_pct"] - 100 * max(forward_span_gaps)) < 1e-6
+
 for name in ("keccak_ise_simx", "keccak_ise_mldsa", "core_config_v80", "keccak_sg5"):
     path = RESULTS / (name + ".csv")
     sources[str(path.relative_to(ROOT))] = hashlib.sha256(path.read_bytes()).hexdigest()

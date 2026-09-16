@@ -1,0 +1,266 @@
+{
+  "model_source_snapshot": "6455855c2b6c91e83a5cdc8be3c012698faa43b3",
+  "previous_model_source_snapshot": "2c3a5e533b497e515a1ab3a5e7448b01b494fe43",
+  "diagnosis": "RTL forwards a staged fill on the next cycle. SimX formerly waited for array installation. Forwarding now uses the captured payload at fill admission, with write-through stores merged even after earlier forwarded reads release the root MSHR.",
+  "changed_model": {
+    "path": "sim/simx/mem/cache.cpp",
+    "sha256": "cc319c2716dbc8fd4380ecd944491637209900bbe83d1cc393fa5141ea7755d0"
+  },
+  "unchanged_rtl": {
+    "path": "hw/rtl/cache/VX_cache_bank.sv",
+    "sha256": "03179c7d04dd88bcf358a0b21f4f1827722db0e92ca4e0621d09cfd4b0a6f9c5"
+  },
+  "software_binaries": [
+    {
+      "path": "build32_im/sg5_sync/barrier/kernel.elf",
+      "sha256": "732786287d6b54cf0b73d2a4f1634a9e534ba0c2029257bcd840df5744529d55"
+    },
+    {
+      "path": "build32_im/sg5_sync/barrier/kernel.vxbin",
+      "sha256": "e9096bfa5b28abbb418cdd8d0868b3ce7f73267a957126535fcd748cbf54e590"
+    },
+    {
+      "path": "build32_im/sg5_sync/barrier/keccak_sg25",
+      "sha256": "0a2e1d44de4d213640502126ebde726d5ae04dc930d3b2f8bb68b4d44ed743f9"
+    }
+  ],
+  "runtime_files": [
+    {
+      "path": "build32_im/sg5_model/model_runtime/libsimx.so",
+      "sha256": "f64447ca734484851ebfc96a460aad8c6350d76545c9a88490a66c101074ade6"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/libvortex-simx.so",
+      "sha256": "34e63723b561780b3ac39fc533b25691897c1c1b79bb9dbfd2f62ffc1119d6b9"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/libvortex-xrt.so",
+      "sha256": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/libvortex.so",
+      "sha256": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/libxrtsim.so",
+      "sha256": "d2940469c6fb0ebf7a037dc8747c6e400500cd4da97aa10b107dc4bb28b45dd4"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/simx_config.stamp",
+      "sha256": "8053298f8f5e02af7a6cb074333aa83b5885b4d7d6c360cc8ffccf10fc1d7340"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/simx_rt_config.stamp",
+      "sha256": "28138e29739f514ad7e895d0e9d5b6b835e96418449f4091b32a50288634f0e9"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/xrt_config.stamp",
+      "sha256": "8aaa939be4a6cd2090169b34b93a998eac2299662714427cdb63f26869c1fae8"
+    },
+    {
+      "path": "build32_im/sg5_model/model_runtime/xrtsim_config.stamp",
+      "sha256": "6a536600b60a9a1807c6ff19d488f9c5f15895e5b2f2df9918150aa40ff3d23f"
+    }
+  ],
+  "release_matrix": {
+    "pairs": 11,
+    "numerical_runs_passed": 22,
+    "exact_instruction_pairs": 11,
+    "whole_launch_pairs_within_five_percent": 11,
+    "max_cycle_gap_pct": 4.225459836253642,
+    "max_span_gap_pct": 5.632520982910294,
+    "data": {
+      "path": "pqc/results/keccak_sg5_cache_forward.csv",
+      "sha256": "b177a50bdf46515ea4d754676814b0c4cda483cf70a9a7c6c0848e11cd1895a1"
+    }
+  },
+  "trace_histogram": {
+    "definition": "Cycles from bank fill-req to its first following fwd-rsp, per D-cache bank. RTL timestamps divided by two. Fills without a forwarded response are excluded.",
+    "counts": {
+      "simx_before": {
+        "total": 92535,
+        "cycles": {
+          "2.0": 92535
+        }
+      },
+      "xrt_debug": {
+        "total": 91311,
+        "cycles": {
+          "1.0": 91274,
+          "2.0": 34,
+          "4.0": 3
+        }
+      },
+      "simx_after": {
+        "total": 94554,
+        "cycles": {
+          "1.0": 94474,
+          "2.0": 80
+        }
+      }
+    },
+    "traces": [
+      {
+        "path": "build32_im/sg5_model/simx_b8_n1_p8.trace",
+        "sha256": "12d78d26403756171ebd052af35e11a6367e6a81d372510aef77d8c69291ce3c"
+      },
+      {
+        "path": "build32_im/sg5_model/xrt_b8_n1_p8.trace",
+        "sha256": "4045594292502f61a8f3791244c04ee4e6541ca632492624c8e8a57b8b7d6c9e"
+      },
+      {
+        "path": "build32_im/sg5_model/simx_fixed_b8_n1_p8.trace.gz",
+        "sha256": "d3b58139fbb0eb25c2d43b9b498cc6b45ca3815f5691475b7956eb6001d809df"
+      }
+    ],
+    "limitations": [
+      "Initial SimX/XRT DEBUG=3 traces used unsupported VORTEX_PROFILING=2. Numerical execution completed but the final perf dump failed. These are diagnostic traces, not passing regression records.",
+      "DEBUG XRT isolated span is 1056703 cycles, versus 1018270 for the release build. Local bank forwarding events support the structural diagnosis; DEBUG aggregate cycles are excluded from the release parity matrix.",
+      "Fixed SimX DEBUG=3 uses VORTEX_PROFILING=4. Response backpressure can delay forwarding beyond one cycle."
+    ]
+  },
+  "cache_unit": {
+    "array_depths": [
+      2,
+      4
+    ],
+    "previous_response_cycles": [
+      5,
+      7
+    ],
+    "corrected_response_cycles": [
+      4,
+      4
+    ],
+    "coverage": [
+      "read/store/read ordering",
+      "response backpressure",
+      "write-through stores at offsets 0 through 7 around fill arrival"
+    ],
+    "logs": [
+      {
+        "path": "build32_im/sg5_model/cache_forward_before.log",
+        "sha256": "41bf3bea8573dcfdf227147c8a1ff9d44dfc9afe9abc74842d146c31b637d28c"
+      },
+      {
+        "path": "build32_im/sg5_model/cache_forward_writethrough.log",
+        "sha256": "80c5d82e5cd84cf826fc8933f29a1875e90772590253e5c8bb9743e6385f7a64"
+      },
+      {
+        "path": "build32_im/sg5_model/cache_forward64.log",
+        "sha256": "80c5d82e5cd84cf826fc8933f29a1875e90772590253e5c8bb9743e6385f7a64"
+      },
+      {
+        "path": "build32_im/sg5_model/ci_cache_forward32.log",
+        "sha256": "c5613a629a621c858828eeb24a91954e73f4967674003280c0b78d67ae46c22d"
+      },
+      {
+        "path": "build32_im/sg5_model/ci_cache_forward64.log",
+        "sha256": "8c6b88432a96183fe08b77710589224a8661b37bf0562856eb032bd2d301895b"
+      }
+    ]
+  },
+  "regression_results": [
+    {
+      "app": "pqc_alu_mix",
+      "args": [],
+      "drivers": {
+        "simx": {
+          "instructions": 1552,
+          "cycles": 8005,
+          "result": "PASS",
+          "log": {
+            "path": "build32_im/sg5_model/simx_pqc_alu_mix.log",
+            "sha256": "205f5c3ad2262bb6c0181c6c59ca3eff1966760fd8dcf227c9a79dc862332645"
+          }
+        },
+        "xrt": {
+          "instructions": 1552,
+          "cycles": 7805,
+          "result": "PASS",
+          "log": {
+            "path": "build32_im/sg5_model/xrt_pqc_alu_mix.log",
+            "sha256": "a6f014a765ecdc62d960e50e4e62b9c8363593a39a9fdb126ddee56c42e4d498"
+          }
+        }
+      },
+      "cycle_gap_pct": 2.5624599615631016,
+      "within_five_percent": true
+    },
+    {
+      "app": "vecadd",
+      "args": [
+        "-n16384"
+      ],
+      "drivers": {
+        "simx": {
+          "instructions": 114208,
+          "cycles": 5807300,
+          "result": "PASS",
+          "log": {
+            "path": "build32_im/sg5_model/simx_vecadd.log",
+            "sha256": "8d07ab397533b189af1479bf0fb37f2b279df5741941371b75d5395db7260fe8"
+          }
+        },
+        "xrt": {
+          "instructions": 114208,
+          "cycles": 5843297,
+          "result": "PASS",
+          "log": {
+            "path": "build32_im/sg5_model/xrt_vecadd.log",
+            "sha256": "3e96a5c5ef2cadfd7dd9705244b345f42aec7d1aa9fac14b620798b1e99b8a26"
+          }
+        }
+      },
+      "cycle_gap_pct": 0.6160391984182945,
+      "within_five_percent": true
+    },
+    {
+      "app": "io_addr",
+      "args": [],
+      "drivers": {
+        "simx": {
+          "instructions": 208,
+          "cycles": 1283,
+          "result": "PASS",
+          "log": {
+            "path": "build32_im/sg5_model/simx_io_addr.log",
+            "sha256": "fb5ff7e2cf3b9f5f17276cb50d643d9935f7869d86724c4e823e89e3acef6c94"
+          }
+        },
+        "xrt": {
+          "instructions": 208,
+          "cycles": 1141,
+          "result": "PASS",
+          "log": {
+            "path": "build32_im/sg5_model/xrt_io_addr.log",
+            "sha256": "4a1e32fc9e7c24f42a9a42bdd1983320fd12b010f692c4f6622562f5fae0fcfc"
+          }
+        }
+      },
+      "cycle_gap_pct": 12.445223488168278,
+      "within_five_percent": false,
+      "previous_model_simx_cycles": 1286,
+      "previous_model_log": {
+        "path": "build32_im/sg5_model/io_addr_base_simx.log",
+        "sha256": "8ef3630951f2721bba0fcbf1439f58ea0de827a7627f6ac782ced6270fd8b175"
+      },
+      "note": "Functional pass only: tiny-launch timing gap existed before this correction."
+    }
+  ],
+  "scope": [
+    "F/D disabled; local soft-ABI libc32/libcrt32.",
+    "No full regression suite or new synthesis run.",
+    "Default fence and historical paper performance tables remain unchanged.",
+    "The fence, CTA-barrier, LMEM, and single-barrier arms were not retested with the corrected cache model."
+  ],
+  "commands": [
+    "From build32_im: ../configure --xlen=32 --tooldir=/home/jiangbowang/aphdcode/vortex_v80/toolchains",
+    "export CONFIGS=\"-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32\"",
+    "make -s -C sw/runtime/simx DESTDIR=\"$PWD/sg5_model/model_runtime\" PERF=1",
+    "make -s -C sw/runtime/xrt DESTDIR=\"$PWD/sg5_model/model_runtime\" PERF=1",
+    "Build keccak_sg25 with the same CONFIGS, LIBC_PATH=toolchains-im/libc32, LIBCRT_PATH=toolchains-im/libcrt32, MAPPING=sg5 SG5_SYNC=barrier.",
+    "From the app directory: LD_LIBRARY_PATH=<isolated_runtime> VORTEX_DRIVER=simx|xrt VORTEX_PROFILING=4 ./keccak_sg25 -b<B> -n<S> -p<P>; use all 11 triples in the CSV.",
+    "From build32_im/build64_im respectively: VX_XLEN=32/64 python3 -m pytest ci -k sw-cache-forward -q"
+  ]
+}

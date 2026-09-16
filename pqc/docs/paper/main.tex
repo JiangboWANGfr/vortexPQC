@@ -935,22 +935,30 @@ full RTL cache flush. SG5's SimX timing therefore remains a prediction with
 this limitation; it is not reported as a model-parity pass. No RTL or physical
 design changes are involved in these controls.
 
-A follow-up synchronization experiment replaces both transpose fences with
-warp-private BARs, which drain the LSU without flushing the cache. The two
-original gaps fall to \SgFiveWarpGapOne{} and \SgFiveWarpGapTwo{}.
-Expanded eight-warp tests nevertheless fail at \SgFiveWarpGapPacked{}
-for six states/warp with two permutations and \SgFiveWarpGapSingle{} for
-one state/warp with eight permutations; the latter fence control differs
-by \SgFiveFenceGapEight{}. Across 31 pairs including CTA barriers, LMEM,
-and a single-barrier control, all outputs and retired instructions agree,
-but only 20 pairs satisfy the unchanged timing gate. No variant passes all
-five common workloads; LMEM still differs by \SgFiveLmemGapEight{} on the
-eight-warp, single-state chain. Thus cache flushing is not the only timing
-limitation. BAR drains the shared core LSU even with a private barrier ID;
-the remaining timing error requires instruction/memory trace comparison.
-The default fence implementation and Table~\ref{tab:w32mapping} remain
-unchanged. Results and diagnostic patches accompany
-\texttt{keccak\_sg5\_sync.csv}.
+A synchronization experiment replaced both transpose fences with warp-private
+BARs, which drain the shared core LSU without flushing the cache. The original
+gaps fell to \SgFiveWarpGapOne{} and \SgFiveWarpGapTwo{}, but expanded
+eight-warp tests still differed by \SgFiveWarpGapPacked{} for six states/warp
+with two permutations and \SgFiveWarpGapSingle{} for one state/warp with
+eight permutations. Across 31 pairs including CTA barriers, LMEM, and a
+single-barrier control, all outputs and retired instructions agreed, but only
+20 pairs passed timing. These historical results and diagnostic patches
+remain in \texttt{keccak\_sg5\_sync.csv} and its source archive.
+
+Trace comparison then identified a separate cache-model error: RTL forwards
+a staged fill before array installation, whereas SimX waited for the array
+pipeline. Capturing and forwarding the fill at admission corrects this
+ordering without changing RTL or timing constants. A cache regression checks
+array-depth independence, read/store ordering, response backpressure, and
+write-through stores around fill arrival. With the same SG5 BAR binary,
+all 11 repeated SimX/XRT pairs now agree on instructions and satisfy the
+unchanged 5\% whole-launch gate; the two eight-warp gaps become
+\SgFiveCacheGapPacked{} and \SgFiveCacheGapSingle{}, with a maximum of
+\SgFiveCacheMaxGap{}. One isolated permutation interval still differs by
+\SgFiveCacheMaxSpanGap{}. The new CSV \texttt{keccak\_sg5\_cache\_forward.csv}
+records this follow-up separately. Full fence-flush modeling remains
+incomplete; the default fence implementation and historical performance
+tables, including Table~\ref{tab:w32mapping}, are unchanged.
 
 \subsection{Direct final-configuration phase profile}
 Table~\ref{tab:directphases} measures mutually exclusive M1 intervals in the
