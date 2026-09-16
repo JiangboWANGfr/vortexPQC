@@ -538,6 +538,99 @@ macros["FinalNttLutOverhead"] = percent(int(ntt_ppa["keccak_pe_static_agu_nttmul
 macros["FinalNttFfOverhead"] = percent(int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_halfbank"]["ffs"])/ntt_base_ff-1)
 macros["HalfbankLutSaving"] = percent(1-int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_halfbank"]["total_luts"])/int(ntt_ppa["keccak_pe_static_agu_nttmul_sg2_reducepipe"]["total_luts"]))
 
+controls = read("keccak_w32_controls")
+control_map = {(r["arm"], r["driver"], int(r["batch"]),
+                int(r["states_per_warp"]), int(r["permutations_per_state"])): r
+               for r in controls}
+assert len(control_map) == len(controls)
+assert {r["result"] for r in controls} == {"PASS"}
+
+
+def control(arm, batch, states=1, permutations=8, driver="simx"):
+    return control_map[arm, driver, batch, states, permutations]
+
+
+def per_permutation(row):
+    count = int(row["batch"]) * int(row["states_per_warp"]) * int(row["permutations_per_state"])
+    assert count == int(row["completed_permutations"])
+    return int(row["span_cycles"]) / count
+
+
+table("w32_mapping", [[label, str(states),
+                       number(per_permutation(control(arm, 1)), 1),
+                       number(per_permutation(control(arm, 8)), 1),
+                       number(per_permutation(control(arm, 8, states)), 1)]
+                      for arm, label, states in (("sg1", "SG1 C", 32),
+                                                ("asm", "PQRV", 32),
+                                                ("sg5", "SG5", 6),
+                                                ("sg25_sw", "SG25", 1))])
+table("w32_unroll", [[label, str(issues),
+                      number(per_permutation(control(arm, 1, permutations=64)), 1),
+                      number(per_permutation(control(arm, 8, permutations=64)), 1)]
+                     for arm, label, issues in (("stage_loop", "Stage / loop", 144),
+                                               ("stage_unrolled", "Stage / unrolled", 144),
+                                               ("kround", "Whole round", 48))])
+macros["MatchedRoundGainOne"] = number(
+    per_permutation(control("stage_unrolled", 1, permutations=64)) /
+    per_permutation(control("kround", 1, permutations=64)))
+macros["MatchedRoundGainEight"] = number(
+    per_permutation(control("stage_unrolled", 8, permutations=64)) /
+    per_permutation(control("kround", 8, permutations=64)))
+
+control_kem_rows = read("mlkem_w32_controls")
+control_kem = {(r["arm"], r["driver"], int(r["batch"])): r for r in control_kem_rows}
+assert len(control_kem) == len(control_kem_rows)
+assert {r["kat"] for r in control_kem_rows} == {"PASS"}
+assert {(r["keccak_x1"], r["keccak_x4"], r["ntt"], r["intt"])
+        for r in control_kem_rows} == {("140", "0", "15", "9")}
+
+
+def kem_control_cycles(arm, batch):
+    return int(control_kem[arm, "simx", batch]["device_cycles"])
+
+
+table("w32_kem", [[label, million(kem_control_cycles(arm, 1)),
+                   number(kem_control_cycles("asm", 1) / kem_control_cycles(arm, 1)),
+                   million(kem_control_cycles(arm, 8)),
+                   number(kem_control_cycles("asm", 8) / kem_control_cycles(arm, 8))]
+                  for arm, label in (("sg1", "SG1 C"), ("asm", "PQRV"),
+                                     ("sg25_sw", "SG25 shuffle"),
+                                     ("stage_loop", "Stage / loop"),
+                                     ("stage_unrolled", "Stage / unrolled"),
+                                     ("kround", "Whole round"))])
+for batch, suffix in ((1, "One"), (8, "Eight")):
+    macros["MatchedAsmGain" + suffix] = number(
+        kem_control_cycles("sg1", batch) / kem_control_cycles("asm", batch))
+    macros["MatchedRoundKemGain" + suffix] = number(
+        kem_control_cycles("stage_unrolled", batch) / kem_control_cycles("kround", batch))
+    macros["MatchedStageAsmGain" + suffix] = number(
+        kem_control_cycles("asm", batch) / kem_control_cycles("stage_unrolled", batch))
+macros["MatchedUnrollOneReduction"] = percent(
+    1 - kem_control_cycles("stage_unrolled", 1) / kem_control_cycles("stage_loop", 1))
+macros["MatchedUnrollEightIncrease"] = percent(
+    kem_control_cycles("stage_unrolled", 8) / kem_control_cycles("stage_loop", 8) - 1)
+control_gaps = []
+sg5_gaps = []
+for dataset, indexed in ((controls, control_map), (control_kem_rows, control_kem)):
+    for r in dataset:
+        if r["driver"] != "xrt":
+            continue
+        key = (r["arm"], "simx", int(r["batch"]))
+        if dataset is controls:
+            key += (int(r["states_per_warp"]), int(r["permutations_per_state"]))
+        s = indexed[key]
+        assert r["kernel_sha256"] == s["kernel_sha256"]
+        assert r["retired_instructions"] == s["retired_instructions"]
+        gap = abs(int(r["device_cycles"])-int(s["device_cycles"])) / int(r["device_cycles"])
+        expected_parity = "PASS" if gap <= 0.05 else "FAIL"
+        assert r["parity_status"] == s["parity_status"] == expected_parity
+        assert gap <= 0.05 or r["arm"] == "sg5"
+        (sg5_gaps if r["arm"] == "sg5" else control_gaps).append(gap)
+assert len(sg5_gaps) == 2 and min(sg5_gaps) > 0.05
+macros["MatchedControlMaxXrtGap"] = percent(max(control_gaps))
+macros["MatchedSgFiveMinGap"] = percent(min(sg5_gaps))
+macros["MatchedSgFiveMaxGap"] = percent(max(sg5_gaps))
+
 for name in ("keccak_ise_simx", "keccak_ise_mldsa", "core_config_v80", "keccak_sg5"):
     path = RESULTS / (name + ".csv")
     sources[str(path.relative_to(ROOT))] = hashlib.sha256(path.read_bytes()).hexdigest()

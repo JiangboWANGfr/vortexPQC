@@ -671,6 +671,92 @@ arithmetic, and KAT input. SimX M1/M8 establishes application behavior; XRT
 checks the new paths and retired-instruction agreement. These software
 controls do not change RTL or require new synthesis.
 
+#### Results and reproduction
+
+The implementation snapshot is `38c56304f`. The archived matrices are
+[`keccak_w32_controls.csv`](../../pqc/results/keccak_w32_controls.csv) and
+[`mlkem_w32_controls.csv`](../../pqc/results/mlkem_w32_controls.csv). Each row
+preserves its ELF and raw-log hashes. Binaries, disassemblies, build arguments,
+and logs remain in `build32_im/tests/pqc/{keccak_sg25,mlkem_profile}/matched_controls/`.
+
+For a 64-permutation chain, the SimX cycles per completed permutation are:
+
+| Backend | One warp | Eight warps |
+| --- | ---: | ---: |
+| Looped Stage | 2,079.312 | 479.463 |
+| Fully unrolled Stage | 1,584.906 | 401.688 |
+| Whole round | 502.406 | 121.727 |
+
+Equal unrolling leaves a 3.155x/3.300x whole-round advantage. The former
+roughly 4x comparison includes loop overhead. Both application disassemblies
+contain the same 44-byte looped Stage, 676-byte expanded Stage, and 196-byte
+KROUND functions. The expanded functions have no round-loop branch and issue
+144/48 custom instructions per permutation. Divergent byte-load and output
+guards retain split/join lowering; the expanded SHAKE trace and boundary tests
+also pass on SimX and XRT.
+
+With final NTT/arithmetic fixed, PQRV improves complete ML-KEM over C by
+1.122x at M1 and 1.170x at M8. Expanded Stage improves PQRV by 4.626x/3.063x.
+KROUND improves expanded Stage by only 1.028x/1.033x. Stage unrolling removes
+3,640 retired instructions per request, but reduces M1 cycles by 1.252% and
+increases M8 cycles by 1.364%. The data establish this behavior without
+attributing the M8 difference to an unmeasured stall category.
+
+SG5 passes every output comparison, but its two XRT checks fail the unchanged
+5% timing-model criterion: 6.932% for one state/warp and 12.223% for six states
+per warp at two warps. Instruction counts and ELF hashes agree. SG5 retains
+two cache-flushing fences per round. As documented in the earlier
+[NTT synchronization investigation](ntt_acceleration_proposal.md#layer-synchronization-correction),
+SimX waits for pending LSU requests without modeling RTL's complete cache flush.
+This limitation must accompany the SG5 SimX predictions; a numerical PASS is
+not a timing-model PASS.
+
+The existing `lsu_model_probe` was also rerun on this exact core at M1/L32,
+384 iterations, for empty, clean fence, dirty fence, barrier, and dirty barrier.
+All ten SimX/XRT checks pass with exact instruction agreement. The measured
+intervals and log directory are preserved in the microbenchmark CSV comments.
+These controls reproduce the fence discrepancy; they do not claim to calibrate
+every SG5 memory interaction. The present experiment keeps the existing SG5
+algorithm fixed. A corrected cache-flush timing model or a separately validated
+SG5 barrier implementation is follow-up work.
+
+Reproduction starts in the configured `build32_im` directory:
+
+```sh
+../configure --xlen=32 --tooldir="$(realpath ../../toolchains)"
+export CONFIGS="-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32"
+export LIBC_PATH="$(realpath ../../toolchains-im/libc32)"
+export LIBCRT_PATH="$(realpath ../../toolchains-im/libcrt32)"
+make -s -C sw/runtime/simx DESTDIR="$PWD/sw/runtime"
+make -s -C sw/runtime/xrt DESTDIR="$PWD/sw/runtime"
+
+make -s -C tests/pqc/keccak_sg25 MAPPING=asm
+cd tests/pqc/keccak_sg25
+LD_LIBRARY_PATH=../../../sw/runtime VORTEX_DRIVER=simx ./keccak_sg25 -b 8 -n 32 -p 8
+cd ../../..
+
+make -s -C tests/pqc/mlkem_profile KECCAK=sg25 UNROLL=1 SERIAL=1 \
+  NTT=reg32 NTTBF=ise NTTMUL=ise ARITH=all ARITH_MUL=ise
+cd tests/pqc/mlkem_profile
+LD_LIBRARY_PATH=../../../sw/runtime VORTEX_DRIVER=simx ./mlkem_profile -b 8 -t 32
+```
+
+The software permutation matrix uses `MAPPING=sg1|asm|sg5|sg25`, batch warps
+1/8, chain lengths 4/8, and states/warp 1 or the mapping's maximum. Stage uses
+`THETA=1 RHOPI=1 CHII=1`, the expanded arm additionally uses `UNROLL=1`, and
+whole round uses `KROUND=1`. Those three arms also run 64-permutation chains on
+both SimX and XRT at 1/8 warps. Each software mapping has an XRT check at
+one warp/state with eight permutations and at two fully packed warps with two
+permutations. The expanded Stage arm additionally runs the full trace/SHAKE
+suite with `-b 2`, without `-p`, on both drivers.
+
+The six complete-KEM arms are `KECCAK=sg1|asm|sg25_sw|sg25|kround`, with a
+second `sg25 UNROLL=1` arm. All run M1/M8 on SimX; assembly, looped Stage,
+expanded Stage, and KROUND additionally run M1 on XRT. Each passes the same
+FIPS 203 KAT with counts 140/0/15/9 for scalar/x4 Keccak/NTT/INTT. The local
+soft-ABI libraries remain subject to the existing prebuilt-toolchain packaging
+requirement before shipping integer-only CI environments.
+
 Evaluate the eight THETA/RHOPI/CHII enable combinations: software only, each
 single stage, each pair, and all three. Keep the nonaccelerated stages in
 software. For area comparisons, remove disabled hardware and rebuild; merely

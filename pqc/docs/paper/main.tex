@@ -3,6 +3,7 @@
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs,array,graphicx}
 \usepackage{cite}
+\usepackage{balance}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
 \usepackage[hidelinks]{hyperref}
@@ -46,10 +47,11 @@ and \UnifiedStageEight{} times at eight requests over serial software;
 the instruction-only gains over the identical shuffle mapping are
 \UnifiedIseOne{} and \UnifiedIseEight{} times.
 At a common 250 MHz target, the stage extension increases full-core LUTs by
-\StageLutOverhead{} and flip-flops by \StageFfOverhead{}. Whole-round fusion raises
-permutation throughput by another \RoundThroughputGain{} times, but improves
-the final integrated ML-KEM by only \UnifiedRoundOne{} and
-\UnifiedRoundEight{} times.
+\StageLutOverhead{} and flip-flops by \StageFfOverhead{}. A matched RV32IM
+control gives both Stage and whole round fully expanded round code.
+Whole round retains \MatchedRoundGainEight{} times the permutation throughput,
+but improves complete ML-KEM by only \MatchedRoundKemGainOne{} and
+\MatchedRoundKemGainEight{} times.
 A matched integer-only RV64 port halves the Keccak collective issue count.
 At application scope it reduces Stage/KROUND instructions by
 \RvSixtyFourStageInstructionReduction{}/\RvSixtyFourRoundInstructionReduction{}
@@ -169,6 +171,7 @@ Batch and x4 mapping & $8\times4$ & $M=1,2,4,8$; $L=1,2,4$ where archived & Each
 SG25 stages / round & $8\times32$ & 32-wide SIMD/ALU; 1 or 8 states & Synchronized permutation span & Shuffle, stage-use ablation, whole round \\
 Complete SG25 ML-KEM & $8\times32$ & Serial FIPS-202; 143 permutations/request & Whole-launch cycles at fixed $M$ & SG1, shuffle, stages, whole round, pointer \\
 Final NTT+Keccak ML-KEM & $8\times32$ & W32 NTT/arithmetic; KAT; 140 permutations/request & Whole-launch cycles at fixed $M$ & Five Keccak backends with all other arms fixed \\
+W32 software / unrolling & $8\times32$ & RV32IM; SG1/PQRV/SG5/SG25; looped/unrolled stages & Completed-permutation span; KEM launch at fixed $M$ & Packed-state throughput and equal-unrolling controls \\
 Physical implementation & $8\times32$ & RV32 backend builds; matched integer-only RV32/RV64 NTT/Stage/KROUND builds; isolated units & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency within each family \\
 \bottomrule
 \end{tabular}
@@ -558,10 +561,10 @@ The low/high pair recomputes from the same old state; it is not a
 dual-writeback macro-operation.
 
 Literal round encoding expands 24 rounds into 48 RV32 or 24 RV64
-instructions. The stage kernel retains a round loop with six RV32 or three
-RV64 collectives, an increment, and a branch per round. Consequently, the measured comparison includes
-both the instruction granularity and its present code generation.
-It is not an isolated comparison with identical loop-control instructions.
+instructions. The original Stage kernel retains a round loop with six RV32
+or three RV64 collectives, an increment, and a branch per round. Its comparison
+therefore includes code-generation effects. Table~\ref{tab:w32unroll} adds a
+fully expanded Stage control to isolate this asymmetry.
 
 The pointer \code{KECCAKF} baseline remains a full-permutation engine
 connected through the existing SFU/memory path. It supplies a useful
@@ -672,6 +675,8 @@ unit improves RTL single-state cost from 2,052.219 to 499.266 cycles and
 eight-warp cost from 481.664 to 117.693 cycles per completed permutation.
 This is 4.110$\times$ latency improvement and
 \RoundThroughputGain{}$\times$ throughput improvement.
+This original comparison uses looped Stage code and expanded whole-round
+code. Table~\ref{tab:w32unroll} separately controls that difference.
 
 \begin{table}[t]
 \caption{64-permutation GPR chains on $8w\times32t$.
@@ -839,6 +844,96 @@ cover the AFU and processor RTL. Table~\ref{tab:unifiedkem} uses a common
 all-enabled core for the functional and cycle comparison. Section~VI uses
 four separate builds that retain the same NTT and enable either no Keccak
 hardware, stages, whole round, or the pointer PE.
+
+\subsection{Matched W32 software and unrolling controls}
+The additional controls hold RV32IM, disabled F/D, W8T32, final NTT, and
+the Stage/KROUND-enabled core fixed. Table~\ref{tab:w32mapping} reruns
+reference C, the vendored PQRV RV32IM assembly, the existing SG5 column
+mapping, and SG25 shuffles. SG1/PQRV can pack 32 independent states in a
+warp, SG5 six, and SG25 one. SG5 uses its existing memory transpose and two
+fences per round; this is a specific software mapping, not a bound on all
+five-lane implementations. The two occupancies are capacity controls, not an
+exhaustive occupancy search. CTA barriers exclude every participating warp's
+initialization and output traffic from the measured span. The host checks
+all words after eight dependent permutations per state.
+
+\begin{table}[t]
+\caption{Matched W32 software cycles per completed permutation (SimX).
+$S$ is packed states/warp; W1/1 and W8/1 use one state/warp.
+SG5 timing has the model discrepancy discussed below.}
+\label{tab:w32mapping}
+\centering\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Mapping & $S$ & W1/1 & W8/1 & W8/$S$ \\
+\midrule
+\tablerows{w32_mapping.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/keccak_w32_controls.csv}
+\end{table}
+
+Table~\ref{tab:w32unroll} removes the loop-unrolling asymmetry: the Stage
+control expands all 24 rounds, as required by KROUND's literal-round
+encoding. Disassembly shows 144 Stage instructions or 48 whole-round
+instructions per permutation, with no round-loop branch in either expanded
+function. Whole round retains a \MatchedRoundGainOne{}$\times$
+single-warp speedup and \MatchedRoundGainEight{}$\times$ higher eight-warp
+throughput. The original looped comparison therefore includes a software
+control-flow effect, but that effect does not explain the entire fusion gain.
+
+\begin{table}[t]
+\caption{Equal-unrolling control, 64 dependent permutations per state
+(SimX). One state/warp; cycles are per completed permutation.}
+\label{tab:w32unroll}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Backend & ISE issues/perm. & W1 cycles & W8 cycles \\
+\midrule
+\tablerows{w32_unroll.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/keccak_w32_controls.csv}
+\end{table}
+
+\begin{table}[t]
+\caption{Matched RV32IM ML-KEM controls (SimX). Millions of whole-launch
+cycles; gains use PQRV at the same request count.}
+\label{tab:w32kem}
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Backend & $M=1$ & Gain & $M=8$ & Gain \\
+\midrule
+\tablerows{w32_kem.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/mlkem_w32_controls.csv}
+\end{table}
+
+The same PQRV hook and expanded Stage function enter the final ML-KEM KAT
+path in Table~\ref{tab:w32kem}. All arms preserve 140 scalar permutations,
+15 NTTs, and nine inverse NTTs per request. PQRV improves the C launch by
+\MatchedAsmGainOne{}$\times$/\MatchedAsmGainEight{}$\times$ at $M=1/8$;
+expanded stages still improve PQRV by
+\MatchedStageAsmGainOne{}$\times$/\MatchedStageAsmGainEight{}$\times$.
+Stage unrolling reduces M1 cycles by \MatchedUnrollOneReduction{} but
+increases M8 cycles by \MatchedUnrollEightIncrease{}. Whole round improves
+the expanded Stage launch by only
+\MatchedRoundKemGainOne{}$\times$/\MatchedRoundKemGainEight{}$\times$.
+Fewer permutation instructions thus do not imply a proportional application
+gain. Selected XRT controls reproduce reference outputs and KATs with the
+same ELF and exact retired instruction counts. Excluding SG5, their maximum
+whole-launch gap from SimX is \MatchedControlMaxXrtGap{}.
+
+The two SG5 XRT checks differ by \MatchedSgFiveMinGap{} and
+\MatchedSgFiveMaxGap{}, exceeding the default 5\% timing-model gate despite
+correct outputs. The implementation retains cache-flushing fences, whereas
+SimX releases a fence after pending LSU requests drain without modeling the
+full RTL cache flush. SG5's SimX timing therefore remains a prediction with
+this limitation; it is not reported as a model-parity pass. No RTL or physical
+design changes are involved in these controls.
 
 \subsection{Direct final-configuration phase profile}
 Table~\ref{tab:directphases} measures mutually exclusive M1 intervals in the
@@ -1084,8 +1179,9 @@ it uses 2.123 times the total cell area and 2.989 times the sequential
 area. Its larger register footprint is visible after full-core FPGA
 integration, but LUT-only normalization largely hides it.
 
-At common 250 MHz, the 64-chain RTL results and full-core LUT counts give
-a whole-round versus stage throughput/LUT ratio of
+At common 250 MHz, the original 64-chain RTL results with looped Stage code
+and the corresponding full-core LUT counts give a whole-round versus stage
+throughput/LUT ratio of
 \begin{equation}
 \frac{481.664}{117.693}\times
 \frac{\StageCoreLutsMath}{\RoundCoreLutsMath}
@@ -1141,10 +1237,10 @@ control, memory, wrappers, or allocation. At eight requests, per-request
 intervals overlap and therefore cannot be summed; only the uninstrumented
 global makespan is reported.
 
-The final integrated table lacks a matched $8w\times32t$ PQRV assembly arm.
-Historical SG5 software uses a 16-thread configuration. A matched
-SG1/SG5/SG25 sweep and a loop-unrolling control would sharpen attribution;
-the historical experiments cannot substitute for these controls.
+The matched W32 software controls cover one upstream RV32IM assembly routine
+and one SG5 transpose implementation. They do not establish the best possible
+software implementation. Packed-state permutation throughput is distinct from
+complete-request throughput; SG5 has no end-to-end ML-KEM integration here.
 
 ML-DSA collective integration and mixed-input batches remain unmeasured.
 Existing ML-DSA results cover software and pointer controls on their own
@@ -1170,8 +1266,10 @@ They improve permutation throughput by \StageThroughputGain{}$\times$
 over shuffles and, with the final NTT path fixed, complete ML-KEM by
 \UnifiedStageOne{}$\times$/\UnifiedStageEight{}$\times$ over SG1 at
 one/eight requests.
-Whole-round fusion adds about fourfold permutation throughput but only
-2--4\% application speedup, while the pointer PE remains strongest in the
+With equal round unrolling, whole-round fusion adds
+\MatchedRoundGainEight{}$\times$ permutation throughput but only
+\MatchedRoundKemGainOne{}$\times$/\MatchedRoundKemGainEight{}$\times$
+application speedup. The pointer PE remains strongest in the earlier
 eight-request launch. Direct XRT intervals show that pointer permutation is
 only \DirectPointerPermuteShare{} of the instrumented request, whereas its
 absorb and squeeze paths consume \DirectPointerSpongeShare{}. Integer-only
@@ -1188,12 +1286,14 @@ All local measurements quoted here are archived under \code{pqc/results/}.
 The companion README maps tables to source files. The generator recomputes
 ratios, checks ablation differences and phase sums, and emits vector figures
 and a SHA-256 input manifest. It uses data rows rather than historical
-narrative percentages. Collective datasets include executable hashes, but
-their source tree has local changes: HEAD and input hashes cannot recover
-missing experiment source snapshots. Build with \code{make} in
+narrative percentages. The new W32 controls identify their source commit and
+executable hashes. Some historical collective datasets were measured with
+local changes; HEAD and input hashes cannot recover their missing source
+snapshots. Build with \code{make} in
 \code{pqc/docs/paper}; the portable source package also contains
 frozen generated tables and figures.
 
+\balance
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 \end{document}

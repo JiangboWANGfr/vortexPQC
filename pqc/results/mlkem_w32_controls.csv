@@ -1,0 +1,35 @@
+# Matched RV32IM W8T32 controls, 2026-09-16.
+# Source snapshot committed as 38c56304f; one core, F/D disabled, L2/L3 off.
+# All arms use the SAME final half-bank NTT + KSG25 + KROUND25 core; pointer off.
+# CONFIGS=-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_NTT_ENABLE
+# -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE
+# -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32.
+# Local soft-ABI libc32/libcrt32 from ../toolchains-im; ELF flags=0, no FP/atomics.
+# Raw ELF/vxbin/disassembly, build flags, and logs are archived beside each log.
+# result/kat describe numerical correctness. parity_status is a separate check:
+# exact retired instructions and <=5% abs(SimX-XRT)/XRT whole-launch cycle gap.
+# Unpaired measurements are not_checked; FAIL is retained, never waived.
+# ML-KEM-768 FIPS 203 KAT, SERIAL=1, NTT=reg32, NTTMUL=ise, NTTBF=ise,
+# ARITH=all, ARITH_MUL=ise. No phase instrumentation or ablation.
+# KECCAK=sg1|asm|sg25_sw|sg25|kround; stage_unrolled is sg25 with UNROLL=1.
+# Each request: 140 scalar Keccak permutations, 15 forward NTTs, 9 inverse NTTs.
+# All keys, ciphertexts, and encapsulated/decapsulated shared secrets are compared.
+# Headline cycles include the whole device launch. batch_makespan is the global
+# request interval and does not sum overlapping per-request intervals.
+arm,driver,warps,threads,batch,states_per_warp,permutations_per_state,retired_instructions,device_cycles,kernel_sha256,result,log,batch_makespan,keccak_x1,keccak_x4,ntt,intt,kat,parity_status,cycle_gap_pct,log_sha256
+stage_unrolled,simx,8,32,1,1,0,432622,5341994,5e4c9e60ff402dbd8c22eba10d7f906237744453527d4a7af5c7a6c57adac548,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/stage_unrolled/simx_m1_n1_p0.log,5339991,140,0,15,9,PASS,PASS,0.066242,9eb2883bd84fc06b6658a862f24b4395e8c27d3b996e215a949227ecb03bd63a
+stage_unrolled,simx,8,32,8,1,0,3460976,12336487,5e4c9e60ff402dbd8c22eba10d7f906237744453527d4a7af5c7a6c57adac548,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/stage_unrolled/simx_m8_n1_p0.log,12334151,140,0,15,9,PASS,not_checked,,64b59e5a4bca74fd8d8a778249cd361d307453ed8ce8851dc5d41c24b6e8476e
+stage_unrolled,xrt,8,32,1,1,0,432622,5345535,5e4c9e60ff402dbd8c22eba10d7f906237744453527d4a7af5c7a6c57adac548,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/stage_unrolled/xrt_m1_n1_p0.log,5343716,140,0,15,9,PASS,PASS,0.066242,e72c91c5d26bbadafedc9acb929cb3f5b400d6992f8465b46628946e99845940
+kround,simx,8,32,1,1,0,415822,5198475,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/kround/simx_m1_n1_p0.log,5196475,140,0,15,9,PASS,PASS,0.093133,71f2773be843e879787c04bde19b6a43361a1125653fa0ef7a8f854c1ffbdabd
+kround,simx,8,32,8,1,0,3326576,11937913,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/kround/simx_m8_n1_p0.log,11935429,140,0,15,9,PASS,not_checked,,0e86a277c21d7f79c1338f5579b1779f1b49ce604283012f49a23bc5290707b5
+kround,xrt,8,32,1,1,0,415822,5203321,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/kround/xrt_m1_n1_p0.log,5201512,140,0,15,9,PASS,PASS,0.093133,c8f523392fb5c9068fa8b46276d2364ed5ce4d4c356b1212e752f14e4dbcca0c
+stage_loop,simx,8,32,1,1,0,436262,5409748,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/stage_loop/simx_m1_n1_p0.log,5407754,140,0,15,9,PASS,PASS,0.003623,34f9a4acafeb17b6e69b84ebb5f75dfde6cf306f0ac1c86dd71ac1be7552f877
+stage_loop,simx,8,32,8,1,0,3490096,12170437,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/stage_loop/simx_m8_n1_p0.log,12168060,140,0,15,9,PASS,not_checked,,6fdcfc07fc6174449854658f0ab7481b7b3d8296df4d443eda5392e291944035
+stage_loop,xrt,8,32,1,1,0,436262,5409552,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/stage_loop/xrt_m1_n1_p0.log,5407733,140,0,15,9,PASS,PASS,0.003623,0cd5367b11aadb016c90de3e08ac8b4a5b3b486ec3b3a53bd3af50f28513d34f
+asm,simx,8,32,1,1,0,2612066,24714477,32e3c2c99064ccc31961fb6d45ea6fe3b2b57aaef890f827c0ba89e9c49b96ba,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/asm/simx_m1_n1_p0.log,24712461,140,0,15,9,PASS,PASS,0.173296,cc7c1dcffe4b59fa0fd7bbf9c1e45feb5359585dd00ec947663ef8518d2a01d0
+asm,simx,8,32,8,1,0,20896528,37785504,32e3c2c99064ccc31961fb6d45ea6fe3b2b57aaef890f827c0ba89e9c49b96ba,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/asm/simx_m8_n1_p0.log,37782747,140,0,15,9,PASS,not_checked,,06c1be953b845393fb58b40ed94993d7610f93b1d26bedc57d80ccee03b7ae4b
+asm,xrt,8,32,1,1,0,2612066,24671722,32e3c2c99064ccc31961fb6d45ea6fe3b2b57aaef890f827c0ba89e9c49b96ba,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/asm/xrt_m1_n1_p0.log,24669890,140,0,15,9,PASS,PASS,0.173296,04cebd37d07298877e8a605898cfd5ff592eda0069727c589fe2862bb91d3115
+sg25_sw,simx,8,32,1,1,0,680562,7900300,5e42d14f0816f143219c0a93e781987db787ac2f2af2caf1a674cf70feeead89,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/sg25_sw/simx_m1_n1_p0.log,7898298,140,0,15,9,PASS,not_checked,,b4a59831dbb5121ab231d8b0144c42a0493e1c71fe51b3f6dd99a3094bad63f4
+sg25_sw,simx,8,32,8,1,0,5444496,19204022,5e42d14f0816f143219c0a93e781987db787ac2f2af2caf1a674cf70feeead89,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/sg25_sw/simx_m8_n1_p0.log,19201669,140,0,15,9,PASS,not_checked,,b1f835862f946dbeb0d19a259dc930fb992a688453cc83a9b60ca15308bbc45c
+sg1,simx,8,32,1,1,0,2821599,27739317,14c6c7c52ab855584882c0e695e878e17273e1895328978655fdef8d97fb00a5,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/sg1/simx_m1_n1_p0.log,27737329,140,0,15,9,PASS,not_checked,,ef00a12b579c48766360785690d0a9cdbcff6b4c05d350ecc7117de64540c08f
+sg1,simx,8,32,8,1,0,22572792,44211503,14c6c7c52ab855584882c0e695e878e17273e1895328978655fdef8d97fb00a5,PASS,build32_im/tests/pqc/mlkem_profile/matched_controls/sg1/simx_m8_n1_p0.log,44208982,140,0,15,9,PASS,not_checked,,b42abc6e038055cf602a75df0d6e73d09e61bef7a1e409f0ede1e900571829a4

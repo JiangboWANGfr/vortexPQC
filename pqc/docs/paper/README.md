@@ -4,9 +4,9 @@
 
 中文工作题目：**面向 RV32 SIMT GPU 的瓶颈驱动 Keccak 加速设计**。
 
-本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 11 页，含 20 张表、5 幅图和 11 条参考文献。
+本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 12 页，含 23 张表、5 幅图和 11 条参考文献。
 
-论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新加入最终 RV32IM W8T32 配置的直接阶段计时，并保留严格 RV32IM/RV64IM 的 Stage/KROUND 功能、性能和 Vivado post-route 对比。
+论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新补齐同 W32 的 PQRV 汇编、SG1/SG5/SG25 映射和 Stage/KROUND 相同展开方式的控制实验，并保留直接阶段计时及严格 RV32IM/RV64IM 的功能、性能和 Vivado post-route 对比。
 
 [Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
 
@@ -70,7 +70,7 @@
 | 历史 x4 lane 映射与缓存 | 单独给出 M × L 与 L2 开关扫描；L 增大并非始终获益 | 与 SG25 单状态协作是不同映射，不能把收益直接相乘 |
 | ML-DSA 内存预算 | full 预算下 L=4 相对 full/L=1 为 1.601×；相对 low/L=1 为 2.118× | 两个分母对应不同问题，均在正文明确标注 |
 
-SG5 保留为历史布局对照，其已归档比较使用 16-thread build，不进入当前 W32 的同平台性能排名。
+历史 SG5 文件使用 16-thread build，不与 W32 数据直接相除。新增 W32 对照使用相同核心和计时边界，另行归档于 `keccak_w32_controls.csv`；其 fence 引起的时序模型限制见下文。
 
 ## 5. 主实验：相同 8w × 32t 平台
 
@@ -122,6 +122,35 @@ RV64 将两种 Keccak 后端的 collective issue 数减半，但完整 ML-KEM �
 | Pointer PE | 0.516% | 9.521% | 17.263% | 2.114% | 4.183% | 66.402% |
 
 三组 KAT 全部通过，SimX/RTL/XRT 的退休指令数完全一致；最大 SimX/RTL 和 XRT/RTL 区间差为 0.785%/0.078%。相对同配置无探针 M1，Stage/KROUND/Pointer 的探针开销为 7.189%/8.299%/6.632%，因此不用这张表重算端到端加速比。残差还包含采样、编码/压缩、比较、控制、访存、wrapper、分配和探针开销，不是一个密码原语。M8 仅保留无探针的全局 makespan，不对重叠的单请求区间求和。Pointer 的独立配置 M8 为 8,330,412 cycles，不替换上面全开统一核的 8,901,903 cycles。
+
+### W32 匹配软件与展开控制
+
+新增数据来自 `38c56304f`，固定 RV32IM、F/D 关闭、1 core、W8T32、最终 half-bank NTT，以及同时启用 Stage/KROUND 的同一个核心。所有 ML-KEM arm 都保留 serial FIPS-202、W32 NTT 和协作算术，每请求为 140 次置换、15 次正变换和 9 次逆变换。下表以 PQRV 为更强的软件分母，周期为完整 launch，KAT 全部通过。
+
+| 后端 | M1 cycles | 相对 PQRV | M8 cycles | 相对 PQRV |
+| --- | ---: | ---: | ---: | ---: |
+| SG1 C | 27,739,317 | 0.891× | 44,211,503 | 0.855× |
+| PQRV | 24,714,477 | 1.000× | 37,785,504 | 1.000× |
+| SG25 shuffle | 7,900,300 | 3.128× | 19,204,022 | 1.968× |
+| Stage 循环 | 5,409,748 | 4.569× | 12,170,437 | 3.105× |
+| Stage 全展开 | 5,341,994 | 4.626× | 12,336,487 | 3.063× |
+| KROUND 全展开 | 5,198,475 | 4.754× | 11,937,913 | 3.165× |
+
+同展开控制使用每状态 64 次连续置换、每 warp 一个状态；下表为 SimX cycles/已完成置换。输入与输出被 CTA barrier 隔离在计时区间外。
+
+| 后端 | 每置换 ISE 次数 | W1 | W8 |
+| --- | ---: | ---: | ---: |
+| Stage 循环 | 144 | 2,079.312 | 479.463 |
+| Stage 全展开 | 144 | 1,584.906 | 401.688 |
+| KROUND 全展开 | 48 | 502.406 | 121.727 |
+
+反汇编确认两个应用中的置换函数一致：循环 Stage 44 B、全展开 Stage 676 B、KROUND 196 B；后两者没有 round-loop branch。等展开后 KROUND 的置换收益为 3.155× / 3.300×，不能继续将旧循环版分母的约 4× 写成纯硬件融合收益。对应完整 ML-KEM 收益仅为 1.028× / 1.033×。Stage 展开减少 M1 cycles 1.252%，但 M8 增加 1.364%。
+
+软件映射微基准同时测每 warp 一个状态和最大打包：SG1/PQRV 为 32 个，SG5 为 6 个，SG25 为 1 个；按完成的置换总数归一化。这是两个占用点的控制实验，并非搜索所有 occupancy 后的最优吞吐。装满 warp 不保证吞吐更好。
+
+**SG5 的功能通过不能写成时序模型通过。** 它保留原来的每轮两次 transpose fence；两个 XRT 对照与 SimX 的整 launch 周期差分别为 6.932% 和 12.223%，超过未修改的 5% 阈值。RTL 的 cache flush 尚未被 SimX fence 完整建模，同配置的独立 fence/barrier 探针也复现差异。CSV 分别记录数值检查结果和 `parity_status=FAIL`；正文保留这个限制。
+
+来源：`keccak_w32_controls.csv`、`mlkem_w32_controls.csv`。构建命令、原始日志目录和验证范围见 `docs/proposals/keccak_sg25_proposal.md`。这轮只改软件与实验入口，没有重新运行综合。
 
 ## 6. 成本与频率的写法
 
@@ -179,11 +208,11 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 串行 RV64 实现，不是 NTT 资源下降。每行只有一个 OOC seed，不能外推为器件或
 布局无关结论。
 
-整轮独立单元的 FPGA LUT 少于三阶段，但 FF 约为其 2.99×；ASAP7 下总 cell area 约为其 2.123×。整轮在本次纯置换的整核 throughput/LUT 指标上仍然领先约 4.115×，因此不能预设三阶段在所有面积归一化指标上获胜。
+整轮独立单元的 FPGA LUT 少于三阶段，但 FF 约为其 2.99×；ASAP7 下总 cell area 约为其 2.123×。使用历史循环版 Stage 分母时，整轮的纯置换整核 throughput/LUT 领先约 4.115×。这个比值包含展开方式差异，不能写成同展开控制的收益；后者单独报告。不能预设三阶段在所有面积归一化指标上获胜。
 
 ## 7. 表格与来源映射
 
-以下路径均相对仓库根目录的 pqc/results/；生成清单保存 21 个源文件的 SHA-256。
+以下路径均相对仓库根目录的 pqc/results/；生成清单保存 23 个源文件的 SHA-256。
 
 | 正文内容 | 源文件 |
 | --- | --- |
@@ -199,12 +228,14 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
 | 表 XIII 最终 NTT+Keccak 五后端完整 ML-KEM | keccak_ntt_unified_mlkem.csv |
-| 表 XIV、最终 RV32IM 直接阶段 profile | mlkem_phase_profile.csv |
-| 表 XV、匹配 RV32IM/RV64IM 完整 ML-KEM | rv32im_rv64im_keccak.csv |
-| 表 XVI、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
-| 表 XVII、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
-| 表 XVIII、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
-| 表 XIX–XX、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
+| 表 XIV–XV、同 W32 软件映射与循环展开控制 | keccak_w32_controls.csv |
+| 表 XVI、同 W32 PQRV 与展开控制的完整 ML-KEM | mlkem_w32_controls.csv |
+| 表 XVII、最终 RV32IM 直接阶段 profile | mlkem_phase_profile.csv |
+| 表 XVIII、匹配 RV32IM/RV64IM 完整 ML-KEM | rv32im_rv64im_keccak.csv |
+| 表 XIX、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
+| 表 XX、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
+| 表 XXI、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
+| 表 XXII–XXIII、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |
 
@@ -239,13 +270,13 @@ latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
 | mlkem-native | 1d7b486c4db3bbc620b009d05e4f69eca9e68d22 |
 | mldsa-native | 19d32614b342840e02010825fa9ff4c22b855653 |
 
-provenance.json 记录本次文档生成时的仓库 HEAD、工作区是否有修改、输入文件哈希和导出数值。它标识论文输入快照；由于实现包含本地修改，HEAD 不能单独标识实验代码版本。这些哈希也不能补回缺失的历史源码快照。
+provenance.json 记录本次文档生成时的仓库 HEAD、工作区是否有修改、输入文件哈希和导出数值。它标识论文输入快照；新 W32 控制的代码快照为 `38c56304f`，CSV 同时记录各 ELF 的哈希。部分历史实验带有当时的本地修改，论文生成时的 HEAD 和 CSV 哈希不能补回这些历史源码快照。
 
 ## 9. 投稿前最值得补的实验
 
-最终 8w × 32t 的直接阶段计时已完成，不再列为缺失实验。剩余优先项为：
+最终 8w × 32t 的直接阶段计时、匹配软件映射与展开控制已完成。剩余优先项为：
 
-1. 补同 W32 的 PQRV 汇编 arm、SG5/SG25 匹配映射对照，以及三阶段/整轮相同展开方式的控制实验。
+1. 修正 SG5 fence 的 SimX cache-flush 建模，或另做具有正确同步语义的 SG5 barrier 实现并独立验证；当前 SG5 功能通过，时序模型检查未通过。
 2. 扩展多输入与混合 batch；如果论文覆盖 ML-DSA collective 性能，则完成其端到端集成和输入分布实验。
 3. 根据最终投稿目标补板上运行、功耗/能耗和更完整系统 PPA。现有 XRT 证据是集成仿真，ASIC 数据是独立单元映射结果。
 
