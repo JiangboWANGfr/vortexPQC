@@ -23,8 +23,8 @@ struct shake_test_t {
   uint32_t rate;
 };
 
-static std::vector<uint64_t> make_states() {
-  std::vector<uint64_t> states(trace_states * SG25_WORDS, 0);
+static std::vector<uint64_t> make_states(unsigned count = trace_states) {
+  std::vector<uint64_t> states(count * SG25_WORDS, 0);
   uint64_t value = 0x0123456789abcdefULL;
   for (size_t i = SG25_WORDS; i < states.size(); ++i) {
     value ^= value << 13;
@@ -96,7 +96,8 @@ static void execute(vx_device_h dev, vx_queue_h queue, vx_kernel_h kernel,
                     const std::vector<uint8_t>& input,
                     std::vector<uint8_t>& output,
                     const std::vector<sg25_case_t>& cases,
-                    uint32_t permutations = 0, uint32_t stage_variant = 0, uint32_t round = 0) {
+                    uint32_t permutations = 0, uint32_t stage_variant = 0,
+                    uint32_t round = 0, uint32_t states_per_warp = 1) {
   vx_buffer_h input_buffer = nullptr, output_buffer = nullptr, cases_buffer = nullptr;
   const size_t cases_bytes = cases.size() * sizeof(sg25_case_t);
   CHECK(vx_buffer_create(dev, input.size(), VX_MEM_READ, &input_buffer));
@@ -111,11 +112,13 @@ static void execute(vx_device_h dev, vx_queue_h queue, vx_kernel_h kernel,
   CHECK(vx_buffer_address(output_buffer, &args.output_addr));
   CHECK(vx_buffer_address(cases_buffer, &args.cases_addr));
   args.output_addr += guard_bytes;
-  args.timing_addr = args.output_addr + blocks * SG25_WORDS * sizeof(uint64_t);
+  args.timing_addr = args.output_addr + blocks * states_per_warp
+                                      * SG25_WORDS * sizeof(uint64_t);
   args.mode = mode;
   args.permutations = permutations;
   args.stage_variant = stage_variant;
   args.round = round;
+  args.states_per_warp = states_per_warp;
   vx_launch_info_t launch{};
   launch.struct_size = sizeof(launch);
   launch.kernel = kernel;
@@ -228,15 +231,16 @@ static size_t test_shake(vx_device_h dev, vx_queue_h queue, vx_kernel_h kernel,
 }
 
 static size_t test_benchmark(vx_device_h dev, vx_queue_h queue, vx_kernel_h kernel,
-                            uint32_t batch, uint32_t permutations,
+                            uint32_t batch, uint32_t permutations, uint32_t states_per_warp,
                             const std::vector<uint64_t>& states) {
-  const size_t states_bytes = batch * SG25_WORDS * sizeof(uint64_t);
+  const unsigned state_count = batch * states_per_warp;
+  const size_t states_bytes = state_count * SG25_WORDS * sizeof(uint64_t);
   const size_t timing_bytes = batch * sizeof(sg25_timing_t);
   std::vector<uint8_t> input(states_bytes);
   std::memcpy(input.data(), states.data(), states_bytes);
   std::vector<uint8_t> output(2 * guard_bytes + states_bytes + timing_bytes, poison);
   std::vector<uint8_t> expected(output);
-  for (unsigned i = 0; i < batch; ++i) {
+  for (unsigned i = 0; i < state_count; ++i) {
     uint64_t state[SG25_WORDS];
     std::memcpy(state, states.data() + i * SG25_WORDS, sizeof(state));
     for (unsigned p = 0; p < permutations; ++p) {
@@ -244,7 +248,8 @@ static size_t test_benchmark(vx_device_h dev, vx_queue_h queue, vx_kernel_h kern
     }
     std::memcpy(expected.data() + guard_bytes + i * sizeof(state), state, sizeof(state));
   }
-  execute(dev, queue, kernel, SG25_MODE_BENCH, batch, input, output, {{}}, permutations);
+  execute(dev, queue, kernel, SG25_MODE_BENCH, batch, input, output, {{}},
+          permutations, 0, 0, states_per_warp);
   std::vector<sg25_timing_t> timing(batch);
   std::memcpy(timing.data(), output.data() + guard_bytes + states_bytes, timing_bytes);
   std::memcpy(expected.data() + guard_bytes + states_bytes, timing.data(), timing_bytes);
@@ -259,7 +264,7 @@ static size_t test_benchmark(vx_device_h dev, vx_queue_h queue, vx_kernel_h kern
     }
     first_start = std::min(first_start, sample.start);
     last_end = std::max(last_end, sample.end);
-    std::printf("CHAIN: state=%u permutations=%u start=%llu end=%llu cycles=%llu "
+    std::printf("CHAIN: warp=%u permutations=%u start=%llu end=%llu cycles=%llu "
                 "cycles_per_permutation=%.3f\n", i, permutations,
                 (unsigned long long)sample.start, (unsigned long long)sample.end,
                 (unsigned long long)(sample.end - sample.start),
@@ -267,12 +272,18 @@ static size_t test_benchmark(vx_device_h dev, vx_queue_h queue, vx_kernel_h kern
   }
   if (last_end > first_start && errors == 0) {
     const uint64_t span = last_end - first_start;
-    const uint64_t completed = uint64_t(batch) * permutations;
-    std::printf("BENCH: arm=%s batch_warps=%u permutations_per_state=%u "
+    const uint64_t completed = uint64_t(state_count) * permutations;
+    std::printf("BENCH: arm=%s batch_warps=%u states_per_warp=%u permutations_per_state=%u "
                 "completed_permutations=%llu span_cycles=%llu "
                 "cycles_per_completed_permutation=%.3f permutations_per_cycle=%.9f "
-                "bad_bytes=%zu\n",
-#ifdef SG25_KROUND_ISA
+                "bad_bytes=%zu unroll=%u\n",
+#if defined(SG25_MAPPING_SG1)
+                "SG1",
+#elif defined(SG25_MAPPING_ASM)
+                "PQRV",
+#elif defined(SG25_MAPPING_SG5)
+                "SG5",
+#elif defined(SG25_KROUND_ISA)
                 "KROUND",
 #else
 #ifdef SG25_THETA_ISA
@@ -291,9 +302,15 @@ static size_t test_benchmark(vx_device_h dev, vx_queue_h queue, vx_kernel_h kern
                 "-",
 #endif
 #endif
-                batch, permutations, (unsigned long long)completed,
+                batch, states_per_warp, permutations, (unsigned long long)completed,
                 (unsigned long long)span, double(span) / completed,
-                double(completed) / span, errors);
+                double(completed) / span, errors,
+#if defined(SG25_UNROLL) || defined(SG25_KROUND_ISA)
+                1u
+#else
+                0u
+#endif
+                );
   }
   return errors;
 }
@@ -381,12 +398,13 @@ int main(int argc, char** argv) {
   const char* kernel_file = "kernel.vxbin";
   uint32_t batch = 8;
   uint32_t permutations = 0;
+  uint32_t states_per_warp = 1;
   bool stage_only = false;
   int option;
-  while ((option = getopt(argc, argv, "k:b:p:sh")) != -1) {
+  while ((option = getopt(argc, argv, "k:b:p:n:sh")) != -1) {
     if (option == 'k') {
       kernel_file = optarg;
-    } else if (option == 'b' || option == 'p') {
+    } else if (option == 'b' || option == 'p' || option == 'n') {
       char* end = nullptr;
       const unsigned long value = std::strtoul(optarg, &end, 10);
       if (end == optarg || *end != '\0' || value == 0 || value > UINT32_MAX) {
@@ -395,6 +413,8 @@ int main(int argc, char** argv) {
       }
       if (option == 'b') {
         batch = uint32_t(value);
+      } else if (option == 'n') {
+        states_per_warp = uint32_t(value);
       } else {
         permutations = uint32_t(value);
       }
@@ -402,12 +422,19 @@ int main(int argc, char** argv) {
       stage_only = true;
     } else {
       std::printf("Usage: %s [-k kernel.vxbin] [-b batch_warps (1..8)] "
-                  "[-p benchmark_permutations | -s enabled_stages_only]\n", argv[0]);
+                  "[-p benchmark_permutations | -s enabled_stages_only] "
+                  "[-n states_per_warp]\n", argv[0]);
       return option == 'h' ? 0 : -1;
     }
   }
   if (batch > 8 || (stage_only && permutations != 0)) {
     std::fprintf(stderr, "-b must be at most 8; -s and -p are mutually exclusive\n");
+    return -1;
+  }
+  if (states_per_warp > SG25_MAX_STATES_PER_WARP ||
+      (permutations == 0 && (states_per_warp != 1 || SG25_MAX_STATES_PER_WARP > 1))) {
+    std::fprintf(stderr, "This mapping supports 1..%u states per warp; -n and "
+                        "non-SG25 mappings require -p\n", SG25_MAX_STATES_PER_WARP);
     return -1;
   }
 #ifndef SG25_ISE
@@ -457,7 +484,8 @@ int main(int argc, char** argv) {
 
   size_t errors = 0;
   if (permutations != 0) {
-    errors += test_benchmark(dev, queue, kernel, batch, permutations, states);
+    errors += test_benchmark(dev, queue, kernel, batch, permutations,
+                             states_per_warp, make_states(batch * states_per_warp));
   } else {
 #ifdef SG25_THETA_ISA
     errors += test_stage(dev, queue, kernel, batch, SG25_MODE_THETA, "THETA");

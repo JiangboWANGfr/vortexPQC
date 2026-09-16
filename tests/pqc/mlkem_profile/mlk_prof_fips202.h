@@ -26,6 +26,8 @@
 #endif
 #if defined(PQC_KECCAK_PE)
 #include <vx_pqc.h>
+#elif defined(PQC_KECCAK_ASM)
+void KeccakF1600_StatePermute_RV32ASM(uint64_t *state);
 #endif
 
 #define MLK_USE_NATIVE_FIPS202_X1
@@ -41,6 +43,9 @@ static MLK_INLINE int mlk_keccak_f1600_x1_native(uint64_t *state)
    * counter and the instruction sit in the same hook, so the count that
    * normalises the cost is the count that build actually executed. */
   vx_keccakf(state);
+  return MLK_NATIVE_FUNC_SUCCESS;
+#elif defined(PQC_KECCAK_ASM)
+  KeccakF1600_StatePermute_RV32ASM(state);
   return MLK_NATIVE_FUNC_SUCCESS;
 #elif defined(PQC_ABLATE_KECCAK)
   /* Claim success without permuting: the call structure is untouched and the

@@ -140,7 +140,11 @@ static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
   const unsigned x = t % 5;
   const unsigned y = t / 5;
 #endif
+#if defined(PQC_KECCAK_UNROLL)
+#pragma clang loop unroll(full)
+#else
 #pragma clang loop unroll(disable)
+#endif
   for (round = 0; round < 24; ++round) {
 #if defined(PQC_KECCAK_SG25_SW)
     const uint64_t pair = a ^ mlksg_shuffle(a, x + 5 * ((y + 1) % 5));

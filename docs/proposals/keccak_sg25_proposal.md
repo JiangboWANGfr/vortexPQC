@@ -649,6 +649,28 @@ newly active lanes begin at a clean function boundary before parameter shuffles.
 
 ## 5. Experiments and paper claim
 
+### Matched W32 software and unrolling controls
+
+The remaining controls use RV32IM, F/D disabled, one core, W8T32, the final
+half-bank NTT, and the same Stage/KROUND-enabled core. The permutation bench
+compares reference C, PQRV RV32IM assembly, the existing five-lane column
+mapping with two transpose fences per round, and SG25 shuffles. One state per
+warp establishes latency; packed states (32 for SG1, six for SG5, one for
+SG25) establish completed-permutation throughput. All state initialization
+and output traffic are outside a CTA-synchronized timed interval, and the host
+checks every output word against the same reference and input sequence.
+
+A fully unrolled Stage arm controls for KROUND's required literal-round
+expansion. Both use 24 rounds and the same dependent chain length; the existing
+looped Stage arm remains a separate measurement. Disassembly must confirm the
+round-loop removal and preserve divergence lowering in guarded callers.
+
+The final ML-KEM profile adds the PQRV permutation hook and an unrolled Stage
+arm while retaining the same serial FIPS-202 call graph, NTT, cooperative
+arithmetic, and KAT input. SimX M1/M8 establishes application behavior; XRT
+checks the new paths and retired-instruction agreement. These software
+controls do not change RTL or require new synthesis.
+
 Evaluate the eight THETA/RHOPI/CHII enable combinations: software only, each
 single stage, each pair, and all three. Keep the nonaccelerated stages in
 software. For area comparisons, remove disabled hardware and rebuild; merely

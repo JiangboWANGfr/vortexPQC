@@ -32,6 +32,13 @@ CXXFLAGS  += -I$(MLKEM_DIR)/test/test_vectors
 ifeq ($(KECCAK),pe)
 	VX_CFLAGS += -DPQC_KECCAK_PE
 	CXXFLAGS  += -DPQC_KECCAK_PE
+else ifeq ($(KECCAK),asm)
+ifneq ($(XLEN),32)
+$(error KECCAK=asm requires XLEN=32)
+endif
+	VX_CFLAGS += -DPQC_KECCAK_ASM
+	CXXFLAGS  += -DPQC_KECCAK_ASM
+	VX_LIBS += $(CURDIR)/pqrv_keccak.o
 else ifeq ($(KECCAK),sg1)
 	VX_CFLAGS += -DPQC_KECCAK_SG1
 	CXXFLAGS  += -DPQC_KECCAK_SG1
@@ -45,7 +52,17 @@ else ifeq ($(KECCAK),kround)
 	VX_CFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_KROUND25
 	CXXFLAGS  += -DPQC_KECCAK_SG25 -DPQC_KECCAK_KROUND25
 else ifneq ($(KECCAK),)
-$(error KECCAK must be sg1, sg25_sw, sg25, kround, pe, or unset -- got '$(KECCAK)')
+$(error KECCAK must be sg1, asm, sg25_sw, sg25, kround, pe, or unset -- got '$(KECCAK)')
+endif
+
+ifeq ($(UNROLL),1)
+ifeq ($(filter sg25 sg25_sw,$(KECCAK)),)
+$(error UNROLL=1 requires KECCAK=sg25 or sg25_sw)
+endif
+	VX_CFLAGS += -DPQC_KECCAK_UNROLL
+	CXXFLAGS += -DPQC_KECCAK_UNROLL
+else ifneq ($(UNROLL),)
+$(error UNROLL must be 1 or unset)
 endif
 
 ifeq ($(SERIAL),1)
@@ -190,3 +207,14 @@ endif
 KERNEL_LIB := vortex2
 
 include ../common.mk
+
+ifeq ($(KECCAK),asm)
+pqrv_keccak.o: $(VORTEX_HOME)/pqc/third_party/pqrv/fips202_rv32im.S $(CONFIG_STAMP)
+	$(VX_CXX) $(VX_CFLAGS) -c $< -o $@
+vx_start.o: pqrv_keccak.o
+kernel.elf: pqrv_keccak.o
+clean: clean-pqrv
+clean-pqrv:
+	rm -f pqrv_keccak.o
+.PHONY: clean-pqrv
+endif

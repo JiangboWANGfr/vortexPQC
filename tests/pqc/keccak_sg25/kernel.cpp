@@ -1,6 +1,9 @@
 #include <vx_spawn2.h>
 #include <vx_intrinsics.h>
 #include "common.h"
+#if SG25_MAX_STATES_PER_WARP > 1
+#include "mapping.h"
+#endif
 #ifdef SG25_ISE
 #include <pqc/vx_ksg25.h>
 #ifndef VX_CFG_EXT_KSG25_ENABLE
@@ -174,7 +177,11 @@ static __attribute__((noinline)) uint64_t permute(uint64_t a, unsigned lane) {
   SG25_KROUND_STEP(20); SG25_KROUND_STEP(21);
   SG25_KROUND_STEP(22); SG25_KROUND_STEP(23);
 #else
+#ifdef SG25_UNROLL
+#pragma clang loop unroll(full)
+#else
 #pragma clang loop unroll(disable)
+#endif
   for (unsigned round = 0; round < SG25_ROUNDS; ++round) {
     a = keccak_round(a, lane, round);
   }
@@ -229,6 +236,9 @@ static __attribute__((noinline)) void shake(
 
 static __attribute__((noinline)) void benchmark(kernel_arg_t* arg, unsigned lane,
                                                 unsigned state) {
+#if SG25_MAX_STATES_PER_WARP > 1
+  benchmark_mapping(arg, lane, state);
+#else
   auto input = reinterpret_cast<const uint64_t*>(arg->input_addr);
   auto output = reinterpret_cast<uint64_t*>(arg->output_addr);
   auto timing = reinterpret_cast<sg25_timing_t*>(arg->timing_addr);
@@ -252,6 +262,7 @@ static __attribute__((noinline)) void benchmark(kernel_arg_t* arg, unsigned lane
   if (lane == 0) {
     timing[state] = {start, end};
   }
+#endif
 }
 
 #ifdef SG25_ISE

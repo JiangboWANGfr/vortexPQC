@@ -13,7 +13,7 @@ MLKEM_FLAGS := -I$(MLKEM_DIR)/mlkem -I$(SRC_DIR) -I$(VORTEX_HOME)/tests/pqc \
 VX_CFLAGS += $(MLKEM_FLAGS)
 CXXFLAGS  += $(MLKEM_FLAGS)
 
-VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_ksg5_config.h \
+VX_HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_ksg5_config.h $(SRC_DIR)/permute.h \
         $(VORTEX_HOME)/tests/pqc/pqc_stack.h
 HDRS    := $(SRC_DIR)/common.h $(SRC_DIR)/vortex_ksg5_config.h \
         $(VORTEX_HOME)/tests/pqc/pqc_stack.h \

@@ -40,6 +40,30 @@ tests:
   configs: -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -b 8
   env: {THETA: "0", RHOPI: "0", CHII: "0"}
+- id: keccak-w32-pqrv
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 2 -p 2 -n 32
+  env: {MAPPING: "asm"}
+- id: keccak-w32-sg5
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 2 -p 2 -n 6
+  env: {MAPPING: "sg5"}
+- id: ksg25-shake-unrolled
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 2
+  env: {THETA: "1", RHOPI: "1", CHII: "1", UNROLL: "1"}
 - id: ksg25-unit
   via: script
   xlen: [32, 64]

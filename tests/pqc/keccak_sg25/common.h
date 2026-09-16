@@ -11,6 +11,13 @@
 #define SG25_MODE_THETA 3
 #define SG25_MODE_RHOPI 4
 #define SG25_MODE_CHII 5
+#if defined(SG25_MAPPING_SG1) || defined(SG25_MAPPING_ASM)
+#define SG25_MAX_STATES_PER_WARP 32
+#elif defined(SG25_MAPPING_SG5)
+#define SG25_MAX_STATES_PER_WARP 6
+#else
+#define SG25_MAX_STATES_PER_WARP 1
+#endif
 #if VX_CFG_XLEN == 64
 #define SG25_STAGE_VARIANTS 1
 #else
@@ -39,6 +46,7 @@ struct kernel_arg_t {
   uint32_t permutations;
   uint32_t stage_variant;
   uint32_t round;
+  uint32_t states_per_warp;
 };
 
 #endif

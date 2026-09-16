@@ -206,15 +206,17 @@ int main(int argc, char** argv) {
         const char* nttbf = (arm & MLK_ARM_NTTBF_K) ? "sg2" :
                             (arm & MLK_ARM_NTT_REG32) ? "shfl" : "none";
         const char* keccak = (arm & MLK_ARM_KECCAK_KROUND25) ? "kround" :
+                             (arm & MLK_ARM_KECCAK_ASM) ? "asm" :
                              (arm & MLK_ARM_KECCAK_SG25) ? "sg25" :
                              (arm & MLK_ARM_KECCAK_SG25_SW) ? "sg25_sw" :
                              (arm & MLK_ARM_KECCAK_SG1) ? "sg1" :
                              (arm & MLK_ARM_KECCAK_PE) ? "pe" : "c";
-        std::printf("ARM: id=%u keccak=%s fips202=%s ablate=%s ntt=%s nttmul=%s nttbf=%s flags=%u\n", req,
+        std::printf("ARM: id=%u keccak=%s fips202=%s ablate=%s ntt=%s nttmul=%s nttbf=%s flags=%u unroll=%u\n", req,
                     keccak, (arm & MLK_ARM_SERIAL_FIPS202) ? "serial" : "default",
                     (arm & MLK_ARM_ABLATE_NTT) ? "ntt" :
                     (arm & MLK_ARM_ABLATE_KECCAK) ? "keccak" : "none",
-                    ntt, (arm & MLK_ARM_NTTMUL_K) ? "k" : "c", nttbf, arm);
+                    ntt, (arm & MLK_ARM_NTTMUL_K) ? "k" : "c", nttbf, arm,
+                    (unsigned)((arm & (MLK_ARM_KECCAK_UNROLL | MLK_ARM_KECCAK_KROUND25)) != 0));
 #if defined(PQC_PROFILE_PHASES)
         std::printf("PHASE_ARM: id=%u direct_intervals=1\n", req);
 #endif
