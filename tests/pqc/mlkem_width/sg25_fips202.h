@@ -23,6 +23,13 @@
 #define MLKSG_DEFAULT_COUNT_PERMUTATIONS
 #endif
 
+#if !defined(MLKSG_PROFILE_BEGIN)
+#define MLKSG_PROFILE_BEGIN(scope)
+#define MLKSG_PROFILE_END(scope, phase)
+#define MLKSG_PROFILE_END_EXCLUDING_PERMUTE(scope, phase)
+#define MLKSG_DEFAULT_PROFILE
+#endif
+
 // The surrounding ML-KEM runs on lane 0. Each sponge entry activates the warp,
 // broadcasts lane 0's arguments, and leaves one Keccak word in lanes 0..24.
 // Incremental SHAKE stores those words in shared memory between API calls.
@@ -111,6 +118,7 @@ static MLK_INLINE mlk_shake128ctx *mlksg_broadcast_state(
 #endif
 
 static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
+  MLKSG_PROFILE_BEGIN(profile);
 #if defined(PQC_KECCAK_KROUND25)
   MLKSG_KROUND_STEP(0);  MLKSG_KROUND_STEP(1);
   MLKSG_KROUND_STEP(2);  MLKSG_KROUND_STEP(3);
@@ -166,6 +174,7 @@ static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
 #endif
   }
 #endif
+  MLKSG_PROFILE_END(profile, MLK_PHASE_PERMUTE);
   return a;
 }
 
@@ -214,6 +223,7 @@ static __attribute__((noinline)) void mlksg_sponge_worker(
   uint64_t a = 0;
   unsigned permutations = 0;
 
+  MLKSG_PROFILE_BEGIN(absorb_profile);
   while (inlen >= rate) {
     a ^= mlksg_load_word(input, rate, lane);
     a = mlksg_permute(a);
@@ -229,7 +239,9 @@ static __attribute__((noinline)) void mlksg_sponge_worker(
   if (lane == rate / 8 - 1) {
     a ^= UINT64_C(0x8000000000000000);
   }
+  MLKSG_PROFILE_END_EXCLUDING_PERMUTE(absorb_profile, MLK_PHASE_ABSORB);
 
+  MLKSG_PROFILE_BEGIN(squeeze_profile);
   while (outlen != 0) {
     size_t length = outlen < rate ? outlen : rate;
     a = mlksg_permute(a);
@@ -239,6 +251,7 @@ static __attribute__((noinline)) void mlksg_sponge_worker(
     outlen -= length;
   }
   vx_fence();
+  MLKSG_PROFILE_END_EXCLUDING_PERMUTE(squeeze_profile, MLK_PHASE_SQUEEZE);
   mlksg_count(permutations);
 }
 
@@ -266,6 +279,7 @@ static __attribute__((noinline)) void mlksg_shake128_absorb_once_worker(
   uint64_t a = 0;
   unsigned permutations = 0;
 
+  MLKSG_PROFILE_BEGIN(absorb_profile);
   while (inlen >= SHAKE128_RATE) {
     a ^= mlksg_load_word(input, SHAKE128_RATE, lane);
     a = mlksg_permute(a);
@@ -281,6 +295,7 @@ static __attribute__((noinline)) void mlksg_shake128_absorb_once_worker(
     a ^= UINT64_C(0x8000000000000000);
   }
   state->ctx[lane] = a;
+  MLKSG_PROFILE_END_EXCLUDING_PERMUTE(absorb_profile, MLK_PHASE_ABSORB);
   mlksg_count(permutations);
 }
 
@@ -300,6 +315,7 @@ static __attribute__((noinline)) void mlksg_shake128_squeezeblocks_worker(
 
   const unsigned lane = (unsigned)vx_thread_id();
   uint64_t a = state->ctx[lane];
+  MLKSG_PROFILE_BEGIN(squeeze_profile);
   size_t block;
   for (block = 0; block < nblocks; ++block) {
     a = mlksg_permute(a);
@@ -308,6 +324,7 @@ static __attribute__((noinline)) void mlksg_shake128_squeezeblocks_worker(
   }
   state->ctx[lane] = a;
   vx_fence();
+  MLKSG_PROFILE_END_EXCLUDING_PERMUTE(squeeze_profile, MLK_PHASE_SQUEEZE);
   mlksg_count((unsigned)nblocks);
 }
 
@@ -355,6 +372,13 @@ static MLK_INLINE void mlk_sha3_512(uint8_t *output, const uint8_t *input,
 #if defined(MLKSG_DEFAULT_COUNT_PERMUTATIONS)
 #undef MLKSG_COUNT_PERMUTATIONS
 #undef MLKSG_DEFAULT_COUNT_PERMUTATIONS
+#endif
+
+#if defined(MLKSG_DEFAULT_PROFILE)
+#undef MLKSG_DEFAULT_PROFILE
+#undef MLKSG_PROFILE_END_EXCLUDING_PERMUTE
+#undef MLKSG_PROFILE_END
+#undef MLKSG_PROFILE_BEGIN
 #endif
 
 #endif

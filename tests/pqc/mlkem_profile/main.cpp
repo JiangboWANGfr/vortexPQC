@@ -74,6 +74,12 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "FAIL: -b must be >= 1\n");
         return 1;
     }
+#if defined(PQC_PROFILE_PHASES)
+    if (requests != 1) {
+        std::fprintf(stderr, "FAIL: PROFILE_PHASES requires -b 1; per-request intervals overlap at M8\n");
+        return 1;
+    }
+#endif
     if (ntt_lanes < 1 || ntt_lanes > 32 || (ntt_lanes & (ntt_lanes - 1)) != 0) {
         std::fprintf(stderr, "FAIL: NTT lanes must be a power of two between 1 and 32\n");
         return 1;
@@ -209,6 +215,9 @@ int main(int argc, char** argv) {
                     (arm & MLK_ARM_ABLATE_NTT) ? "ntt" :
                     (arm & MLK_ARM_ABLATE_KECCAK) ? "keccak" : "none",
                     ntt, (arm & MLK_ARM_NTTMUL_K) ? "k" : "c", nttbf, arm);
+#if defined(PQC_PROFILE_PHASES)
+        std::printf("PHASE_ARM: id=%u direct_intervals=1\n", req);
+#endif
 #if defined(PQC_ARITH_COOP) || defined(PQC_PROFILE_ARITH)
         std::printf("ARITH_ARM: id=%u mulcache=%s basemul=%s reduce=%s mul=%s profile=%u\n",
                     req, (arm & MLK_ARM_ARITH_MULCACHE) ? "w32" : "c",
@@ -302,6 +311,46 @@ int main(int argc, char** argv) {
                 std::printf("*** request %u: invalid %s timing\n", req, kCost[index].name);
                 ++errors;
             }
+        }
+#endif
+#if defined(PQC_PROFILE_PHASES)
+        const struct {
+            const char* name;
+            unsigned cycle;
+        } phases[] = {
+            { "keccak_permute", P_CYCLE_PERMUTE },
+            { "keccak_absorb", P_CYCLE_ABSORB },
+            { "keccak_squeeze", P_CYCLE_SQUEEZE },
+            { "ntt", P_CYCLE_NTT },
+            { "intt", P_CYCLE_INTT },
+            { "mulcache", P_CYCLE_MULCACHE },
+            { "basemul", P_CYCLE_BASEMUL },
+            { "reduce", P_CYCLE_REDUCE },
+        };
+        uint64_t profiled = 0;
+        for (const auto& phase : phases) {
+            const uint64_t elapsed = cycles[phase.cycle];
+            profiled += elapsed;
+            std::printf("PHASE_PROFILE: id=%u phase=%s cycles=%llu pct=%.3f\n",
+                        req, phase.name, (unsigned long long)elapsed,
+                        100.0 * elapsed / total);
+            if (elapsed == 0 || elapsed > total) {
+                std::printf("*** request %u: invalid %s phase timing\n", req, phase.name);
+                ++errors;
+            }
+        }
+        if (profiled > total) {
+            std::printf("*** request %u: phase timings overlap total cycles\n", req);
+            ++errors;
+        } else {
+            const uint64_t residual = total - profiled;
+            std::printf("PHASE_PROFILE: id=%u phase=other cycles=%llu pct=%.3f\n",
+                        req, (unsigned long long)residual,
+                        100.0 * residual / total);
+            std::printf("PHASE_SUM: id=%u measured=%llu other=%llu total=%llu\n",
+                        req, (unsigned long long)profiled,
+                        (unsigned long long)residual,
+                        (unsigned long long)total);
         }
 #endif
         const uint64_t start = cycles[P_CYCLE_START], end = cycles[P_CYCLE_END];

@@ -21,6 +21,9 @@
 // include path instead.
 #include "src/fips202/native/api.h"
 #include "mlk_prof_counters.h"
+#if defined(PQC_PROFILE_PHASES)
+#include "mlk_phase_profile.h"
+#endif
 #if defined(PQC_KECCAK_PE)
 #include <vx_pqc.h>
 #endif

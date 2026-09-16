@@ -133,6 +133,19 @@ else ifneq ($(PROFILE_ARITH),)
 $(error PROFILE_ARITH must be 1 or unset)
 endif
 
+ifeq ($(PROFILE_PHASES),1)
+ifneq ($(SERIAL),1)
+$(error PROFILE_PHASES requires SERIAL=1)
+endif
+ifneq ($(NTT),reg32)
+$(error PROFILE_PHASES requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_PROFILE_PHASES -DPQC_PROFILE_ARITH
+	CXXFLAGS  += -DPQC_PROFILE_PHASES -DPQC_PROFILE_ARITH
+else ifneq ($(PROFILE_PHASES),)
+$(error PROFILE_PHASES must be 1 or unset)
+endif
+
 ifeq ($(ABLATE),keccak)
 	ABLATE_FLAGS := -DPQC_ABLATE_KECCAK
 else ifeq ($(ABLATE),ntt)
@@ -156,7 +169,7 @@ HDRS := $(SRC_DIR)/common.h \
         $(VORTEX_HOME)/tests/pqc/pqc_config.h
 VX_HDRS := $(HDRS) $(SRC_DIR)/mlk_prof_arith.h \
            $(SRC_DIR)/mlk_prof_fips202.h $(SRC_DIR)/vortex_prof_config.h \
-           $(SRC_DIR)/mlk_arith_dispatch.h \
+           $(SRC_DIR)/mlk_arith_dispatch.h $(SRC_DIR)/mlk_phase_profile.h \
            $(VORTEX_HOME)/tests/pqc/mlkem_coop_arith.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_pqc_defs.h

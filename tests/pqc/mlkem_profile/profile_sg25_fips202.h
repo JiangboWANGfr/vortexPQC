@@ -9,6 +9,15 @@
 #define MLK_PROFILE_SG25_FIPS202_H
 
 #include "mlk_prof_counters.h"
+#if defined(PQC_PROFILE_PHASES)
+#include "mlk_phase_profile.h"
+#define MLKSG_PROFILE_BEGIN(scope) \
+  mlk_phase_scope_t scope = mlk_phase_begin()
+#define MLKSG_PROFILE_END(scope, phase) \
+  mlk_phase_end((phase), (scope))
+#define MLKSG_PROFILE_END_EXCLUDING_PERMUTE(scope, phase) \
+  mlk_phase_end_excluding_permute((phase), (scope))
+#endif
 
 #define MLKSG_COUNT_PERMUTATIONS(permutations) do {                       \
   if (vx_thread_id() == 0) {                                             \
@@ -17,5 +26,10 @@
 } while (0)
 #include "sg25_fips202.h"
 #undef MLKSG_COUNT_PERMUTATIONS
+#if defined(PQC_PROFILE_PHASES)
+#undef MLKSG_PROFILE_END_EXCLUDING_PERMUTE
+#undef MLKSG_PROFILE_END
+#undef MLKSG_PROFILE_BEGIN
+#endif
 
 #endif

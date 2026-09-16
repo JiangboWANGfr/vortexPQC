@@ -1,6 +1,10 @@
 #ifndef MLK_COOP_DISPATCH_H
 #define MLK_COOP_DISPATCH_H
 
+#if defined(PQC_PROFILE_PHASES)
+#include "mlk_phase_profile.h"
+#endif
+
 struct mlk_coop_args_t {
   int16_t* polynomial;
   unsigned inverse;
@@ -63,6 +67,9 @@ extern "C" __attribute__((naked, noinline)) void mlk_profile_ntt_expand(unsigned
 #undef MLK_NTT_SAVE_RA
 
 extern "C" void mlk_profile_ntt(int16_t* p, unsigned inverse) {
+#if defined(PQC_PROFILE_PHASES)
+  const mlk_phase_scope_t scope = mlk_phase_begin();
+#endif
   auto& args = mlk_coop_args[vx_warp_id()];
   args.polynomial = p;
   args.inverse = inverse;
@@ -70,6 +77,9 @@ extern "C" void mlk_profile_ntt(int16_t* p, unsigned inverse) {
   __syncthreads();
   const unsigned mask = args.lanes == 32 ? UINT32_MAX : (1u << args.lanes) - 1u;
   mlk_profile_ntt_expand(mask);
+#if defined(PQC_PROFILE_PHASES)
+  mlk_phase_end(inverse ? MLK_PHASE_INTT : MLK_PHASE_NTT, scope);
+#endif
 }
 
 #endif

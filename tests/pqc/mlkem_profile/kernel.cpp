@@ -14,9 +14,138 @@ extern "C" {
 #include "src/sampling.c"
 #include "src/verify.c"
 #if !defined(PQC_KECCAK_SG25)
+#if defined(PQC_PROFILE_PHASES)
+#include "src/fips202/fips202.h"
+#include "src/fips202/keccakf1600.h"
+
+// Time vendored FIPS helpers through local aliases so the submodule stays unchanged.
+#define MLK_PROFILE_REAL_PERMUTE MLK_NAMESPACE(keccakf1600_permute)
+
+static void mlk_profile_raw_absorb_once(uint64_t*, unsigned, const uint8_t*,
+                                        size_t, uint8_t);
+static void mlk_profile_raw_squeezeblocks(uint8_t*, size_t, uint64_t*,
+                                          unsigned);
+static void mlk_profile_raw_squeeze_once(uint8_t*, size_t, uint64_t*,
+                                         unsigned);
+
+static void mlk_profile_permute(uint64_t* state) {
+  const mlk_phase_scope_t scope = mlk_phase_begin();
+  MLK_PROFILE_REAL_PERMUTE(state);
+  mlk_phase_end(MLK_PHASE_PERMUTE, scope);
+}
+
+static void mlk_profile_absorb(uint64_t* state, unsigned rate,
+                               const uint8_t* input, size_t inlen,
+                               uint8_t domain) {
+  const mlk_phase_scope_t scope = mlk_phase_begin();
+  mlk_profile_raw_absorb_once(state, rate, input, inlen, domain);
+  mlk_phase_end_excluding_permute(MLK_PHASE_ABSORB, scope);
+}
+
+static void mlk_profile_squeezeblocks(uint8_t* output, size_t nblocks,
+                                      uint64_t* state, unsigned rate) {
+  const mlk_phase_scope_t scope = mlk_phase_begin();
+  mlk_profile_raw_squeezeblocks(output, nblocks, state, rate);
+  mlk_phase_end_excluding_permute(MLK_PHASE_SQUEEZE, scope);
+}
+
+static void mlk_profile_squeeze(uint8_t* output, size_t outlen,
+                                uint64_t* state, unsigned rate) {
+  const mlk_phase_scope_t scope = mlk_phase_begin();
+  mlk_profile_raw_squeeze_once(output, outlen, state, rate);
+  mlk_phase_end_excluding_permute(MLK_PHASE_SQUEEZE, scope);
+}
+
+#undef mlk_keccakf1600_permute
+#define mlk_keccakf1600_permute mlk_profile_permute
+
+#define mlk_keccak_absorb_once mlk_profile_raw_absorb_once
+#define mlk_keccak_squeezeblocks mlk_profile_raw_squeezeblocks
+#define mlk_keccak_squeeze_once mlk_profile_raw_squeeze_once
+#undef mlk_shake128_absorb_once
+#undef mlk_shake128_squeezeblocks
+#undef mlk_shake128_init
+#undef mlk_shake128_release
+#undef mlk_shake256
+#undef mlk_sha3_256
+#undef mlk_sha3_512
+#define mlk_shake128_absorb_once mlk_profile_raw_shake128_absorb_once
+#define mlk_shake128_squeezeblocks mlk_profile_raw_shake128_squeezeblocks
+#define mlk_shake128_init mlk_profile_raw_shake128_init
+#define mlk_shake128_release mlk_profile_raw_shake128_release
+#define mlk_shake256 mlk_profile_raw_shake256
+#define mlk_sha3_256 mlk_profile_raw_sha3_256
+#define mlk_sha3_512 mlk_profile_raw_sha3_512
+#include "src/fips202/fips202.c"
+#undef mlk_keccak_absorb_once
+#undef mlk_keccak_squeezeblocks
+#undef mlk_keccak_squeeze_once
+#undef mlk_keccakf1600_permute
+#undef mlk_shake128_absorb_once
+#undef mlk_shake128_squeezeblocks
+#undef mlk_shake128_init
+#undef mlk_shake128_release
+#undef mlk_shake256
+#undef mlk_sha3_256
+#undef mlk_sha3_512
+#define mlk_shake128_absorb_once MLK_NAMESPACE(shake128_absorb_once)
+#define mlk_shake128_squeezeblocks MLK_NAMESPACE(shake128_squeezeblocks)
+#define mlk_shake128_init MLK_NAMESPACE(shake128_init)
+#define mlk_shake128_release MLK_NAMESPACE(shake128_release)
+#define mlk_shake256 MLK_NAMESPACE(shake256)
+#define mlk_sha3_256 MLK_NAMESPACE(sha3_256)
+#define mlk_sha3_512 MLK_NAMESPACE(sha3_512)
+#define mlk_keccakf1600_permute MLK_PROFILE_REAL_PERMUTE
+
+void mlk_shake128_absorb_once(mlk_shake128ctx* state, const uint8_t* input,
+                              size_t inlen) {
+  mlk_profile_absorb(state->ctx, SHAKE128_RATE, input, inlen, 0x1f);
+}
+
+void mlk_shake128_squeezeblocks(uint8_t* output, size_t nblocks,
+                                mlk_shake128ctx* state) {
+  mlk_profile_squeezeblocks(output, nblocks, state->ctx, SHAKE128_RATE);
+}
+
+void mlk_shake128_init(mlk_shake128ctx* state) {
+  (void)state;
+}
+
+void mlk_shake128_release(mlk_shake128ctx* state) {
+  mlk_zeroize(state, sizeof(*state));
+}
+
+void mlk_shake256(uint8_t* output, size_t outlen, const uint8_t* input,
+                  size_t inlen) {
+  mlk_shake128ctx state;
+  mlk_profile_absorb(state.ctx, SHAKE256_RATE, input, inlen, 0x1f);
+  mlk_profile_squeeze(output, outlen, state.ctx, SHAKE256_RATE);
+  mlk_zeroize(&state, sizeof(state));
+}
+
+void mlk_sha3_256(uint8_t* output, const uint8_t* input, size_t inlen) {
+  uint64_t state[25];
+  mlk_profile_absorb(state, SHA3_256_RATE, input, inlen, 0x06);
+  mlk_profile_squeeze(output, SHA3_256_HASHBYTES, state, SHA3_256_RATE);
+  mlk_zeroize(state, sizeof(state));
+}
+
+void mlk_sha3_512(uint8_t* output, const uint8_t* input, size_t inlen) {
+  uint64_t state[25];
+  mlk_profile_absorb(state, SHA3_512_RATE, input, inlen, 0x06);
+  mlk_profile_squeeze(output, SHA3_512_HASHBYTES, state, SHA3_512_RATE);
+  mlk_zeroize(state, sizeof(state));
+}
+#else
 #include "src/fips202/fips202.c"
 #include "src/fips202/fips202x4.c"
+#endif
 #include "src/fips202/keccakf1600.c"
+#if defined(PQC_PROFILE_PHASES)
+#undef mlk_keccakf1600_permute
+#define mlk_keccakf1600_permute MLK_NAMESPACE(keccakf1600_permute)
+#undef MLK_PROFILE_REAL_PERMUTE
+#endif
 #endif
 
 // Public entry points. The internal mlk_kem_* names are function-like macros
@@ -70,6 +199,11 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
     mlk_arith_cycles[vx_warp_id()][i] = 0;
   }
 #endif
+#if defined(PQC_PROFILE_PHASES)
+  for (unsigned i = 0; i < MLK_PHASE_COUNT; ++i) {
+    mlk_phase_cycles[vx_warp_id()][i] = 0;
+  }
+#endif
 
 #if defined(PQC_NTT_COOP)
   mlk_coop_args[vx_warp_id()].lanes = arg->ntt_lanes;
@@ -97,6 +231,11 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   cycles[P_CYCLE_START] = t0;
   cycles[P_CYCLE_END] = t3;
 
+#if defined(PQC_PROFILE_PHASES)
+  for (unsigned i = 0; i < MLK_PHASE_COUNT; ++i) {
+    cycles[P_CYCLE_PERMUTE + i] = mlk_phase_cycles[vx_warp_id()][i];
+  }
+#endif
 #if defined(PQC_PROFILE_ARITH)
   for (unsigned i = 0; i < 3; ++i) {
     cycles[P_CYCLE_MULCACHE + i] = mlk_arith_cycles[vx_warp_id()][i];
