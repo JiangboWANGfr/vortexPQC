@@ -174,6 +174,44 @@ a local LLVM 20.1.8 libc/libcrt build; it must be repackaged through
 Structured data are in
 [the integer-only XLEN comparison](../../pqc/results/rv32im_rv64im_keccak.csv).
 
+## Direct final RV32 phase profile
+
+`PROFILE_PHASES=1` measures mutually exclusive intervals in the final RV32IM
+W8T32 ML-KEM configuration. Absorb and squeeze exclude nested permutation
+cycles. NTT, INTT, mulcache, basemul, and reduce are direct intervals; the
+residual is the exact difference from the instrumented request interval and
+therefore also contains the interval-probe overhead. The experiment is M1
+only because per-request intervals overlap at M8. Headline M1/M8 results remain
+the uninstrumented interval and global makespan.
+
+| XRT backend | Permute | Absorb | Squeeze | NTT + INTT | Mulcache + basemul + reduce | Residual |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Stage | 4.964% | 7.423% | 4.239% | 2.344% | 4.529% | 76.501% |
+| KROUND | 1.266% | 7.646% | 5.256% | 2.398% | 4.673% | 78.761% |
+| Pointer PE | 0.516% | 9.521% | 17.263% | 2.114% | 4.183% | 66.402% |
+
+All three backends pass the complete KAT with 140 permutations, 15 NTTs,
+nine INTTs, 12 mulcache calls, 12 basemul calls, and 18 reduce calls. SimX,
+RTL, and XRT retire identical instruction counts for each backend. The maximum
+SimX/RTL instrumented-interval gap is 0.785%; the maximum XRT/RTL gap is
+0.078%. Relative to matched uninstrumented SimX M1 intervals, probe overhead
+is 7.189% for Stage, 8.299% for KROUND, and 6.632% for the pointer PE.
+
+The result changes the bottleneck interpretation after Keccak acceleration.
+Pointer permutation is only 0.516% of the measured interval, while its serial
+absorb and squeeze helpers consume 26.785%. NTT plus INTT contributes
+2.114--2.398%, and the three named cooperative polynomial operations contribute
+4.183--4.673%. The large residual is not assigned to one primitive because it
+also contains sampling, encoding/compression, comparison, control, memory,
+wrappers, allocation, and probe overhead.
+
+Stage and KROUND use separate single-extension builds matching their strict
+RV32IM rows. The pointer profile uses a pointer-only extension build matching
+the independent PPA configuration. Its uninstrumented M8 makespan is
+8,330,412 cycles; this is not substituted into the earlier all-enabled unified
+core table, whose enable set differs. Structured measurements and raw-log
+paths are in [the direct phase profile](../../pqc/results/mlkem_phase_profile.csv).
+
 ## Matched integer-only RV32/RV64 synthesis
 
 The XLEN comparison uses source commit `766b66a74` and keeps the V80 device,

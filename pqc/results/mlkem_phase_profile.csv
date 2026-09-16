@@ -1,0 +1,26 @@
+# Direct interval profile for the final RV32IM W8T32 ML-KEM-768 configuration.
+# Source commit 131c0790f; F/D disabled; one core; NTT=reg32; NTTBF=ise;
+# NTTMUL=ise; ARITH=all; ARITH_MUL=ise; SERIAL=1. Stage uses KSG25,
+# whole_round uses KROUND25, and pointer uses the KECCAKF pointer PE.
+# PROFILE_PHASES=1 is an instrumented M1-only build. Absorb and squeeze exclude
+# nested permutation cycles. Other is the exact residual after the eight named
+# buckets and therefore also contains interval-probe overhead. Instrumentation
+# overhead compares the SimX phase total with its matching uninstrumented M1
+# interval. M8 rows are uninstrumented global makespans; overlapping per-request
+# timestamps are deliberately not summed.
+measurement,backend,driver,requests,keccak_permute_cycles,keccak_absorb_cycles,keccak_squeeze_cycles,ntt_cycles,intt_cycles,mulcache_cycles,basemul_cycles,reduce_cycles,other_cycles,interval_or_makespan_cycles,device_cycles,instructions,instrumentation_overhead_pct,kat,status,raw_log
+phase,stage,simx,1,291043,436718,240717,68771,64249,60428,86783,109546,4438249,5796504,5800221,450679,7.189,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/stage_m1_simx.log
+phase,stage,rtlsim,1,287677,426776,244996,71200,64370,62107,88887,112052,4431243,5789308,5792861,450679,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/stage_m1_rtlsim.log
+phase,stage,xrt,1,287633,430068,245576,71216,64616,62036,88732,111630,4432316,5793823,5797381,450679,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/stage_m1_xrt.log
+phase,whole_round,simx,1,71073,437625,290308,68598,63946,60975,87064,110276,4437878,5627743,5631475,430239,8.299,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/kround_m1_simx.log
+phase,whole_round,rtlsim,1,70962,428616,295987,70752,63987,61977,89066,111793,4430993,5624133,5627698,430239,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/kround_m1_rtlsim.log
+phase,whole_round,xrt,1,71246,430274,295805,70892,64074,62085,89075,111788,4432220,5627459,5631029,430239,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/kround_m1_xrt.log
+phase,pointer,simx,1,30858,595081,1088272,67847,64095,60580,86989,110056,4197633,6301411,6305110,559906,6.632,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/pointer_m1_simx.log
+phase,pointer,rtlsim,1,32256,595261,1079288,67998,64046,62199,88407,111511,4151395,6252361,6255886,559906,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/pointer_m1_rtlsim.log
+phase,pointer,xrt,1,32256,595268,1079288,67937,64251,61532,88212,111760,4151408,6251912,6255442,559906,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/pointer_m1_xrt.log
+headline,stage,simx,1,,,,,,,,,,5407754,5409748,436262,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_simx.log
+headline,stage,simx,8,,,,,,,,,,12168060,12170437,3490096,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/stage_m8_headline_simx.log
+headline,whole_round,simx,1,,,,,,,,,,5196475,5198475,415822,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_simx.log
+headline,whole_round,simx,8,,,,,,,,,,11935429,11937913,3326576,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/kround_m8_headline_simx.log
+headline,pointer,simx,1,,,,,,,,,,5909478,5911500,527622,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/pointer_m1_headline_simx.log
+headline,pointer,simx,8,,,,,,,,,,8330412,8332823,4220976,,PASS,PASS,build32_im/tests/pqc/mlkem_profile/phase_profile/pointer_m8_headline_simx.log

@@ -108,7 +108,8 @@ FPGA full-core area/timing, and isolated ASIC cell area.
 validate its complete-KEM behavior, and hold this implementation fixed in
 the final Keccak performance and full-core area comparison. A matched RV64
 portability experiment measures both complete-KEM behavior and implementation
-cost without changing the narrow NTT arithmetic.
+cost without changing the narrow NTT arithmetic. Direct final-configuration
+intervals separate permutation, sponge, transform, and polynomial costs.
 \end{enumerate}
 
 We do not claim the 25-thread state layout or whole-round warp collectives
@@ -736,8 +737,8 @@ Whole-round fusion adds only \KemRoundOne{}$\times$ and
 fourfold isolated permutation improvement. The single-request instruction
 count falls from 1,093,915 to 1,073,037, just 1.91\%.
 The evidence identifies a limit to further permutation optimization.
-It does not yet quantitatively partition the remainder among
-absorb/extract, wrappers, transforms, other polynomial work, and allocation.
+The direct final-configuration profile below partitions the named intervals
+without treating its residual as a single cryptographic primitive.
 
 The stage backend is 1.058$\times$ faster than the pointer PE for one request.
 At eight requests the pointer PE is 1.130$\times$ faster than stages and
@@ -838,6 +839,43 @@ cover the AFU and processor RTL. Table~\ref{tab:unifiedkem} uses a common
 all-enabled core for the functional and cycle comparison. Section~VI uses
 four separate builds that retain the same NTT and enable either no Keccak
 hardware, stages, whole round, or the pointer PE.
+
+\subsection{Direct final-configuration phase profile}
+Table~\ref{tab:directphases} measures mutually exclusive M1 intervals in the
+final RV32IM W8T32 configuration. Absorb and squeeze exclude nested
+permutation cycles; NTT/INTT and the listed cooperative polynomial operations
+are timed directly. The residual is the exact difference from the
+instrumented request interval, so it includes sampling, encoding, comparison,
+control, memory, wrappers, allocation, and interval-probe overhead. Each row
+uses the corresponding Stage-only, KROUND-only, or pointer-only extension
+build and passes the complete KAT.
+
+\begin{table}[t]
+\caption{Direct XRT M1 phase shares in the final RV32IM configuration.
+Poly. = mulcache + basemul + reduce; residual includes probe overhead.}
+\label{tab:directphases}
+\centering\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+Backend & Perm. & Absorb & Squeeze & NTTs & Poly. & Residual \\
+\midrule
+\tablerows{direct_phases.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/mlkem_phase_profile.csv}
+\end{table}
+
+The pointer PE reduces permutation to \DirectPointerPermuteShare{} of its
+instrumented interval, while absorb plus squeeze account for
+\DirectPointerSpongeShare{}. The corresponding sponge shares are
+\DirectStageSpongeShare{} for stages and \DirectRoundSpongeShare{} for whole
+round. This explains why replacing stages with a whole round has little
+application effect and why pointer permutation latency alone does not predict
+the saturated result. SimX/RTL and XRT/RTL interval gaps remain below
+\DirectMaxSimxRtlGap{} and \DirectMaxXrtRtlGap{}, respectively, with exact
+instruction agreement. Probe overhead is \DirectStageProbeOverhead{},
+\DirectRoundProbeOverhead{}, and \DirectPointerProbeOverhead{} for the three
+rows, so headline speedups continue to use the uninstrumented runs.
 
 \subsection{Matched integer-only RV32/RV64 portability}
 Table~\ref{tab:xlen} recompiles Stage and KROUND at RV32IM and RV64IM while
@@ -1096,10 +1134,12 @@ the area metric, not solely on the number of custom instructions.
 
 \section{Limitations and Next Measurements}
 Historical component fractions apply to their fixed input, instrumented
-build, and narrow-core configuration. Direct interval profiling of the final
-$8w\times32t$ implementation is still needed to separate absorb, extract,
-transforms, other arithmetic, wrappers, and allocation. The small
-stage-to-round ML-KEM gain does not identify these residual percentages.
+build, and narrow-core configuration. The direct final-configuration profile
+separates the named cryptographic intervals, but its 6.6--8.3\% probe overhead
+is part of the residual. It does not split sampling, encoding, comparison,
+control, memory, wrappers, or allocation. At eight requests, per-request
+intervals overlap and therefore cannot be summed; only the uninstrumented
+global makespan is reported.
 
 The final integrated table lacks a matched $8w\times32t$ PQRV assembly arm.
 Historical SG5 software uses a 16-thread configuration. A matched
@@ -1132,7 +1172,10 @@ over shuffles and, with the final NTT path fixed, complete ML-KEM by
 one/eight requests.
 Whole-round fusion adds about fourfold permutation throughput but only
 2--4\% application speedup, while the pointer PE remains strongest in the
-eight-request launch. Integer-only RV64 halves the Keccak issue count, reduces
+eight-request launch. Direct XRT intervals show that pointer permutation is
+only \DirectPointerPermuteShare{} of the instrumented request, whereas its
+absorb and squeeze paths consume \DirectPointerSpongeShare{}. Integer-only
+RV64 halves the Keccak issue count, reduces
 complete-launch instructions by 5.7--7.0\%, and slightly raises the
 eight-request cycle result.
 The result is an implemented set of design choices
@@ -1152,6 +1195,5 @@ missing experiment source snapshots. Build with \code{make} in
 frozen generated tables and figures.
 
 \bibliographystyle{IEEEtran}
-\IEEEtriggeratref{6}
 \bibliography{references}
 \end{document}

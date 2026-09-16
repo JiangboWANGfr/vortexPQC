@@ -341,6 +341,80 @@ for backend, prefix in (("stage", "Stage"), ("whole_round", "Round")):
         assert abs(int(row["device_cycles"]) - int(simx_row["device_cycles"])) / \
             int(row["device_cycles"]) < 0.01
 
+phase_profile = read("mlkem_phase_profile")
+assert all(r["kat"] == "PASS" and r["status"] == "PASS"
+           for r in phase_profile)
+phase_rows = [r for r in phase_profile if r["measurement"] == "phase"]
+headline_rows = [r for r in phase_profile if r["measurement"] == "headline"]
+phase_index = {(r["backend"], r["driver"]): r for r in phase_rows}
+headline_index = {(r["backend"], int(r["requests"])): r
+                  for r in headline_rows}
+phase_backends = ("stage", "whole_round", "pointer")
+assert set(phase_index) == {(backend, driver)
+                           for backend in phase_backends
+                           for driver in ("simx", "rtlsim", "xrt")}
+assert set(headline_index) == {(backend, requests)
+                              for backend in phase_backends
+                              for requests in (1, 8)}
+phase_buckets = ("keccak_permute_cycles", "keccak_absorb_cycles",
+                 "keccak_squeeze_cycles", "ntt_cycles", "intt_cycles",
+                 "mulcache_cycles", "basemul_cycles", "reduce_cycles",
+                 "other_cycles")
+phase_simx_rtl_gap = 0.0
+phase_xrt_rtl_gap = 0.0
+for backend in phase_backends:
+    rows = [phase_index[backend, driver]
+            for driver in ("simx", "rtlsim", "xrt")]
+    assert {r["requests"] for r in rows} == {"1"}
+    assert len({r["instructions"] for r in rows}) == 1
+    for row in rows:
+        assert sum(int(row[field]) for field in phase_buckets) == \
+            int(row["interval_or_makespan_cycles"])
+    simx, rtl, xrt = rows
+    rtl_total = int(rtl["interval_or_makespan_cycles"])
+    phase_simx_rtl_gap = max(
+        phase_simx_rtl_gap,
+        abs(int(simx["interval_or_makespan_cycles"]) - rtl_total) / rtl_total)
+    phase_xrt_rtl_gap = max(
+        phase_xrt_rtl_gap,
+        abs(int(xrt["interval_or_makespan_cycles"]) - rtl_total) / rtl_total)
+    headline = headline_index[backend, 1]
+    overhead = 100 * (int(simx["interval_or_makespan_cycles"]) /
+                      int(headline["interval_or_makespan_cycles"]) - 1)
+    assert abs(overhead - float(simx["instrumentation_overhead_pct"])) < 0.001
+
+phase_names = {"stage": "Stages", "whole_round": "Whole round",
+               "pointer": "Pointer PE"}
+phase_percent_fields = (
+    ("keccak_permute_cycles",),
+    ("keccak_absorb_cycles",),
+    ("keccak_squeeze_cycles",),
+    ("ntt_cycles", "intt_cycles"),
+    ("mulcache_cycles", "basemul_cycles", "reduce_cycles"),
+    ("other_cycles",),
+)
+table("direct_phases", [[phase_names[backend]] + [
+    percent(sum(int(row[field]) for field in fields) / total)
+    for fields in phase_percent_fields]
+    for backend in phase_backends
+    for row in [phase_index[backend, "xrt"]]
+    for total in [int(row["interval_or_makespan_cycles"])]])
+for backend, prefix in (("stage", "Stage"),
+                        ("whole_round", "Round"),
+                        ("pointer", "Pointer")):
+    row = phase_index[backend, "xrt"]
+    total = int(row["interval_or_makespan_cycles"])
+    macros["Direct" + prefix + "ProbeOverhead"] = number(
+        phase_index[backend, "simx"]["instrumentation_overhead_pct"], 3) + "\\%"
+    macros["Direct" + prefix + "SpongeShare"] = percent(
+        (int(row["keccak_absorb_cycles"]) +
+         int(row["keccak_squeeze_cycles"])) / total)
+macros["DirectPointerPermuteShare"] = percent(
+    int(phase_index["pointer", "xrt"]["keccak_permute_cycles"]) /
+    int(phase_index["pointer", "xrt"]["interval_or_makespan_cycles"]))
+macros["DirectMaxSimxRtlGap"] = percent(phase_simx_rtl_gap)
+macros["DirectMaxXrtRtlGap"] = percent(phase_xrt_rtl_gap)
+
 backend_ppa = {r["variant"]: r for r in read("ntt_keccak_backend_ppa")}
 backend_names = {"ntt_only": "NTT only", "ntt_stage": "NTT + stages",
                  "ntt_kround": "NTT + whole round", "ntt_pointer": "NTT + pointer PE"}

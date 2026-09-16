@@ -4,9 +4,9 @@
 
 中文工作题目：**面向 RV32 SIMT GPU 的瓶颈驱动 Keccak 加速设计**。
 
-本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 11 页，含 19 张表、5 幅图和 11 条参考文献。
+本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 11 页，含 20 张表、5 幅图和 11 条参考文献。
 
-论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新加入严格 RV32IM/RV64IM 的 Stage/KROUND 功能、性能和 Vivado post-route 对比。
+论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新加入最终 RV32IM W8T32 配置的直接阶段计时，并保留严格 RV32IM/RV64IM 的 Stage/KROUND 功能、性能和 Vivado post-route 对比。
 
 [Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
 
@@ -38,7 +38,7 @@
 
 计算式为：份额 = (原始 profile cycles − 单项消融 cycles) / 原始 profile cycles。
 
-残差等于基线减去两次独立消融的差值。它不是单独测得的互斥计时区间，也不能全部称为 absorb/squeeze、访存或采样开销。它可能包含非 NTT 多项式运算、采样、编码、吸收/挤出、分配和控制；目前没有足够的独立计时进一步拆分。两项消融的可加性也没有通过联合消融验证。
+残差等于基线减去两次独立消融的差值。它不是单独测得的互斥计时区间，也不能全部称为 absorb/squeeze、访存或采样开销。它可能包含非 NTT 多项式运算、采样、编码、吸收/挤出、分配和控制；该历史配置没有足够的独立计时进一步拆分。两项消融的可加性也没有通过联合消融验证。
 
 三个 profile arm 都记录 144 次 scalar permutation。24 次 x4 wrapper 调用所触发的 scalar 工作已经包含在 144 中，不能再加上 4 × 24。NTT/INTT 为 15 次正变换、9 次逆变换。消融的密码输出有意无效，仅用于估算组件成本；调用数一致不等于证明全部数据相关路径完全不变。
 
@@ -113,6 +113,16 @@ M=1 时 stage 和 KROUND 分别比 pointer PE 快 1.093× 和 1.137×；M=8 时 
 
 RV64 将两种 Keccak 后端的 collective issue 数减半，但完整 ML-KEM 的 Stage/KROUND 指令只减少 7.002%/5.730%。M=1 cycles 分别减少 4.068%/2.979%，M=8 则增加 0.456%/0.275%。SimX、RTL 和 XRT 的 M=1 KAT 全部通过且退休指令一致；最大 SimX/RTL 差为 0.515%，最大 XRT/RTL 差为 0.055%。
 
+最终 RV32IM W8T32 的 M1 直接 profile 用互斥区间计时，absorb/squeeze 排除嵌套 permutation；下表为 XRT 占带探针总区间的比例：
+
+| 后端 | Permute | Absorb | Squeeze | NTT + INTT | Mulcache + basemul + reduce | 残差 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Stage | 4.964% | 7.423% | 4.239% | 2.344% | 4.529% | 76.501% |
+| KROUND | 1.266% | 7.646% | 5.256% | 2.398% | 4.673% | 78.761% |
+| Pointer PE | 0.516% | 9.521% | 17.263% | 2.114% | 4.183% | 66.402% |
+
+三组 KAT 全部通过，SimX/RTL/XRT 的退休指令数完全一致；最大 SimX/RTL 和 XRT/RTL 区间差为 0.785%/0.078%。相对同配置无探针 M1，Stage/KROUND/Pointer 的探针开销为 7.189%/8.299%/6.632%，因此不用这张表重算端到端加速比。残差还包含采样、编码/压缩、比较、控制、访存、wrapper、分配和探针开销，不是一个密码原语。M8 仅保留无探针的全局 makespan，不对重叠的单请求区间求和。Pointer 的独立配置 M8 为 8,330,412 cycles，不替换上面全开统一核的 8,901,903 cycles。
+
 ## 6. 成本与频率的写法
 
 NTT 不是只有一种候选。仓库先后保留了 scalar library、shared-array
@@ -173,7 +183,7 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 
 ## 7. 表格与来源映射
 
-以下路径均相对仓库根目录的 pqc/results/；生成清单保存 20 个源文件的 SHA-256。
+以下路径均相对仓库根目录的 pqc/results/；生成清单保存 21 个源文件的 SHA-256。
 
 | 正文内容 | 源文件 |
 | --- | --- |
@@ -189,11 +199,12 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
 | 表 XIII 最终 NTT+Keccak 五后端完整 ML-KEM | keccak_ntt_unified_mlkem.csv |
-| 表 XIV、匹配 RV32IM/RV64IM 完整 ML-KEM | rv32im_rv64im_keccak.csv |
-| 表 XV、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
-| 表 XVI、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
-| 表 XVII、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
-| 表 XVIII–XIX、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
+| 表 XIV、最终 RV32IM 直接阶段 profile | mlkem_phase_profile.csv |
+| 表 XV、匹配 RV32IM/RV64IM 完整 ML-KEM | rv32im_rv64im_keccak.csv |
+| 表 XVI、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
+| 表 XVII、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
+| 表 XVIII、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
+| 表 XIX–XX、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |
 
@@ -211,7 +222,7 @@ make -C ../pqc/docs/paper
 
 也可在本目录直接执行 make。此目标只生成文档，不编译 Vortex 核心或测试程序。所有中间结果进入仓库 build/ieee_pqc/，最终 PDF 保存在本目录。
 
-[generate_results.py](generate_results.py) 从 16 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和、RV32/RV64 KAT 与 model parity，以及两组 XLEN 的综合配置、路由和闭合状态。另将文字引用的四份历史文件纳入哈希清单，共记录 20 个输入文件；这些历史文件不是重新执行实验后的结果。
+[generate_results.py](generate_results.py) 从 17 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、两组完整 ML-KEM 正确性、阶段周期之和、最终阶段 bucket 的互斥求和、探针开销与三模型一致性、RV32/RV64 KAT 与 model parity，以及两组 XLEN 的综合配置、路由和闭合状态。另将文字引用的四份历史文件纳入哈希清单，共记录 21 个输入文件；这些历史文件不是重新执行实验后的结果。
 
 独立源码包含已生成的表格、图、原始 CSV 快照和 provenance.json，可在 Overleaf 选择 pdfLaTeX 编译 main.tex，也可在解压目录执行：
 
@@ -232,9 +243,10 @@ provenance.json 记录本次文档生成时的仓库 HEAD、工作区是否有�
 
 ## 9. 投稿前最值得补的实验
 
-1. 在最终 8w × 32t、同一 serial-FIPS-202 输入上补独立计时：Keccak permutation、NTT/INTT、absorb/extract，以及能够避免嵌套重复计数的其他阶段。加速后剩余开销是目前最关键的空缺。
-2. 补同 W32 的 PQRV 汇编 arm、SG5/SG25 匹配映射对照，以及三阶段/整轮相同展开方式的控制实验。
-3. 扩展多输入与混合 batch；如果论文覆盖 ML-DSA collective 性能，则完成其端到端集成和输入分布实验。
-4. 根据最终投稿目标补板上运行、功耗/能耗和更完整系统 PPA。现有 XRT 证据是集成仿真，ASIC 数据是独立单元映射结果。
+最终 8w × 32t 的直接阶段计时已完成，不再列为缺失实验。剩余优先项为：
+
+1. 补同 W32 的 PQRV 汇编 arm、SG5/SG25 匹配映射对照，以及三阶段/整轮相同展开方式的控制实验。
+2. 扩展多输入与混合 batch；如果论文覆盖 ML-DSA collective 性能，则完成其端到端集成和输入分布实验。
+3. 根据最终投稿目标补板上运行、功耗/能耗和更完整系统 PPA。现有 XRT 证据是集成仿真，ASIC 数据是独立单元映射结果。
 
 这些项目已在英文稿限制部分明确写出，没有用推算值填成实测结果。
