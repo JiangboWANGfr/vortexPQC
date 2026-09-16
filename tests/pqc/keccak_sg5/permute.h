@@ -28,8 +28,10 @@ static inline uint64_t ks_shfl64(uint64_t v, int src, int cval) {
 }
 
 // One permutation, five lanes. `a[y]` holds A[c][y] on entry and on exit.
+template <bool UseBarrier = false>
 static void ks_sg5_permute(uint64_t a[5], unsigned c, unsigned base, int cval,
-                           uint64_t (*xp)[5], unsigned fences) {
+                           uint64_t (*xp)[5], unsigned fences,
+                           unsigned barrier_id = 0) {
   const int lane_m = (int)(base + (c + 4) % 5);
   const int lane_p = (int)(base + (c + 1) % 5);
   int pi_src[5];
@@ -67,9 +69,17 @@ static void ks_sg5_permute(uint64_t a[5], unsigned c, unsigned base, int cval,
     // transpose. Lane c slot s holds A'[s][c]; the next theta wants lane x slot y
     // to hold A'[x][y], i.e. what is at lane y slot x.
     for (unsigned s = 0; s < 5; ++s) xp[c][s] = n[s];
-    if (fences >= 1) vx_fence();
+    if (UseBarrier) {
+      vx_barrier(barrier_id, 1);
+    } else if (fences >= 1) {
+      vx_fence();
+    }
     for (unsigned y = 0; y < 5; ++y) a[y] = xp[y][c];
-    if (fences >= 2) vx_fence();
+    if (UseBarrier) {
+      vx_barrier(barrier_id, 1);
+    } else if (fences >= 2) {
+      vx_fence();
+    }
   }
 }
 

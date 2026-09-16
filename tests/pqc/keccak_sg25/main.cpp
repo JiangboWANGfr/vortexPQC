@@ -282,7 +282,11 @@ static size_t test_benchmark(vx_device_h dev, vx_queue_h queue, vx_kernel_h kern
 #elif defined(SG25_MAPPING_ASM)
                 "PQRV",
 #elif defined(SG25_MAPPING_SG5)
+#if defined(SG25_SG5_BARRIER)
+                "SG5-barrier",
+#else
                 "SG5",
+#endif
 #elif defined(SG25_KROUND_ISA)
                 "KROUND",
 #else

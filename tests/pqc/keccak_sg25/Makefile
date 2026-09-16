@@ -9,6 +9,7 @@ RHOPI ?= 0
 CHII ?= 0
 KROUND ?= 0
 MAPPING ?= sg25
+SG5_SYNC ?= fence
 UNROLL ?= 0
 
 ifneq ($(filter sg1 asm sg5 sg25,$(MAPPING)),$(MAPPING))
@@ -27,6 +28,14 @@ MAPPING_DEFINE := SG25_MAPPING_SG5
 endif
 VX_CFLAGS += -D$(MAPPING_DEFINE)
 CXXFLAGS += -D$(MAPPING_DEFINE)
+endif
+ifeq ($(MAPPING),sg5)
+ifeq ($(SG5_SYNC),barrier)
+VX_CFLAGS += -DSG25_SG5_BARRIER
+CXXFLAGS += -DSG25_SG5_BARRIER
+else ifneq ($(SG5_SYNC),fence)
+$(error SG5_SYNC must be barrier or fence)
+endif
 endif
 ifeq ($(MAPPING),asm)
 ifneq ($(XLEN),32)

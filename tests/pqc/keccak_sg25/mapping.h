@@ -11,6 +11,9 @@ void KeccakF1600_StatePermute_RV32ASM(uint64_t *state);
 
 #if defined(SG25_MAPPING_SG5)
 #include "../keccak_sg5/permute.h"
+#if defined(SG25_SG5_BARRIER)
+static_assert(VX_CFG_NUM_BARRIERS >= 2, "SG5 warp barriers reserve slot 1");
+#endif
 static uint64_t mapping_transpose[VX_CFG_NUM_WARPS][6][5][5];
 #endif
 
@@ -21,6 +24,10 @@ static __attribute__((noinline)) void benchmark_mapping(
   auto timing = reinterpret_cast<sg25_timing_t*>(arg->timing_addr);
   const unsigned states = arg->states_per_warp;
   const unsigned permutations = arg->permutations;
+#if defined(SG25_SG5_BARRIER)
+  // Slot 0 belongs to the CTA timing barriers; slot 1 is private to each warp.
+  const unsigned barrier_id = (1u << 8) | vx_warp_id();
+#endif
 #if defined(SG25_MAPPING_SG5)
   const unsigned group = lane / 5;
   const unsigned column = lane % 5;
@@ -48,8 +55,13 @@ static __attribute__((noinline)) void benchmark_mapping(
 #pragma clang loop unroll(disable)
     for (unsigned i = 0; i < permutations; ++i) {
 #if defined(SG25_MAPPING_SG5)
+#if defined(SG25_SG5_BARRIER)
+      ks_sg5_permute<true>(a, column, group * 5, 31,
+                           mapping_transpose[warp][group], 0, barrier_id);
+#else
       ks_sg5_permute(a, column, group * 5, 31,
                      mapping_transpose[warp][group], 2);
+#endif
 #elif defined(SG25_MAPPING_ASM)
       KeccakF1600_StatePermute_RV32ASM(a);
 #else

@@ -56,6 +56,14 @@ tests:
   configs: -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
   args: -b 2 -p 2 -n 6
   env: {MAPPING: "sg5"}
+- id: keccak-w32-sg5-barrier
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/keccak_sg25
+  configs: -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  args: -b 8 -p 2 -n 6
+  env: {MAPPING: "sg5", SG5_SYNC: "barrier"}
 - id: ksg25-shake-unrolled
   via: blackbox
   tier: full
