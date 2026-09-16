@@ -8,6 +8,10 @@ tests:
   - id: sw
     via: script
     run: "make -C tests/unittest run"
+  - id: sw-cache-forward
+    via: script
+    run: "make -C tests/unittest/cache_forward run"
+    touches: [sim/simx/mem/cache.cpp, tests/unittest/cache_forward]
   - id: hw
     via: script
     run: "make -C hw/unittest"

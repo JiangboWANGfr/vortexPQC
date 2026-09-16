@@ -346,7 +346,6 @@ struct bank_req_t {
   uint32_t hart_id;
   uint64_t req_tag;
   uint64_t uuid;
-  uint32_t mshr_id;
   ReqType type;
   bool write;
   MemOp op;           // AMO state (op/width/rhs/hart_id) is derived from
@@ -390,7 +389,6 @@ struct bank_req_t {
     hart_id = 0;
     req_tag = 0;
     uuid = 0;
-    mshr_id = 0;
     type = ReqType::None;
     write = false;
     op = MemOp::LD;
@@ -705,6 +703,7 @@ protected:
     fwd_set_    = 0;
     fwd_tag_    = 0;
     fwd_sector_ = 0;
+    fwd_data_.reset();
     crsp_sent_  = false;
     flushing_ = false;
     flush_set_idx_ = 0;
@@ -786,10 +785,8 @@ private:
     }
 
     // 2) fill only when no replay is pending and no forward drain is in
-    // progress (a new fill would re-arm the window mid-chain). A fill still
-    // riding the pipe also blocks the next one: its chain is only marked for
-    // replay at install, and the replay priority above must get a chance to
-    // drain it before another fill is accepted.
+    // progress (a new fill would re-arm the window mid-chain). Array
+    // installation stays ordered with replayed writes from the previous fill.
     if (!this->mem_rsp_in.empty() && !fwd_active_ && pipe_fill_count_ == 0) {
       auto &mem_rsp = this->mem_rsp_in.peek();
 #if VX_CFG_EXT_A_ENABLED
@@ -824,10 +821,15 @@ private:
       bank_req.addr    = params_.mem_addr_sector(bank_id_, root_peek.set_id, root_peek.addr_tag, root_peek.sector_id);
       bank_req.hart_id     = root_peek.bank_req.hart_id;
       bank_req.uuid    = root_peek.bank_req.uuid;
-      bank_req.mshr_id = mshr_id;
       bank_req.data    = mem_rsp.data;
       pipe_req_->push(bank_req);
       ++pipe_fill_count_;
+      mshr_.replay(mshr_id);
+      fwd_active_ = true;
+      fwd_set_    = root_peek.set_id;
+      fwd_tag_    = root_peek.addr_tag;
+      fwd_sector_ = root_peek.sector_id;
+      fwd_data_   = mem_rsp.data;
       DT(3, this->name() << " fill-rsp: " << mem_rsp);
       this->mem_rsp_in.pop();
       --pending_fill_reqs_;
@@ -1077,12 +1079,6 @@ private:
     sec.dirty      = false;
     sec.dirty_mask = 0;
     sec.data       = bank_req.data;
-    mshr_.replay(bank_req.mshr_id);
-    // arm the fill-forward window for this chain
-    fwd_active_ = true;
-    fwd_set_    = set_id;
-    fwd_tag_    = addr_tag;
-    fwd_sector_ = sector_id;
     return true;
   }
 
@@ -1111,22 +1107,13 @@ private:
       fwd_active_ = false;
       return false;
     }
-    // The armed sector is normally resident (the fill just installed it); a
-    // concurrent invalidate falls back to the replay path, which re-fetches.
-    auto &set = sets_.at(head->set_id);
-    int present_id = set.find_resident(head->addr_tag);
-    uint32_t sector_id = head->sector_id;
-    if (present_id == -1 || !set.lines.at(present_id).sectors.at(sector_id).valid) {
-      fwd_active_ = false;
-      return false;
-    }
     if (crsp_sent_ || this->core_rsp_out.full()) {
       return false; // the head falls back to the replay path this tick
     }
     bank_req_t req;
     mshr_.dequeue(&req);
     MemRsp rsp{req.req_tag, req.hart_id, req.uuid};
-    rsp.data = set.lines.at(present_id).sectors.at(sector_id).data;
+    rsp.data = fwd_data_;
     this->core_rsp_out.send(rsp);
     DT(3, this->name() << " fwd-rsp: " << rsp);
     return true;
@@ -1595,9 +1582,12 @@ private:
           // bytes get folded into the line once the fill arrives — without
           // this, a subsequent read could see the pre-store fill data.
           bool fill_pending = mshr_.has_pending_fill(set_id, addr_tag, sector_id, -1);
+          // Forwarded reads may have drained before the staged fill installs.
+          bool fill_staged = pipe_fill_count_ != 0 && set_id == fwd_set_
+                          && addr_tag == fwd_tag_ && sector_id == fwd_sector_;
           // wt-merge needs an MSHR slot; processInputs's MSHR gate doesn't
           // reserve one for write-through writes. Stall rather than abort.
-          if (fill_pending && mshr_.full())
+          if ((fill_pending || fill_staged) && mshr_.full())
             return;
           if (!this->emitWritethrough(set_id, addr_tag, sector_id,
                                       bank_req.addr, bank_req.hart_id, bank_req.uuid,
@@ -1605,10 +1595,13 @@ private:
                                       need_core_rsp(bank_req), bank_req.req_tag)) {
             return;
           }
-          if (fill_pending) {
+          if (fill_pending || fill_staged) {
             bank_req_t merge_req = bank_req;
             merge_req.skip_core_rsp = true;
-            mshr_.enqueue(merge_req, set_id, addr_tag, sector_id);
+            int id = mshr_.enqueue(merge_req, set_id, addr_tag, sector_id);
+            if (!fill_pending) {
+              mshr_.defer_to_replay(id);
+            }
             DT(3, this->name() << " mshr-enqueue (wt-merge): " << bank_req);
           }
         } else {
@@ -1731,11 +1724,12 @@ private:
   uint32_t rand_ctr_;
   uint64_t adm_seq_ctr_;  // bank admission-order stamp (see bank_req_t::adm_seq)
 
-  // Fill-forward window: chain key armed by the last installed fill.
+  // RTL forwards from the staged fill before the array pipeline completes.
   bool     fwd_active_;
   uint32_t fwd_set_;
   uint64_t fwd_tag_;
   uint32_t fwd_sector_;
+  std::shared_ptr<mem_block_t> fwd_data_;
   bool     crsp_sent_;  // core-response port used this tick (pipeline priority)
 
   // Flush walk state.

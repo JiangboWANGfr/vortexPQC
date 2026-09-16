@@ -792,6 +792,27 @@ request/response queues, and cache/issue stalls at W8/S1/P8; changing timing
 constants or selecting only passing workloads would not resolve the cause.
 No RTL, model constants, tolerance, or synthesis results changed in this work.
 
+#### Cache fill-forward investigation
+
+The subsequent W8/S1/P8 trace comparison at `2c3a5e533` identifies an extra
+SimX cycle between D-cache fill acceptance and the first forwarded read.
+RTL captures `fbuf_data_r` and arms the MSHR dequeue on `mem_rsp_fire`, so
+forwarding starts the following cycle. SimX instead arms forwarding in
+`CacheBank::processFill`, after the array pipeline, and reads the installed
+cache sector. The correction stages the fill payload at admission and
+forwards from that buffer independently of array installation. A write-through
+store arriving before the staged fill installs must still merge on replay,
+even if the older forwarded reads already released their MSHR entries.
+
+The cache regression fails before the change (external response latency
+5/7 cycles for array depths 2/4) and passes afterward (4/4). It also checks
+read/store/read chains, response backpressure, and write-through stores at
+eight offsets around fill arrival. RV32 and RV64 host unit cases pass.
+The retained SG5 barrier matrix passes the unchanged whole-launch 5% gate
+in all eleven pairs; its maximum isolated-span gap is still 5.633%.
+Historical synchronization results stay intact and the fence/cache-flush
+limitation is not declared fixed by this change.
+
 With the build environment below, reproduce the retained control using
 `make -s -C tests/pqc/keccak_sg25 MAPPING=sg5 SG5_SYNC=barrier`; run the same
 ELF with `-b 1 -n 1 -p 8`, `-b 2 -n 6 -p 2`, and the eight-warp cases above
