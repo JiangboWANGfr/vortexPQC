@@ -716,9 +716,86 @@ The existing `lsu_model_probe` was also rerun on this exact core at M1/L32,
 All ten SimX/XRT checks pass with exact instruction agreement. The measured
 intervals and log directory are preserved in the microbenchmark CSV comments.
 These controls reproduce the fence discrepancy; they do not claim to calibrate
-every SG5 memory interaction. The present experiment keeps the existing SG5
-algorithm fixed. A corrected cache-flush timing model or a separately validated
-SG5 barrier implementation is follow-up work.
+every SG5 memory interaction. The original experiment keeps the existing SG5
+algorithm fixed. The following synchronization investigation tests alternatives;
+the general cache-flush model remains incomplete.
+
+#### SG5 transpose synchronization correction
+
+The transpose buffer is private to each five-lane group in one physical warp.
+It needs stores to finish before the transposed loads, and loads to finish
+before the next round overwrites the buffer. It does not need dirty lines
+written back beyond the core. `SG5_SYNC=barrier` replaces both transpose fences
+with synchronous one-warp barriers; `SG5_SYNC=fence` remains the default.
+Barrier slot 1, indexed by physical warp ID, separates these operations from
+the timing interval's CTA barrier in slot 0. All active SG5 lanes execute both
+barriers after reconverging from iota; inactive lanes never own transpose data.
+The existing BAR instruction drains the LSU in both RTL and SimX and counts
+warps, so the five- through thirty-lane masks require one arrival per warp.
+
+The retained implementation is `1bd44cf34`. Both rebuilt fence/barrier ELFs
+are byte-identical to the binaries used in the measurements. Every packed
+group count (5, 10, 15, 20, 25, or 30 active lanes) passes SimX and XRT at
+eight warps. Longer chains and one/two-warp cases also pass numerical and
+output-guard checks. Disassembly retains the active-lane and iota split/join
+pairs, joins iota before the transpose, and has two static transpose BARs with
+no fence in the barrier benchmark body. All five diagnostic kernels use soft
+ABI flags 0 and contain no FP/AMO opcodes in executable sections.
+
+The original two failures become 1.387% and 1.193% with the warp barriers.
+The expanded matrix nevertheless exposes two remaining failures: W8/S6/P2
+at 5.442%, and W8/S1/P8 at 9.627%. The barrier version passes nine of its
+eleven timing pairs; it is **not** an SG5-wide timing-model closure.
+
+Three additional controls separate barrier scope, storage, and the number
+of synchronizations. CTA barriers synchronize all participating warps; LMEM
+reserves 1200 bytes per warp for the same transpose; a single-barrier variant
+relies on the next theta consuming all five loads before the next overwrite.
+All run the same five common workloads. Absolute whole-launch SimX/XRT gaps
+are below; values above 5% remain failures:
+
+| Synchronization / buffer | W1/S1/P8 | W2/S6/P2 | W8/S1/P8 | W8/S6/P2 | W8/S6/P8 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Two fences / global | 6.932% | 12.223% | 26.588% | 20.439% | 21.849% |
+| Two warp barriers / global | 1.387% | 1.193% | 9.627% | 5.442% | 3.566% |
+| Two CTA barriers / global | 0.515% | 1.692% | 3.180% | 6.301% | 7.486% |
+| Two warp barriers / LMEM | 1.348% | 1.445% | 22.115% | 1.487% | 1.861% |
+| One warp barrier / global | 1.247% | 1.273% | 6.556% | 0.596% | 0.950% |
+
+Across these 31 pairs, all 62 runs pass numerical checks and every pair has
+identical retired instructions and binary hashes. Twenty pairs pass timing;
+eleven fail. The CSV records both whole-launch and isolated-span gaps, so
+fixed launch overhead cannot hide a larger permutation-interval discrepancy.
+The two original fence results reproduce exactly. At W8/S1/P8, two warp
+barriers reduce measured XRT launch cycles from 1,372,343 to 1,113,440; the
+remaining model error is therefore distinct from the RTL performance gain.
+
+Data: [`keccak_sg5_sync.csv`](../../pqc/results/keccak_sg5_sync.csv).
+The three diagnostic source patches are in
+[`keccak_sg5_sync_sources.zip`](../../pqc/results/keccak_sg5_sync_sources.zip);
+each applies independently to `68845dd72`, and the CSV records its hash.
+Build commands, raw logs, ELF/host binaries, and disassembly audits are under
+`build32_im/sg5_sync/`. The unreserved-LMEM preliminary run is excluded; the
+archived LMEM control includes the host reservation. The existing legacy
+`keccak_sg5 -a sg5 -t 32 -p 2 -f 2` also passes SimX after the shared-header change.
+CI catalog lint and collection pass; the new eight-warp barrier case is a
+**functional** SimX/XRT case, not a timing waiver or a claimed full CI run.
+The measurements here keep F/D disabled and use the local soft-ABI libraries.
+
+No synchronization variant passes every common workload, so the default
+and historical paper denominator remain unchanged. BAR waits on the core's
+shared LSU drain in both models; assigning a warp-private barrier slot does
+not turn that drain into a warp-private resource. The fence-free failures show
+that cache-flush omission alone cannot explain all SG5 timing differences.
+The next model investigation must correlate BAR arrivals/releases, LSU
+request/response queues, and cache/issue stalls at W8/S1/P8; changing timing
+constants or selecting only passing workloads would not resolve the cause.
+No RTL, model constants, tolerance, or synthesis results changed in this work.
+
+With the build environment below, reproduce the retained control using
+`make -s -C tests/pqc/keccak_sg25 MAPPING=sg5 SG5_SYNC=barrier`; run the same
+ELF with `-b 1 -n 1 -p 8`, `-b 2 -n 6 -p 2`, and the eight-warp cases above
+on both drivers. Select `SG5_SYNC=fence` to reproduce the original control.
 
 Reproduction starts in the configured `build32_im` directory:
 

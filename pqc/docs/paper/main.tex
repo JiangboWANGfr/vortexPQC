@@ -935,6 +935,23 @@ full RTL cache flush. SG5's SimX timing therefore remains a prediction with
 this limitation; it is not reported as a model-parity pass. No RTL or physical
 design changes are involved in these controls.
 
+A follow-up synchronization experiment replaces both transpose fences with
+warp-private BARs, which drain the LSU without flushing the cache. The two
+original gaps fall to \SgFiveWarpGapOne{} and \SgFiveWarpGapTwo{}.
+Expanded eight-warp tests nevertheless fail at \SgFiveWarpGapPacked{}
+for six states/warp with two permutations and \SgFiveWarpGapSingle{} for
+one state/warp with eight permutations; the latter fence control differs
+by \SgFiveFenceGapEight{}. Across 31 pairs including CTA barriers, LMEM,
+and a single-barrier control, all outputs and retired instructions agree,
+but only 20 pairs satisfy the unchanged timing gate. No variant passes all
+five common workloads; LMEM still differs by \SgFiveLmemGapEight{} on the
+eight-warp, single-state chain. Thus cache flushing is not the only timing
+limitation. BAR drains the shared core LSU even with a private barrier ID;
+the remaining timing error requires instruction/memory trace comparison.
+The default fence implementation and Table~\ref{tab:w32mapping} remain
+unchanged. Results and diagnostic patches accompany
+\texttt{keccak\_sg5\_sync.csv}.
+
 \subsection{Direct final-configuration phase profile}
 Table~\ref{tab:directphases} measures mutually exclusive M1 intervals in the
 final RV32IM W8T32 configuration. Absorb and squeeze exclude nested
@@ -1238,7 +1255,7 @@ intervals overlap and therefore cannot be summed; only the uninstrumented
 global makespan is reported.
 
 The matched W32 software controls cover one upstream RV32IM assembly routine
-and one SG5 transpose implementation. They do not establish the best possible
+and one SG5 column mapping with synchronization controls. They do not establish the best possible
 software implementation. Packed-state permutation throughput is distinct from
 complete-request throughput; SG5 has no end-to-end ML-KEM integration here.
 

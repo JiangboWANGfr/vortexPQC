@@ -631,6 +631,38 @@ macros["MatchedControlMaxXrtGap"] = percent(max(control_gaps))
 macros["MatchedSgFiveMinGap"] = percent(min(sg5_gaps))
 macros["MatchedSgFiveMaxGap"] = percent(max(sg5_gaps))
 
+sync_rows = read("keccak_sg5_sync")
+sync_map = {(r["arm"], r["driver"], int(r["batch"]),
+             int(r["states_per_warp"]), int(r["permutations_per_state"])): r
+            for r in sync_rows}
+assert len(sync_rows) == len(sync_map) == 62
+assert {r["result"] for r in sync_rows} == {"PASS"}
+sync_passes = 0
+for r in sync_rows:
+    if r["driver"] != "xrt":
+        continue
+    s = sync_map[r["arm"], "simx", int(r["batch"]),
+                 int(r["states_per_warp"]), int(r["permutations_per_state"])]
+    assert r["kernel_sha256"] == s["kernel_sha256"]
+    assert r["host_sha256"] == s["host_sha256"]
+    assert r["retired_instructions"] == s["retired_instructions"]
+    gap = abs(int(r["device_cycles"]) - int(s["device_cycles"])) / int(r["device_cycles"])
+    assert r["parity_status"] == s["parity_status"] == ("PASS" if gap <= 0.05 else "FAIL")
+    assert abs(float(r["cycle_gap_pct"]) - 100 * gap) < 1e-6
+    sync_passes += gap <= 0.05
+assert sync_passes == 20
+for name, arm, batch, states, permutations in (
+        ("SgFiveWarpGapOne", "warp_barrier", 1, 1, 8),
+        ("SgFiveWarpGapTwo", "warp_barrier", 2, 6, 2),
+        ("SgFiveWarpGapPacked", "warp_barrier", 8, 6, 2),
+        ("SgFiveWarpGapSingle", "warp_barrier", 8, 1, 8),
+        ("SgFiveFenceGapEight", "fence", 8, 1, 8),
+        ("SgFiveLmemGapEight", "lmem_barrier", 8, 1, 8)):
+    row = sync_map[arm, "xrt", batch, states, permutations]
+    macros[name] = percent(float(row["cycle_gap_pct"]) / 100)
+sync_sources = RESULTS / "keccak_sg5_sync_sources.zip"
+sources[str(sync_sources.relative_to(ROOT))] = hashlib.sha256(sync_sources.read_bytes()).hexdigest()
+
 for name in ("keccak_ise_simx", "keccak_ise_mldsa", "core_config_v80", "keccak_sg5"):
     path = RESULTS / (name + ".csv")
     sources[str(path.relative_to(ROOT))] = hashlib.sha256(path.read_bytes()).hexdigest()
