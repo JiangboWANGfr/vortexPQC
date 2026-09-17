@@ -1,0 +1,32 @@
+{
+  "repository_source_commit": "084f79465",
+  "mlkem_native_commit": "1d7b486c4db3bbc620b009d05e4f69eca9e68d22",
+  "measurements": {
+    "keccak_ntt_unified_xrt.csv": "80f8d20ec766e973f1839f578717cf64cafa28d0044d7ba2eeba21ed86e3f36b",
+    "keccak_w32_controls.csv": "be14fac9a3aff9ce3f6b8340bab6499898c21762ba1c91d9e649f4448673e935",
+    "keccak_w32_matched_xrt.csv": "3be971f54f40a6d4aa610be6e5042c3b9235a2fdc64875c86fbeabe0cb1a2629",
+    "mlkem_phase_profile.csv": "41ac1ed9e9545331b8775f9678368f3821fac67adac034e3f611ff891736f8c5",
+    "mlkem_w32_controls.csv": "4c8a25183473f97537d00caae1ff75b43937a7ac4f094e23930cb70436f49fd0",
+    "ntt_halfbank_validation.csv": "be196290100c73f0887a29d5d3a92872d79765b7a36f1be8b7d446cb406f5396",
+    "ntt_v80_ppa.csv": "99cbce1554b2e4a4473b279c8df730be2ce88608a5f0f88075811f6e3020899d",
+    "ntt_w32_e2e.csv": "25cc2d693490a6f55efee3718d577c5f8f4baef50508b1c29298a3ff96e78c01",
+    "nttbf_sg2_validation.csv": "2a9c276570dbf9e4dadfab91db3a94d596179da4b4241cb55ae937ca1f2dfb51",
+    "rv32im_rv64im_keccak.csv": "5469912e2a376535c7cdf74b25b45a8b0a82aefda1444cf00e13abb90a01c1b1",
+    "rv32im_rv64im_keccak_ppa.csv": "69c995bcaba60339680cdec487ea59c5859789fae80df34a76ae9e165d407d73",
+    "rv32im_rv64im_keccak_xrt_m8.csv": "e4ba6fd5a3a1c538bf1c0edca06d105c4f9662a78713723afdc297adeb697489"
+  },
+  "derived_numbers": {
+    "StageVsShuffleOne": 1.4620092384729826,
+    "StageVsShuffleEight": 1.5518398442654509,
+    "RoundVsShuffleOne": 1.519955236280829,
+    "RoundVsShuffleEight": 1.5830370406200738,
+    "RoundVsPqrvOne": 4.741533724327214,
+    "RoundVsPqrvEight": 3.074304854216819,
+    "RoundVsPointerOne": 1.1296304802259942,
+    "PointerVsRoundEight": 1.3737209690213548,
+    "StageLutPct": 1.1287621633853773,
+    "RoundLutPct": 0.8983933016519563,
+    "StageFfPct": 1.3004749692711481,
+    "RoundFfPct": 4.755003869557961
+  }
+}

@@ -1,0 +1,30 @@
+# Matched RV32IM/RV64IM ML-KEM-768 comparison from source commit 766b66a74.
+# Every row uses one core, W8/T32, no L2/L3, FIPS 203 KAT coins, and the final
+# half-bank NTT. F and D are disabled at both XLENs. Software uses NTT=reg32,
+# NTTBF=ise, NTTMUL=ise, ARITH=all, ARITH_MUL=ise, and SERIAL=1. Stage enables
+# KSG25; whole_round enables KROUND25. Device cycles include the complete launch;
+# batch_makespan excludes launch/setup/readback. SimX M1/M8 are the XLEN
+# comparison; RTL and XRT M1 validate timing-model and AFU integration.
+#
+# ELF flags are zero (soft-float ABI). The audited attributes are
+# rv32i2p1_m2p0_zicond1p0_zicsr2p0_zmmul1p0_xvortex1p0 and
+# rv64i2p1_m2p0_zicond1p0_zicsr2p0_zmmul1p0_xvortex1p0. Disassembly contains
+# no floating-point, AMO, LR, or SC instruction. The local soft-ABI libc/libcrt
+# must be packaged in vortex-toolchain-prebuilt before these rows become CI-portable.
+xlen,driver,requests,date,git_commit,warps,threads,keccak_backend,ntt_backend,arith_backend,retired_instructions,device_cycles,batch_makespan,kat,result,kernel_sha256,log_path
+32,simx,1,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,436262,5409748,5407754,PASS,PASS,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_simx.log
+32,simx,8,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,3490096,12170437,12168060,PASS,PASS,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m8_simx.log
+32,rtlsim,1,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,436262,5406575,5404761,PASS,PASS,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_rtlsim.log
+32,xrt,1,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,436262,5409552,5407733,PASS,PASS,9611a4147732eadd2e6132a8a794d246e156df12d0e019e098e44a8f7c78814e,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_xrt.log
+64,simx,1,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,405716,5189658,5187774,PASS,PASS,4ae737dce6ed44f93dae7a13340916b9f999b51bc8372c278bbbb49bfd3b9375,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_simx.log
+64,simx,8,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,3245728,12225892,12223451,PASS,PASS,4ae737dce6ed44f93dae7a13340916b9f999b51bc8372c278bbbb49bfd3b9375,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m8_simx.log
+64,rtlsim,1,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,405716,5208707,5207001,PASS,PASS,4ae737dce6ed44f93dae7a13340916b9f999b51bc8372c278bbbb49bfd3b9375,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_rtlsim.log
+64,xrt,1,2026-09-15,766b66a74,8,32,stage,reg32_halfbank_ise,all_ise,405716,5210432,5208728,PASS,PASS,4ae737dce6ed44f93dae7a13340916b9f999b51bc8372c278bbbb49bfd3b9375,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/stage_m1_xrt.log
+32,simx,1,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,415822,5198475,5196475,PASS,PASS,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_simx.log
+32,simx,8,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,3326576,11937913,11935429,PASS,PASS,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m8_simx.log
+32,rtlsim,1,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,415822,5201647,5199831,PASS,PASS,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_rtlsim.log
+32,xrt,1,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,415822,5203321,5201512,PASS,PASS,b2bc5c40e5da2164cc69d878966b0ba0dd313885001cd98eaf74caca1a2c004b,build32_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_xrt.log
+64,simx,1,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,391996,5043599,5041715,PASS,PASS,5022f5877fba61fb7aea5604de102deadb605db1bd51dbaf923cefa143b8043b,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_simx.log
+64,simx,8,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,3135968,11970704,11968271,PASS,PASS,5022f5877fba61fb7aea5604de102deadb605db1bd51dbaf923cefa143b8043b,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m8_simx.log
+64,rtlsim,1,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,391996,5069704,5067998,PASS,PASS,5022f5877fba61fb7aea5604de102deadb605db1bd51dbaf923cefa143b8043b,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_rtlsim.log
+64,xrt,1,2026-09-15,766b66a74,8,32,whole_round,reg32_halfbank_ise,all_ise,391996,5071003,5069299,PASS,PASS,5022f5877fba61fb7aea5604de102deadb605db1bd51dbaf923cefa143b8043b,build64_im/tests/pqc/mlkem_profile/rv32im_rv64im/kround_m1_xrt.log

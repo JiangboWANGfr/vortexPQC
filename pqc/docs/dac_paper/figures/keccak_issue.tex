@@ -1,0 +1,37 @@
+\begin{tikzpicture}[
+  x=1cm,y=1cm,
+  font=\fontsize{8}{9}\selectfont,
+  box/.style={draw,rounded corners=1pt,align=center,minimum height=8mm},
+  flow/.style={-{Latex[length=1.4mm]},semithick},
+  title/.style={anchor=west,font=\fontsize{8}{9}\selectfont\bfseries},
+  op/.style={align=left,anchor=west,font=\fontsize{8}{9}\selectfont}]
+\path[use as bounding box] (0,0) rectangle (8.85,4.35);
+\node[title] at (0,4.12) {(a) Stage: six issues per round};
+\node[box,fill=blue!6,minimum width=25mm] (theta) at (1.40,3.49)
+  {THETA.L / .H\\two output halves};
+\node[box,fill=blue!6,minimum width=25mm] (rhopi) at (4.43,3.49)
+  {RHOPI.L / .H\\two output halves};
+\node[box,fill=blue!6,minimum width=25mm] (chii) at (7.46,3.49)
+  {CHII.L / .H\\two output halves};
+\draw[flow] (theta) -- (rhopi);
+\draw[flow] (rhopi) -- (chii);
+\node[align=center] at (4.43,2.87)
+  {Both THETA/RHOPI halves read the same old state.};
+
+\node[title] at (0,2.33) {(b) Round: two issues per round};
+\node[box,fill=orange!9,minimum width=19mm,minimum height=11mm]
+  (old) at (1.03,1.34) {Same old state\\$o_L$, $o_H$};
+\node[op] (lo) at (3.05,1.69) {1. KROUND.L};
+\node[op] (hi) at (3.05,0.99) {2. KROUND.H};
+\node[anchor=west] (nextlo) at (6.92,1.69) {$n_L$};
+\node[anchor=west] (nexthi) at (6.92,0.99) {$n_H$};
+\draw[flow] (old.east) -- ++(.43,0) |- (lo.west);
+\draw[flow] (old.east) -- ++(.43,0) |- (hi.west);
+\draw[flow] (lo.east) -- (nextlo.west);
+\draw[flow] (hi.east) -- (nexthi.west);
+\node[anchor=west,align=left] at (7.52,1.34) {Next\\state};
+\node[align=center] at (4.43,0.49)
+  {Separate issues reuse one round datapath; no persistent state.};
+\node[align=center,font=\fontsize{7.5}{8.5}\selectfont] at (4.43,0.13)
+  {Keep $o_L$ and $o_H$ unchanged until both instructions read them.};
+\end{tikzpicture}
