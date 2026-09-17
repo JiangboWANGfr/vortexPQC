@@ -851,6 +851,27 @@ its gap is 12.445%, versus 12.708% before the correction. CI catalog lint and
 the software/simulator boundary check pass; this is not a full regression
 suite or a new synthesis run.
 
+#### Matched XRT software-mapping comparison
+
+A subsequent XRT run holds the final RV32IM W8T32 core fixed with NTT,
+pointer, Stage, and KROUND enabled and F/D disabled. Each row processes one
+state per warp for eight consecutive permutations across eight warps; the
+measured span excludes setup and output. All six output/guard checks pass,
+and instruction counts and ELF hashes match the archived controls.
+
+| Mapping | Span cycles | Cycles/completed permutation |
+| --- | ---: | ---: |
+| SG1 C | 2,377,862 | 37,154.094 |
+| PQRV | 1,586,045 | 24,781.953 |
+| SG5, two warp barriers | 1,018,270 | 15,910.469 |
+| SG25 software shuffle | 432,215 | 6,753.359 |
+| Stage, unrolled | 24,949 | 389.828 |
+| KROUND | 7,675 | 119.922 |
+
+Data and log hashes: [`keccak_w32_matched_xrt.csv`](../../pqc/results/keccak_w32_matched_xrt.csv).
+The common input isolates permutation latency at one state per warp; it does
+not measure each mapping at its maximum packing, nor complete ML-KEM requests.
+
 With the build environment below, reproduce the retained control using
 `make -s -C tests/pqc/keccak_sg25 MAPPING=sg5 SG5_SYNC=barrier`; run the same
 ELF with `-b 1 -n 1 -p 8`, `-b 2 -n 6 -p 2`, and the eight-warp cases above

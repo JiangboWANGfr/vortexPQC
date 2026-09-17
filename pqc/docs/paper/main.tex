@@ -42,7 +42,7 @@ and a memory-pointer permutation engine provide comparison points.
 On the same 8-warp, 32-thread processor, stage instructions improve RTL
 permutation throughput by \StageThroughputGain{} times over shuffle-only SG25.
 With the final cooperative NTT and arithmetic path fixed, the stage backend
-improves complete ML-KEM cycles by \UnifiedStageOne{} times at one request
+improves complete ML-KEM XRT cycles by \UnifiedStageOne{} times at one request
 and \UnifiedStageEight{} times at eight requests over serial software;
 the instruction-only gains over the identical shuffle mapping are
 \UnifiedIseOne{} and \UnifiedIseEight{} times.
@@ -805,7 +805,7 @@ cycles, slower than serial SG1. Correct output and a low instruction count
 alone therefore do not establish an efficient SIMT mapping.
 
 \subsection{Final NTT--Keccak integration}
-Table~\ref{tab:unifiedkem} repeats the five-backend comparison after fixing
+Table~\ref{tab:unifiedkem} repeats the six-mapping comparison after fixing
 the final W32 NTT and cooperative arithmetic configuration. Every arm uses
 the same combined hardware build, serial FIPS-202 call graph, and FIPS 203
 KAT coins. Each request executes 140 Keccak-f permutations, 15 forward NTTs,
@@ -813,7 +813,7 @@ and nine inverse NTTs; all public keys, secret keys, ciphertexts, and shared
 secrets match byte-for-byte. Consequently, only the Keccak backend varies.
 
 \begin{table}[!h]
-\caption{Final integrated ML-KEM-768 on SimX, $8w\times32t$.
+\caption{Final integrated ML-KEM-768 on XRT, $8w\times32t$.
 Cycles are millions per launch; gains use SG1 at the same $M$.}
 \label{tab:unifiedkem}
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
@@ -824,7 +824,7 @@ Backend & $M=1$ & Gain & $M=8$ & Gain \\
 \tablerows{unified_kem.tex}
 \bottomrule
 \end{tabular}
-\src{pqc/results/keccak_ntt_unified_mlkem.csv}
+\src{pqc/results/keccak_ntt_unified_xrt.csv}
 \end{table}
 
 Stages achieve \UnifiedStageOne{}$\times$/\UnifiedStageEight{}$\times$
@@ -837,12 +837,14 @@ whole-round unit beat the pointer PE at $M=1$ by
 whereas the pointer PE leads them at $M=8$ by
 \UnifiedPointerVsStageEight{}$\times$ and \UnifiedPointerVsRoundEight{}$\times$.
 
-Full XRT integration runs for stages and whole round reproduce the KAT and
-retired-instruction counts. Their whole-launch cycle gaps from SimX are
-\UnifiedXrtGapStage{} and \UnifiedXrtGapRound{}, respectively. These runs
-cover the AFU and processor RTL. Table~\ref{tab:unifiedkem} uses a common
-all-enabled core for the functional and cycle comparison. Section~VI uses
-four separate builds that retain the same NTT and enable either no Keccak
+All six XRT mappings reproduce the full KAT and SimX retired-instruction
+counts. The largest whole-launch cycle gap across the matched SimX/XRT
+controls is \UnifiedMatchedMaxModelGap{}; the earlier Stage and whole-round
+M1 gaps were \UnifiedXrtGapStage{} and \UnifiedXrtGapRound{}.
+These runs cover the AFU and processor RTL. Table~\ref{tab:unifiedkem} uses a
+common all-enabled core for the functional and cycle comparison; the
+historical SimX rows remain in \texttt{keccak\_ntt\_unified\_mlkem.csv}.
+Section~VI uses four separate builds that retain the same NTT and enable either no Keccak
 hardware, stages, whole round, or the pointer PE.
 
 \subsection{Matched W32 software and unrolling controls}
@@ -872,6 +874,16 @@ Mapping & $S$ & W1/1 & W8/1 & W8/$S$ \\
 \end{tabular}
 \src{pqc/results/keccak_w32_controls.csv}
 \end{table}
+
+A fixed-input XRT control runs 64 completed permutations with one state per
+warp. SG1, PQRV, the barrier-based SG5, shuffle SG25, unrolled Stage, and
+KROUND all pass output and guard checks on one all-enabled core. Their
+respective cycles per permutation are \MatchedXrtPermSgOne{},
+\MatchedXrtPermPqrv{}, \MatchedXrtPermSgFive{},
+\MatchedXrtPermShuffle{}, \MatchedXrtPermStage{}, and
+\MatchedXrtPermRound{}. This controls input and geometry, not each mapping's
+maximum packed throughput. The raw spans and hashes are in
+\texttt{keccak\_w32\_matched\_xrt.csv}.
 
 Table~\ref{tab:w32unroll} removes the loop-unrolling asymmetry: the Stage
 control expands all 24 rounds, as required by KROUND's literal-round
@@ -1003,8 +1015,8 @@ holding the source revision, W8T32 geometry, KAT input, cache configuration,
 NTT, and cooperative arithmetic fixed. F and D are disabled at both XLENs;
 ELF attributes and disassembly confirm soft-float IM binaries without
 floating-point or atomic instructions. SimX, RTL, and XRT reproduce every M1
-KAT with exact retired-instruction agreement. All eight SimX requests also
-pass byte-for-byte.
+KAT with exact retired-instruction agreement. All eight SimX and subsequent
+Stage/KROUND XRT requests also pass byte-for-byte.
 
 \begin{table}[t]
 \caption{Matched integer-only ML-KEM at RV32 and RV64 on SimX. Cycles are
@@ -1033,6 +1045,22 @@ arithmetic do not halve with the issue count. At M8, the higher cycles per
 retired instruction offset the smaller stream. The routed cost of the same
 integer-only NTT/Stage/KROUND configurations appears in
 Table~\ref{tab:xlenppa}.
+
+The additional M8 XRT runs retire the same instructions as SimX and complete
+all eight KATs. Stage takes
+\XrtStageThirtyTwoMEightCycles{}/\XrtStageSixtyFourMEightCycles{} million
+cycles at RV32/RV64; KROUND takes
+\XrtRoundThirtyTwoMEightCycles{}/\XrtRoundSixtyFourMEightCycles{} million.
+The RV64-minus-RV32
+cycle changes are \RvSixtyFourStageMEightXrtCycleChange{} and
+\RvSixtyFourRoundMEightXrtCycleChange{}, respectively. Dividing these cycles
+by each independent post-route STA frequency gives estimated RV64 time
+increases of
+\RvSixtyFourStageMEightClockTimeChange{} and
+\RvSixtyFourRoundMEightClockTimeChange{}. These are single-seed estimates, not
+measured FPGA execution times; RV64 Stage and KROUND do not meet the 250 MHz
+target. The M8 XRT logs and hashes are indexed in
+\texttt{rv32im\_rv64im\_keccak\_xrt\_m8.csv}.
 
 \section{Implementation Cost}
 \subsection{Final NTT architecture and selection}
@@ -1299,8 +1327,10 @@ eight-request launch. Direct XRT intervals show that pointer permutation is
 only \DirectPointerPermuteShare{} of the instrumented request, whereas its
 absorb and squeeze paths consume \DirectPointerSpongeShare{}. Integer-only
 RV64 halves the Keccak issue count, reduces
-complete-launch instructions by 5.7--7.0\%, and slightly raises the
-eight-request cycle result.
+complete-launch instructions by 5.7--7.0\%. SimX slightly raises both
+eight-request cycle results; matched XRT instead shows a small Stage cycle
+reduction and a small KROUND increase. At individually achieved STA
+frequencies, RV32 still has the shorter estimated time for both.
 The result is an implemented set of design choices
 with measured tradeoffs, rather than a universal ranking inferred from
 one primitive benchmark.

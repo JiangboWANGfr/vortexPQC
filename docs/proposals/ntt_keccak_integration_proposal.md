@@ -87,22 +87,28 @@ unified experiment also connects SG25 software, SG25 stages, and whole-round
 Keccak to the same complete KEM path while holding the NTT and arithmetic
 configuration fixed:
 
-| Keccak backend | SimX M1 cycles | SimX M8 cycles | M1 XRT cycles |
-| --- | ---: | ---: | ---: |
-| SG1 serial C | 27,739,317 | 44,824,668 | -- |
-| SG25 shuffle | 7,900,300 | 19,176,807 | -- |
-| SG25 stages | 5,409,748 | 12,246,844 | 5,409,552 |
-| SG25 whole round | 5,198,475 | 11,947,257 | 5,203,321 |
-| Pointer KECCAKF | 5,911,515 | 8,901,903 | -- |
+| Keccak mapping | SimX M1 cycles | SimX M8 cycles | XRT M1 cycles | XRT M8 cycles |
+| --- | ---: | ---: | ---: | ---: |
+| SG1 serial C | 27,739,317 | 44,824,668 | 28,445,820 | 45,673,966 |
+| PQRV assembly | 24,714,477 | 37,785,504 | 24,671,722 | 37,752,728 |
+| SG25 shuffle | 7,900,300 | 19,176,807 | 7,908,815 | 19,439,831 |
+| SG25 stages | 5,409,748 | 12,246,844 | 5,409,552 | 12,526,957 |
+| SG25 whole round | 5,198,475 | 11,947,257 | 5,203,321 | 12,280,086 |
+| Pointer KECCAKF | 5,911,515 | 8,901,903 | 5,877,830 | 8,939,287 |
 
 Every row uses serial FIPS-202, register NTT, NTTBF/NTTMUL instructions, and
 all three cooperative arithmetic replacements. Each request passes the exact
 FIPS 203 KAT and records 140 Keccak permutations, 15 NTTs, and nine inverse
-NTTs. The stage and whole-round XRT runs retire the same 436,262 and 415,822
-instructions as SimX; their cycle gaps are 0.004% and 0.093%. The pointer PE
-therefore retains the best eight-request throughput, while the GPR stage and
-whole-round designs have lower single-request latency. The structured rows are
-in [the unified KEM results](../../pqc/results/keccak_ntt_unified_mlkem.csv).
+NTTs. All 12 XRT launches pass byte-exact KATs and retire exactly the SimX
+instruction counts; the largest complete-launch cycle gap is 2.710%. Against
+SG1, Stage gains 5.258x/3.646x at M1/M8; against the PQRV assembly baseline,
+it gains 4.561x/3.014x. The pointer PE retains the best eight-request
+throughput, while Stage and whole round have lower single-request latency.
+The [matched XRT results](../../pqc/results/keccak_ntt_unified_xrt.csv) include
+software, runtime, configuration, and raw-log hashes; the
+[historical SimX rows](../../pqc/results/keccak_ntt_unified_mlkem.csv) remain
+unchanged. The PQRV SimX reference is in
+[the W32 controls](../../pqc/results/mlkem_w32_controls.csv).
 
 The NTT RTL unit bench passes 100 requests with measured CT II=1 and
 GS/NTTMUL II=2. It passes both RV32 and RV64 with NTT enabled, including
@@ -173,6 +179,20 @@ a local LLVM 20.1.8 libc/libcrt build; it must be repackaged through
 `vortex-toolchain-prebuilt` before enabling these exact F/D-off jobs in CI.
 Structured data are in
 [the integer-only XLEN comparison](../../pqc/results/rv32im_rv64im_keccak.csv).
+
+The matched eight-request XRT runs also pass eight byte-exact KATs per row
+with unchanged instruction counts and software ELF hashes:
+
+| Backend | RV32IM XRT cycles | RV64IM XRT cycles | RV64 cycle change | Estimated time change at achieved STA frequency |
+| --- | ---: | ---: | ---: | ---: |
+| Stage | 12,526,957 | 12,476,438 | -0.403% | +3.397% |
+| KROUND | 12,280,086 | 12,302,131 | +0.180% | +0.662% |
+
+The time comparison divides cycles by each implementation's post-route
+frequency: Stage 250.3/241.1 MHz and KROUND 250.4/249.2 MHz at RV32/RV64.
+It is a single-seed estimate, not measured board time; both RV64 variants
+miss the 250 MHz target. The four XRT logs and hashes are indexed in
+[the M8 XLEN results](../../pqc/results/rv32im_rv64im_keccak_xrt_m8.csv).
 
 ## Direct final RV32 phase profile
 

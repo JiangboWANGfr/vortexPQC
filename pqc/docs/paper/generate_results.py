@@ -251,12 +251,30 @@ for r in unified:
 unified_simx = {(r["backend"], int(r["requests"])): r
                 for r in unified if r["driver"] == "simx"}
 assert len(unified_simx) == 10
-unified_names = {"sg1_serial": "SG1 C", "sg25_sw": "SG25 shuffle",
+control_kem_rows = read("mlkem_w32_controls")
+matched_xrt_rows = read("keccak_ntt_unified_xrt")
+matched_xrt = {(r["backend"], int(r["requests"])): r for r in matched_xrt_rows}
+assert len(matched_xrt) == len(matched_xrt_rows) == 12
+assert set(matched_xrt) == set(unified_simx) | {("pqrv_asm", 1), ("pqrv_asm", 8)}
+assert {r["xrtsim_sha256"] for r in matched_xrt_rows} == {
+    matched_xrt_rows[0]["xrtsim_sha256"]}
+pqrv_simx = {int(r["batch"]): r for r in control_kem_rows
+             if r["driver"] == "simx" and r["arm"] == "asm"}
+matched_gaps = []
+for (backend, requests), row in matched_xrt.items():
+    baseline = pqrv_simx[requests] if backend == "pqrv_asm" else unified_simx[backend, requests]
+    assert row["result"] == "PASS" and int(row["kat_requests"]) == requests
+    assert row["retired_instructions"] == baseline["retired_instructions"]
+    matched_gaps.append(abs(int(row["device_cycles"]) - int(baseline["device_cycles"])) /
+                        int(row["device_cycles"]))
+assert max(matched_gaps) < 0.05
+unified_names = {"sg1_serial": "SG1 C", "pqrv_asm": "PQRV",
+                 "sg25_sw": "SG25 shuffle",
                  "sg25_stages": "SG25 stages", "kround25": "SG25 whole round",
                  "pointer_keccakf": "Pointer PE"}
 
 def unified_cycles(backend, requests):
-    return int(unified_simx[backend, requests]["device_cycles"])
+    return int(matched_xrt[backend, requests]["device_cycles"])
 
 table("unified_kem", [[name, million(unified_cycles(backend, 1)),
                        number(unified_cycles("sg1_serial", 1) /
@@ -297,6 +315,7 @@ for backend, xrt_row in unified_xrt.items():
     assert gap < 0.01
     macros["UnifiedXrtGap" + ("Stage" if backend == "sg25_stages" else "Round")] = \
         number(100 * gap, 3) + "\\%"
+macros["UnifiedMatchedMaxModelGap"] = percent(max(matched_gaps))
 
 xlen_rows = read("rv32im_rv64im_keccak")
 assert all(r["result"] == "PASS" and r["kat"] == "PASS" for r in xlen_rows)
@@ -340,6 +359,25 @@ for backend, prefix in (("stage", "Stage"), ("whole_round", "Round")):
         assert row["retired_instructions"] == simx_row["retired_instructions"]
         assert abs(int(row["device_cycles"]) - int(simx_row["device_cycles"])) / \
             int(row["device_cycles"]) < 0.01
+
+xlen_xrt_m8_rows = read("rv32im_rv64im_keccak_xrt_m8")
+xlen_xrt_m8 = {(r["backend"], int(r["xlen"])): r for r in xlen_xrt_m8_rows}
+assert len(xlen_xrt_m8) == len(xlen_xrt_m8_rows) == 4
+assert set(xlen_xrt_m8) == {(backend, xlen)
+                           for backend in ("stage", "whole_round") for xlen in (32, 64)}
+for (backend, xlen), row in xlen_xrt_m8.items():
+    old = xlen_simx[backend, xlen, 8]
+    assert row["result"] == "PASS" and row["kat_requests"] == "8"
+    assert row["kernel_sha256"] == old["kernel_sha256"]
+    assert row["retired_instructions"] == old["retired_instructions"]
+for backend, prefix in (("stage", "Stage"), ("whole_round", "Round")):
+    for xlen, name in ((32, "ThirtyTwo"), (64, "SixtyFour")):
+        macros["Xrt" + prefix + name + "MEightCycles"] = million(
+            xlen_xrt_m8[backend, xlen]["device_cycles"])
+    rv32, rv64 = (int(xlen_xrt_m8[backend, xlen]["device_cycles"])
+                  for xlen in (32, 64))
+    macros["RvSixtyFour" + prefix + "MEightXrtCycleChange"] = \
+        number(100 * (rv64 / rv32 - 1), 2) + "\\%"
 
 phase_profile = read("mlkem_phase_profile")
 assert all(r["kat"] == "PASS" and r["status"] == "PASS"
@@ -468,6 +506,14 @@ table("xlen_ppa", [["RV" + str(xlen) + " " + xlen_ppa_names[variant],
                     for xlen in (32, 64)
                     for variant in ("ntt_only", "ntt_stage", "ntt_kround")
                     for r in [xlen_ppa[xlen, variant]]])
+for backend, variant, prefix in (("stage", "ntt_stage", "Stage"),
+                                 ("whole_round", "ntt_kround", "Round")):
+    cycles32, cycles64 = (int(xlen_xrt_m8[backend, xlen]["device_cycles"])
+                          for xlen in (32, 64))
+    mhz32, mhz64 = (float(xlen_ppa[xlen, variant]["fmax_mhz"])
+                    for xlen in (32, 64))
+    macros["RvSixtyFour" + prefix + "MEightClockTimeChange"] = \
+        number(100 * ((cycles64 / mhz64) / (cycles32 / mhz32) - 1), 2) + "\\%"
 rv32_ntt = xlen_ppa[32, "ntt_only"]
 rv64_ntt = xlen_ppa[64, "ntt_only"]
 macros["RvSixtyFourNttLutOverhead"] = percent(
@@ -577,7 +623,19 @@ macros["MatchedRoundGainEight"] = number(
     per_permutation(control("stage_unrolled", 8, permutations=64)) /
     per_permutation(control("kround", 8, permutations=64)))
 
-control_kem_rows = read("mlkem_w32_controls")
+permutation_xrt_rows = read("keccak_w32_matched_xrt")
+permutation_xrt = {r["backend"]: r for r in permutation_xrt_rows}
+assert len(permutation_xrt) == len(permutation_xrt_rows) == 6
+assert {r["result"] for r in permutation_xrt_rows} == {"PASS"}
+assert {r["runtime_sha256"] for r in permutation_xrt_rows} == {
+    permutation_xrt_rows[0]["runtime_sha256"]}
+assert {r["completed_permutations"] for r in permutation_xrt_rows} == {"64"}
+for backend, macro in (("sg1", "SgOne"), ("asm", "Pqrv"),
+                       ("sg5_barrier", "SgFive"), ("sg25_sw", "Shuffle"),
+                       ("stage", "Stage"), ("kround", "Round")):
+    macros["MatchedXrtPerm" + macro] = number(
+        int(permutation_xrt[backend]["span_cycles"]) / 64, 1)
+
 control_kem = {(r["arm"], r["driver"], int(r["batch"])): r for r in control_kem_rows}
 assert len(control_kem) == len(control_kem_rows)
 assert {r["kat"] for r in control_kem_rows} == {"PASS"}
