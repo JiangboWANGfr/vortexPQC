@@ -4,9 +4,9 @@
 
 Compare 16 and eight signed 32x32 multipliers in the existing shared ML-KEM /
 ML-DSA NTT unit. Keep the ISA, pair-low twiddle convention, software binaries,
-reduction arithmetic, and pipeline stages unchanged. The default remains the
-16-multiplier W32 implementation until the measured area/performance tradeoff
-justifies changing it. This experiment does not modify either paper.
+reduction arithmetic, and pipeline stages unchanged. Eight multipliers are now
+a validated area-saving option; the default remains the 16-multiplier W32
+implementation. This experiment does not modify either paper.
 
 ## Scheduling
 
@@ -108,12 +108,12 @@ make DUT=core DEVICE=xcv80-lsva4737-2MHP-e-S MAX_JOBS=4 OPT_LEVEL=3 \
 
 Repeat independently for 16. These isolate the NTT core's area; the complete
 application runs enable the Keccak backends as above. The original 16-bank
-PPA directories and performance data remain untouched. Once every run finishes,
-archive with `python3 ../pqc/results/collect_ntt_bank.py all` from
+PPA directories and performance data remain untouched. Validate and archive
+with `python3 ../pqc/results/collect_ntt_bank.py all` from
 `build32_ntt_bank`. The collector rejects missing KATs, mismatched binaries or
 instructions, and model cycle errors exceeding 5%.
 
-## Verification so far
+## Completed verification
 
 RV32/RV64, each with 16 and eight multipliers, pass the mixed 100-request ALU
 test and the 88-vector D test: 752 requests total. The standalone eight-bank
@@ -130,18 +130,85 @@ This exercises the NTT-only SimX scheduling path; the integer-only complete
 application tests exercise the shared ALU arbitration with all Keccak backends.
 The CI catalog lint and software/simulator boundary check pass.
 
-All eight complete SimX runs pass. Full XRT and independent post-route results
-are pending; the default bank remains 16.
+All 16 complete application runs pass: two schemes, two banks, two batch sizes,
+and SimX/XRT. Together they check 72 requests, including DSA input zero at M1
+and inputs one through eight at M8. KEM public/secret keys, ciphertexts, and
+shared secrets, and DSA public/secret keys and signatures match their portable
+references byte-for-byte. DSA arena checks pass for every input. Retired
+instructions and primitive call counts match across banks and simulators;
+the maximum end-to-end device-cycle model gap is 0.941358%, below the unchanged
+5% tolerance. Batch makespan gaps also stay below 5%.
+
+| Workload | XRT makespan, 16 | XRT makespan, 8 | Eight-bank change |
+| --- | ---: | ---: | ---: |
+| ML-KEM M1 | 5,875,990 | 5,875,982 | -0.000136% |
+| ML-KEM M8 | 8,942,536 | 8,939,512 | -0.033816% |
+| ML-DSA M1 | 25,598,724 | 25,598,877 | +0.000598% |
+| ML-DSA M8 | 68,063,840 | 68,095,391 | +0.046355% |
+
+These are full-AFU RTL simulations through XRT/xrtsim, not FPGA board runs.
+The largest absolute makespan change is 0.046355%. All SimX and XRT results,
+instruction counts, model gaps, and provenance hashes are recorded in
+[`ntt_multiplier_bank_performance.csv`](../../pqc/results/ntt_multiplier_bank_performance.csv).
 
 ## Interpretation limits
 
-The initial SimX makespans are 5,916,106 / 5,916,108 cycles for KEM M1
+The SimX makespans are 5,916,106 / 5,916,108 cycles for KEM M1
 (16 / eight multipliers), 8,866,146 / 8,899,611 for KEM M8,
 25,829,676 / 25,829,818 for DSA M1, and 68,096,270 / 68,080,108 for DSA M8.
-These are functional/timing-model observations, pending XRT confirmation.
+The largest absolute SimX bank-size effect is 0.377447% (KEM M8). Its sign
+differs from XRT for both M8 workloads; these small deltas are below the model
+agreement tolerance and must not be used to rank tiny throughput differences.
 The M1 differences are already very small, so the result cannot be attributed
 solely to hiding latency with multiple warps. The experiment does not separately
 isolate front-end issue, dependencies, memory stalls, or shared-unit arbitration.
 A slight makespan improvement after reducing resources is not evidence of
 higher peak arithmetic throughput. Do not extrapolate this comparison to one
 multiplier, or use vectorless power to claim energy efficiency.
+
+## Completed post-route comparison
+
+Both independent builds use the revised RTL, Vivado 2025.1, V80, RV32IM with
+F/D disabled, one core, W8T32, OPT3, and a 4 ns clock. The generated NTT sources
+are identical after normalizing only the multiplier-count parameter. Both have
+zero routing errors and meet 250 MHz.
+
+| Bank | Core LUT | Core FF | Core DSP | NTT LUT | NTT FF | NTT DSP | WNS (ns) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 16 | 233,819 | 138,373 | 176 | 13,379 | 10,998 | 80 | +0.031 |
+| 8 | 227,566 | 134,752 | 136 | 8,349 | 8,116 | 40 | +0.005 |
+
+Eight lanes reduce core LUT/FF/DSP by 2.674% / 2.617% / 22.727%, and the NTT
+hierarchy's LUT/FF/DSP by 37.596% / 26.205% / 50%. BRAM remains 133 tiles.
+Each general 32x32 multiplier maps to three DSPs; the other 16 DSPs in the
+eight-bank NTT hierarchy implement its reduction arithmetic. Thus eight
+logical multiplier lanes do not mean eight FPGA DSP primitives.
+
+The earlier specialized 16-bank implementation remains a relevant reference:
+230,739 LUT, 137,252 FF, 176 DSP, WNS +0.018 ns. The revised 16-bank design
+uses a generic per-lane collection buffer and has a different physical
+implementation; its core LUT/FF totals rise by 1.335% / 0.817% relative to
+that earlier reference. Against the earlier implementation, eight lanes still
+save 3,173 LUT (1.375%), 2,500 FF (1.821%), and 40 DSP (22.727%). Do not present
+the larger matched-cohort LUT delta as the improvement over the earlier best
+16-bank core.
+
+These are NTT-only core PPA measurements. The complete application simulations
+enable all Keccak backends, as listed above; combined eight-bank Keccak PPA is
+not measured by this experiment. Vectorless power is not used for an energy
+claim. Raw report paths and hashes are archived in
+[`ntt_multiplier_bank_ppa.csv`](../../pqc/results/ntt_multiplier_bank_ppa.csv).
+
+## Decision and archive
+
+Eight multipliers preserve complete-request performance within 0.047% on the
+measured XRT workloads while reducing area and meeting 250 MHz. Use
+`-DVX_CFG_NTT_MUL_LANES=8` for this measured option. Retain the default 16-bank
+configuration for existing builds; this comparison does not establish the best
+bank size for other workloads, nor test four, two, or one multiplier.
+
+[`ntt_multiplier_bank_sources.zip`](../../pqc/results/ntt_multiplier_bank_sources.zip)
+preserves the collector, result tables, relevant source files, build/run
+scripts, raw test logs, application binaries, runtime hashes/configurations,
+and post-route reports for both bank sizes and the earlier specialized
+16-bank reference. Both papers remain unchanged.

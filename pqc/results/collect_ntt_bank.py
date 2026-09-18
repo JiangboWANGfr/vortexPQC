@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import re
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -164,6 +165,49 @@ def ppa():
     write_csv("ntt_multiplier_bank_ppa.csv", rows)
 
 
+def archive_sources():
+    paths = [Path(__file__), OUT / "ntt_multiplier_bank_performance.csv",
+             OUT / "ntt_multiplier_bank_ppa.csv",
+             ROOT / "docs/proposals/ntt_multiplier_bank_proposal.md"]
+    paths.extend(ROOT / name for name in (
+        "VX_config.toml", "hw/rtl/pqc/VX_pqc_nttmul.sv", "sim/simx/alu_unit.cpp",
+        "sim/simx/alu_unit.h", "hw/unittest/pqc_unit/sim/VX_pqc_nttmul_tb.sv",
+        "hw/unittest/pqc_unit/sim/VX_pqc_nttmul_d_tb.sv", "ci/testcases/pqc.yaml"))
+    paths.extend(BUILD / name for name in (
+        "build_banks.py", "build_apps.py", "run_performance.py", "run_ppa.py",
+        "run_manifest.json", "run_performance.log", "run_ppa.log", "configure.log",
+        "build_kernel.log", "sw_sim_boundary.log", "catalog_lint.log"))
+    for xlen in (32, 64):
+        paths.extend((ROOT / f"build{xlen}_ntt_bank").glob("unit_*.log"))
+    paths.append(ROOT / "build32_ntt_bank_ci/parity.log")
+    for bank in (8, 16):
+        directory = BUILD / f"bank{bank}"
+        paths.extend(directory.glob("*.log"))
+        paths.extend(directory.glob("*.json"))
+        paths.extend(directory / "runtime" / name for name in
+                     ("simx_config.stamp", "xrtsim_config.stamp"))
+        for scheme in ("mlkem", "mldsa"):
+            app = BUILD / f"tests/pqc/{scheme}_bank{bank}"
+            paths.extend(app / name for name in ("Makefile", "kernel.vxbin", f"{scheme}_profile"))
+    report_dirs = [BUILD / f"hw/syn/xilinx/dut/v80_rv32im_ntt_bank{bank}_core"
+                   for bank in (8, 16)]
+    report_dirs.append(ROOT / "build32_im/hw/syn/xilinx/dut/v80_rv32im_ntt_shared_inputpipe_core")
+    for directory in report_dirs:
+        paths.extend(directory / name for name in (
+            "build.log", "synth_summary.csv", "post_synth_util.rpt", "post_impl_util.rpt",
+            "timing.rpt", "route.rpt", "drc.rpt", "project_1/sources.txt",
+            "project_1/src/VX_pqc_nttmul.sv"))
+        if (directory / "command.json").exists():
+            paths.append(directory / "command.json")
+    destination = OUT / "ntt_multiplier_bank_sources.zip"
+    with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(set(paths)):
+            archive.write(path, path.relative_to(ROOT))
+    with zipfile.ZipFile(destination) as archive:
+        assert archive.testzip() is None
+    print("Archived", len(set(paths)), "files in", destination.relative_to(ROOT))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("part", choices=("performance", "ppa", "all"))
@@ -172,3 +216,5 @@ if __name__ == "__main__":
         performance()
     if args.part in ("ppa", "all"):
         ppa()
+    if args.part == "all":
+        archive_sources()
