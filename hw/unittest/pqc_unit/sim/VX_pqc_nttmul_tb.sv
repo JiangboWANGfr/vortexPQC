@@ -4,6 +4,7 @@ module VX_pqc_nttmul_tb;
     import VX_gpu_pkg::*;
 
     localparam L = `VX_CFG_NUM_ALU_LANES;
+    localparam M = `VX_CFG_NTT_MUL_LANES;
     localparam BURST = 12;
     localparam UNSTALLED = 3 * BURST;
     localparam N = UNSTALLED + 64;
@@ -49,7 +50,7 @@ module VX_pqc_nttmul_tb;
     bit producer_done = 0;
     bit saw_input_stall = 0;
     bit saw_output_stall = 0;
-    bit saw_pending_second_stall = 0;
+    bit saw_pending_stall = 0;
     bit saw_partial_pair_mask = 0;
     bit saw_low_half_mask = 0;
     bit saw_high_half_mask = 0;
@@ -171,6 +172,41 @@ module VX_pqc_nttmul_tb;
         butterfly_is_gs = (request < UNSTALLED)
             ? (request >= BURST && request < 2 * BURST)
             : (request % 3 == 1);
+    endfunction
+
+    function automatic bit request_is_d(input int request);
+        return request >= UNSTALLED && (request / 3) % 2 != 0;
+    endfunction
+
+    function automatic int request_beats(input int request);
+        return (is_butterfly_request(request)
+            && (!butterfly_is_gs(request) || request_is_d(request))) ? L / (2 * M) : L / M;
+    endfunction
+
+    function automatic logic signed [31:0] operand_d(input int seed);
+        case (seed % 8)
+            0: return -32'sd67043336;
+            1: return  32'sd67043336;
+            2: return -32'sd8380417;
+            3: return  32'sd8380417;
+            4: return -1;
+            5: return  0;
+            6: return  1;
+            default: return 32'(seed * 345679 - 1234567);
+        endcase
+    endfunction
+
+    function automatic logic signed [31:0] mont_d_ref(
+        input logic signed [31:0] a, input logic signed [31:0] b
+    );
+        logic signed [63:0] product, difference;
+        logic signed [31:0] factor;
+        begin
+            product = a * b;
+            factor = 32'(product * 64'd58728449);
+            difference = product - 64'(factor) * 64'sd8380417;
+            return 32'(difference >>> 32);
+        end
     endfunction
 
     function automatic logic signed [15:0] pair_twiddle(
@@ -307,11 +343,13 @@ module VX_pqc_nttmul_tb;
             logic [L-1:0] mask;
             bit is_butterfly;
             bit is_gs;
+            bit is_d;
             logic [2:0] stage;
             int distance;
             int wid;
             is_butterfly = is_butterfly_request(request);
             is_gs = butterfly_is_gs(request);
+            is_d = request_is_d(request);
             stage = butterfly_stage(request);
             distance = 1 << stage;
             mask = request_mask(request, is_butterfly, stage);
@@ -343,7 +381,7 @@ module VX_pqc_nttmul_tb;
             dispatch_if[0].data.op_args = '0;
             dispatch_if[0].data.op_args.alu.xtype = ALU_TYPE_ARITH;
             dispatch_if[0].data.op_args.alu.imm20 = is_butterfly
-                ? {16'b0, is_gs, stage} : '0;
+                ? {15'b0, is_d, is_gs, stage} : {15'b0, is_d, 4'b0};
             dispatch_if[0].data.sop = (request & 1) == 0;
             dispatch_if[0].data.eop = (request % 3) != 0;
 
@@ -406,6 +444,28 @@ module VX_pqc_nttmul_tb;
                     second_operand, request + lane + 1);
                 dispatch_if[0].data.rs3_data[lane] = 'x;
                 expected[request].data[lane] = `VX_CFG_XLEN'($signed(result));
+                if (is_d) begin
+                    logic signed [31:0] a, b, zeta, product, result_d;
+                    int low_lane;
+                    low_lane = is_butterfly ? lane & ~distance : lane;
+                    a = operand_d(request * L + low_lane);
+                    b = operand_d(request * L + (low_lane | distance));
+                    zeta = 32'((request * 1777 + low_lane * 3121) % 8380417) - 4190208;
+                    if (!is_butterfly) begin
+                        result_d = mont_d_ref(a, zeta);
+                    end else if (is_gs) begin
+                        product = mont_d_ref(a - b, zeta);
+                        result_d = (lane == low_lane) ? a + b : product;
+                    end else begin
+                        product = mont_d_ref(b, zeta);
+                        result_d = (lane == low_lane) ? a + product : a - product;
+                    end
+                    dispatch_if[0].data.rs1_data[lane] = `VX_CFG_XLEN'(
+                        operand_d(request * L + lane)) ^ (`VX_CFG_XLEN'(32'ha5a5) << 32);
+                    dispatch_if[0].data.rs2_data[lane] = `VX_CFG_XLEN'(
+                        (lane == low_lane) ? zeta : zeta ^ 32'h5a5a);
+                    expected[request].data[lane] = `VX_CFG_XLEN'(result_d);
+                end
             end
 
             dispatch_if[0].valid = 1;
@@ -422,7 +482,7 @@ module VX_pqc_nttmul_tb;
                 backpressure_start = cycle;
             commit_if[0].ready = (backpressure_start < 0)
                 || !((cycle < backpressure_start + 30)
-                  || (cycle > backpressure_start + 36 && cycle % 7 == 3));
+                  || (cycle > backpressure_start + 36 && cycle % 11 >= 3));
         end
     end
 
@@ -440,7 +500,7 @@ module VX_pqc_nttmul_tb;
             saw_high_half_mask = 0;
             saw_input_stall = 0;
             saw_output_stall = 0;
-            saw_pending_second_stall = 0;
+            saw_pending_stall = 0;
             holding_output = 0;
         end else begin
             ++cycle;
@@ -451,7 +511,7 @@ module VX_pqc_nttmul_tb;
                     $fatal(1, "duplicate PQC NTT unit request");
                 if (accepted > 0 && accepted < UNSTALLED) begin
                     int expected_ii;
-                    expected_ii = (accepted <= BURST) ? 1 : 2;
+                    expected_ii = request_beats(accepted - 1);
                     if (cycle - previous_accept_cycle != expected_ii)
                         $fatal(1, "request %0d unit II=%0d expected %0d",
                             accepted, cycle - previous_accept_cycle, expected_ii);
@@ -480,8 +540,8 @@ module VX_pqc_nttmul_tb;
             if (dispatch_if[0].valid && !dispatch_if[0].ready)
                 saw_input_stall = 1;
             if (!dut.g_blocks[0].nttmul_unit.advance
-             && dut.g_blocks[0].nttmul_unit.pending_second)
-                saw_pending_second_stall = 1;
+             && dut.g_blocks[0].nttmul_unit.pending)
+                saw_pending_stall = 1;
 
             if (holding_output) begin
                 if (!commit_if[0].valid || commit_if[0].data !== held_output)
@@ -500,8 +560,7 @@ module VX_pqc_nttmul_tb;
                     $fatal(1, "duplicate PQC NTT ALU result");
                 if (backpressure_start < 0) begin
                     int expected_latency;
-                    expected_latency = is_butterfly_request(received)
-                        && !butterfly_is_gs(received) ? 7 : 8;
+                    expected_latency = 6 + request_beats(received);
                     if (cycle - accepted_cycle[received] != expected_latency)
                         $fatal(1, "request %0d ALU latency=%0d expected %0d",
                             received, cycle - accepted_cycle[received], expected_latency);
@@ -553,15 +612,16 @@ module VX_pqc_nttmul_tb;
         if (!producer_done || accepted != N || ct_ii_checks != BURST - 1
          || gs_ii_checks != BURST - 1 || nttmul_ii_checks != BURST - 1
          || !saw_input_stall || !saw_output_stall || !saw_partial_pair_mask
+         || ((L / M > 2) && !saw_pending_stall)
          || !saw_low_half_mask || !saw_high_half_mask
          || ct_stages != '1 || gs_stages != '1)
             $fatal(1, "missing II/backpressure/mask coverage accepted=%0d ct=%0d gs=%0d mul=%0d in_stall=%0d out_stall=%0d pending_stall=%0d partial=%0d low=%0d high=%0d ct_stages=%b gs_stages=%b",
                 accepted, ct_ii_checks, gs_ii_checks, nttmul_ii_checks,
-                saw_input_stall, saw_output_stall, saw_pending_second_stall,
+                saw_input_stall, saw_output_stall, saw_pending_stall,
                 saw_partial_pair_mask,
                 saw_low_half_mask, saw_high_half_mask, ct_stages, gs_stages);
-        $display("NTTMUL.K/NTTBF.K PASSED XLEN=%0d LANES=%0d requests=%0d CT_II1=%0d GS_II2=%0d NTTMUL_II2=%0d",
-            `VX_CFG_XLEN, L, received, ct_ii_checks, gs_ii_checks, nttmul_ii_checks);
+        $display("NTTMUL.K/D/NTTBF.K/D PASSED XLEN=%0d LANES=%0d MULTIPLIERS=%0d requests=%0d CT_checks=%0d GS_checks=%0d NTTMUL_checks=%0d",
+            `VX_CFG_XLEN, L, M, received, ct_ii_checks, gs_ii_checks, nttmul_ii_checks);
         $finish;
     end
 

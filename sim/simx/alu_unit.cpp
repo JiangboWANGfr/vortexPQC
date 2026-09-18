@@ -75,11 +75,15 @@ int32_t barrett_reduce_k(int32_t value) {
 	return signed16(value - quotient * kModulus);
 }
 
-bool ntt_uses_two_beats(const instr_trace_t* trace) {
-	auto ntt_type = std::get_if<NttType>(&trace->op_type);
-	return VX_CFG_NUM_ALU_LANES > 1 && ntt_type
-		&& (*ntt_type == NttType::MUL_K || *ntt_type == NttType::BF_GS_K
-		 || *ntt_type == NttType::MUL_D);
+uint32_t ntt_beats(const instr_trace_t* trace) {
+  constexpr uint32_t lanes = VX_CFG_NUM_ALU_LANES;
+  constexpr uint32_t multipliers = std::min(lanes, uint32_t(VX_CFG_NTT_MUL_LANES));
+  static_assert(VX_CFG_NTT_MUL_LANES > 0 && multipliers <= (lanes + 1) / 2
+                && lanes % multipliers == 0, "invalid NTT multiplier count");
+  auto type = std::get<NttType>(trace->op_type);
+  auto products = (type == NttType::MUL_K || type == NttType::BF_GS_K
+                || type == NttType::MUL_D) ? lanes : (lanes + 1) / 2;
+  return products / multipliers;
 }
 
 }
@@ -110,7 +114,8 @@ void AluUnit::on_reset() {
   next_pe_.fill(0);
 #ifdef VX_CFG_EXT_NTT_ENABLE
   ntt_pipeline_.fill({});
-  ntt_second_.fill(nullptr);
+  ntt_pending_.fill(nullptr);
+  ntt_remaining_.fill(0);
 #endif
 #endif
 #ifdef VX_CFG_EXT_NTT_ENABLE
@@ -186,7 +191,7 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 		}
 #ifdef VX_CFG_EXT_NTT_ENABLE
 	} else if (std::get_if<NttType>(&trace->op_type)) {
-		return ntt_uses_two_beats(trace) ? 8 : 7;
+		return 6 + ntt_beats(trace);
 #endif
 	}
 	std::abort();
@@ -987,7 +992,7 @@ void AluUnit::on_tick() {
       if (std::get_if<NttType>(&trace->op_type)) {
         pe = 1 + VX_CFG_EXT_M_ENABLED + VX_CFG_EXT_KSG25_ENABLED
                + VX_CFG_EXT_KROUND25_ENABLED;
-        unit_ready = ntt_advance && !ntt_second_[b];
+        unit_ready = ntt_advance && !ntt_pending_[b];
       }
 #endif
       if (unit_ready && !results[pe]->full() && !DispatchRelease.at(b).full()) {
@@ -1016,13 +1021,16 @@ void AluUnit::on_tick() {
       for (uint32_t i = pipeline.size() - 1; i > 0; --i) {
         pipeline[i] = pipeline[i - 1];
       }
-      if (ntt_second_[b]) {
-        pipeline[0] = {ntt_second_[b], true};
-        ntt_second_[b] = nullptr;
+      if (ntt_pending_[b]) {
+        bool last = --ntt_remaining_[b] == 0;
+        pipeline[0] = {ntt_pending_[b], last};
+        if (last) {
+          ntt_pending_[b] = nullptr;
+        }
       } else if (ntt_accepted) {
-        bool two_beats = ntt_uses_two_beats(ntt_accepted);
-        pipeline[0] = {ntt_accepted, !two_beats};
-        ntt_second_[b] = two_beats ? ntt_accepted : nullptr;
+        ntt_remaining_[b] = ntt_beats(ntt_accepted) - 1;
+        pipeline[0] = {ntt_accepted, ntt_remaining_[b] == 0};
+        ntt_pending_[b] = ntt_remaining_[b] ? ntt_accepted : nullptr;
       } else {
         pipeline[0] = {};
       }
@@ -1030,7 +1038,7 @@ void AluUnit::on_tick() {
     for (const auto& beat : pipeline) {
       idle &= (beat.trace == nullptr);
     }
-    idle &= (ntt_second_[b] == nullptr);
+    idle &= (ntt_pending_[b] == nullptr);
 #endif
     for (auto result : results) {
       idle &= (result->size() == 0);
@@ -1052,8 +1060,8 @@ void AluUnit::on_tick() {
         output.send(trace, delay);
         input.pop();
 #ifdef VX_CFG_EXT_NTT_ENABLE
-        if (ntt_uses_two_beats(trace)) {
-          ntt_ready_cycle_.at(b) = cycle + 2;
+        if (std::get_if<NttType>(&trace->op_type)) {
+          ntt_ready_cycle_.at(b) = cycle + ntt_beats(trace);
         }
 #endif
       }

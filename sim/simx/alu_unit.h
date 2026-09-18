@@ -57,7 +57,8 @@ private:
     bool last = false;
   };
   std::array<std::array<NttBeat, 5>, VX_CFG_NUM_ALU_BLOCKS> ntt_pipeline_{};
-  std::array<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS> ntt_second_{};
+  std::array<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS> ntt_pending_{};
+  std::array<uint32_t, VX_CFG_NUM_ALU_BLOCKS> ntt_remaining_{};
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> ntt_results_;
 #endif
   std::array<uint32_t, VX_CFG_NUM_ALU_BLOCKS> next_pe_{};
