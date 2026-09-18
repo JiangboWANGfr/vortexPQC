@@ -88,9 +88,19 @@ package VX_trace_pkg;
                         end else begin
                             case (INST_ALU_BITS'(op_type))
                             `ifdef VX_CFG_EXT_NTT_ENABLE
-                                INST_ALU_NTTMUL_K: `TRACE(level, ("NTTMUL.K"))
+                                INST_ALU_NTTMUL_K: begin
+                                    if (op_args.alu.imm20[4])
+                                        `TRACE(level, ("NTTMUL.D"))
+                                    else
+                                        `TRACE(level, ("NTTMUL.K"))
+                                end
                                 INST_ALU_NTTBF_K: begin
-                                    if (op_args.alu.imm20[3])
+                                    if (op_args.alu.imm20[4]) begin
+                                        if (op_args.alu.imm20[3])
+                                            `TRACE(level, ("NTTBF.GS.D.XOR%0d", 1 << op_args.alu.imm20[2:0]))
+                                        else
+                                            `TRACE(level, ("NTTBF.CT.D.XOR%0d", 1 << op_args.alu.imm20[2:0]))
+                                    end else if (op_args.alu.imm20[3])
                                         `TRACE(level, ("NTTBF.GS.K.XOR%0d", 1 << op_args.alu.imm20[2:0]))
                                     else
                                         `TRACE(level, ("NTTBF.CT.K.XOR%0d", 1 << op_args.alu.imm20[2:0]))

@@ -21,44 +21,45 @@
 \makeatother
 \newcommand{\rot}{\operatorname{ROL}_{64}}
 \newcommand{\mont}{\operatorname{Mont}}
-\hypersetup{pdftitle={Register-Resident Keccak Acceleration for ML-KEM on a RISC-V SIMT GPU},pdfauthor={Anonymous authors}}
+\hypersetup{pdftitle={Register-Resident Keccak and NTT Acceleration for ML-KEM and ML-DSA on a RISC-V SIMT GPU},pdfauthor={Anonymous authors}}
 
-\title{Register-Resident Keccak Acceleration\\for ML-KEM on a RISC-V SIMT GPU}
+\title{Register-Resident Keccak and NTT Acceleration\\for ML-KEM and ML-DSA on a SIMT GPU}
 \author{\IEEEauthorblockN{Anonymous Authors}}
 
 \begin{document}
 \maketitle
 \begin{abstract}
-ML-KEM combines polynomial arithmetic with repeated Keccak permutations.
-On a SIMT processor, exposing parallelism within these primitives is only
-part of the problem: the implementation must also move their state between
-lanes and sustain the surrounding cryptographic workflow.
-We present a register-resident Keccak extension for an RV32 RISC-V GPU.
+ML-KEM and ML-DSA alternate polynomial arithmetic with Keccak, but use
+different coefficient widths and NTT layer counts. On a SIMT processor,
+their state placement and lane communication determine how much of this
+parallelism reaches a complete cryptographic request.
+We present register-resident Keccak and NTT collectives for an RV32 GPU.
 Stage collectives implement column reduction, word permutation, and row
 logic across lane registers, while explicit low/high outputs preserve the
 processor's single-destination writeback interface.
-A complementary NTT path uses paired butterflies and a shared bank of
-16 multipliers. We integrate both paths into complete ML-KEM-768 requests
-and compare shuffle software, stage collectives, fused rounds, and a
-memory-pointer engine.
+A single NTT unit shares 16 multipliers and XOR lane-pair routing between
+both schemes, selecting modulus-specific reduction for each instruction.
+We integrate these paths into complete ML-KEM-768 and ML-DSA-65 requests
+and compare against cooperative software.
 On a common XRT RTL simulation build, stages accelerate complete requests
 by \StageVsShuffleOne{}$\times$ and \StageVsShuffleEight{}$\times$ over the
-same shuffle mapping at one and eight requests. Routed FPGA implementations
-add \StageLutPct{}\% LUTs over the NTT-equipped core at 250~MHz.
+same shuffle mapping at one and eight requests in the K-only reference build.
 With equal loop expansion, round fusion provides \FusionEight{}$\times$
 permutation throughput but only \FusionKemEight{}$\times$ complete-request
 speedup in a separate timing-model control.
-The results show why collective granularity must be selected together with
-state placement and application concurrency.
+The cross-scheme path tests whether the same lane routing and multiplier
+bank can also serve ML-DSA without a second NTT engine, reducing complete
+KEM and DSA requests by \KemNttSaved{}\% and \DsaNttSaved{}\% against
+matched register-shuffle software NTTs.
 \end{abstract}
 \begin{IEEEkeywords}
-ML-KEM, Keccak, SIMT, RISC-V, instruction-set extension
+ML-KEM, ML-DSA, Keccak, NTT, SIMT, RISC-V
 \end{IEEEkeywords}
 
 \section{Introduction}
-The standardization of ML-KEM makes efficient post-quantum key establishment
-an immediate processor-design problem~\cite{fips203}. Its implementation
-alternates between modular polynomial arithmetic and SHA-3/SHAKE hashing.
+Standardized ML-KEM and ML-DSA make key establishment and signatures
+processor-design problems~\cite{fips203,fips204}. Both alternate modular
+polynomial arithmetic and SHA-3/SHAKE hashing.
 Both contain regular computation, but their parallelism has different
 shapes: an NTT layer exposes independent butterflies, whereas a Keccak
 round repeatedly exchanges information across a small, tightly coupled
@@ -81,8 +82,8 @@ structured communication and logic while preserving intermediate states in
 GPRs. Fusing an entire round removes additional issue and dependency costs.
 A pointer engine moves the state into a dedicated unit for all 24 rounds.
 These choices trade instruction count, pipeline storage, state transfers,
-and concurrency. A faster isolated permutation need not produce a faster
-complete key-establishment request.
+and concurrency. A faster isolated primitive need not produce a faster
+complete request.
 
 Prior work supplies important building blocks. Optimized RISC-V software
 provides strong scalar baselines~\cite{pqrv}; ML-Cube demonstrates a
@@ -91,23 +92,23 @@ patent application describes a 64-bit warp-collective Keccak
 round~\cite{collectivepatent}. The design question addressed here is how to
 realize a stage-factored interface on an RV32 SIMT datapath and determine
 whether coarser operations justify their implementation cost after the
-rest of ML-KEM is optimized.
+NTT is optimized and the same hardware serves ML-DSA.
 
 We build this interface in Vortex~\cite{vortex}. Each collective consumes
 ordinary source vectors and produces one destination vector. Stage
 operations expose Keccak's fixed communication patterns without introducing
-persistent accelerator state. An optimized NTT and polynomial path removes
-an avoidable competing bottleneck, allowing the Keccak alternatives to be
-compared within the same application. Our contributions are:
+persistent accelerator state. A shared NTT unit removes a competing
+bottleneck in both schemes. Our contributions are:
 \begin{itemize}
 \item A stage-factored Keccak interface with explicit RV32 low/high outputs,
 fixed cross-lane communication, and ordinary register dependency and
 writeback handling.
-\item A complete ML-KEM mapping that combines register-resident sponge
-computation with paired NTT butterflies and a shared 16-multiplier bank.
+\item A half-bank of 16 shared multipliers and lane-pair routing for the
+seven-layer 16-bit ML-KEM NTT and eight-layer 32-bit ML-DSA NTT, integrated
+through both libraries' native hooks.
 \item A controlled evaluation separating software mapping, collective
-instructions, and round fusion, and relating their benefits to complete
-requests, concurrency, and routed full-core cost.
+instructions, and round fusion, with complete-request checks for both
+schemes and routed costs for K-only and shared K/D cores.
 \end{itemize}
 The central finding is that stages capture most of the application benefit
 available from register collectives. Round fusion substantially improves
@@ -125,7 +126,7 @@ $B[0,2]$, and a three-word row dependency. All coordinates wrap modulo five.}
 \end{figure*}
 
 \section{Background and Motivation}
-\subsection{ML-KEM and its communication patterns}
+\subsection{Lattice workloads and communication patterns}
 ML-KEM operates on degree-256 polynomials modulo 3329 and uses SHA-3/SHAKE
 for hashing and pseudorandom generation~\cite{fips203,fips202}.
 Our workload is an ML-KEM-768 round trip: key generation, encapsulation,
@@ -133,6 +134,10 @@ and decapsulation. A request in the integrated implementation executes
 140 Keccak permutations, 15 forward NTTs, and nine inverse NTTs. Independent
 requests provide inter-warp parallelism; cooperative execution of each
 primitive provides intra-warp parallelism.
+ML-DSA-65 uses the same degree-256 polynomial length but 32-bit
+coefficients modulo 8,380,417 and a full eight-layer NTT~\cite{fips204}.
+Its round trip comprises key generation, signing, and verification; the
+signing rejection loop makes byte-exact checking necessary.
 
 A Keccak-f[1600] state contains 25 words of 64 bits, arranged as $A[x,y]$
 with $0\leq x,y<5$. Each of its 24 rounds applies column parity and correction
@@ -148,7 +153,8 @@ An ML-KEM NTT has seven layers of 128 butterflies. With coefficient
 $a[\ell+32k]$ in register $k$ of lane $\ell$, the first three forward layers
 exchange registers within a lane. The remaining four exchange lanes at
 XOR distances 16, 8, 4, and 2. The inverse traverses these dependencies in
-reverse. This pairwise communication differs from Keccak's reductions and
+reverse. ML-DSA adds distance 1 and uses 32-bit coefficients. This pairwise
+communication differs from Keccak's reductions and
 permutations, motivating separate datapaths under a common register
 interface.
 
@@ -298,10 +304,10 @@ algorithmic communication. It also widens the rest of the processor,
 so its benefit must be evaluated against full-core cost and complete
 requests, not just the halved collective count.
 
-\subsection{Complementary NTT and application mapping}
-The polynomial path keeps 256 coefficients in eight GPRs per lane.
+\subsection{Shared NTT datapath and application mapping}
+Both schemes keep 256 coefficients in eight GPRs per lane.
 Figure~\ref{fig:ntt} shows how butterfly distance selects either another
-register or another lane. Lane-local operations use narrow Montgomery
+register or another lane. Lane-local operations use Montgomery
 multiplication; cross-lane operations use paired butterfly collectives.
 For a forward Cooley--Tukey pair, the low lane supplies $a$ and $\zeta$,
 and the high lane supplies $b$:
@@ -309,28 +315,34 @@ and the high lane supplies $b$:
  t=\mont(b\zeta),\qquad (a',b')=(a+t,a-t).
 \end{equation}
 One product serves both lanes, and each lane receives only its own result.
-The inverse Gentleman--Sande form computes a reduced sum and a
-twiddle-scaled difference. Signed 16-bit intermediate behavior and the
-library's reduction convention are preserved.
+The inverse Gentleman--Sande form computes a sum and twiddle-scaled
+difference. ML-KEM reduces the 16-bit sum with Barrett arithmetic;
+ML-DSA retains the signed 32-bit sum. Each follows its library's exact
+Montgomery convention and twiddle order.
 
 \begin{figure}[t]
 \centering\input{figures/ntt_mapping.tex}
-\caption{NTT mapping and a forward butterfly. In the example, distance 32
+\caption{Shared NTT mapping and a forward butterfly. Distance 32
 connects registers within a lane, while distance 16 connects lanes 5 and
-21. The pair-low lane supplies $\zeta$; one Montgomery product feeds both
-results. A 32-lane issue contains 16 such pairs.}
+21. The pair-low lane supplies $\zeta$; one product feeds both results.
+The multiplier and routing bank is common to ML-KEM and ML-DSA; the
+selected reduction uses $q_K=3329$ or $q_D=8380417$.}
 \label{fig:ntt}
 \end{figure}
 
-A bank of 16 signed $16\times16$ multipliers matches the 16 simultaneous
-pairs. Forward butterflies need one product phase. Inverse butterflies
-reuse the bank for the twiddle product and the sum-times-20159 product
-used by Barrett reduction. A full-warp standalone modular multiply uses
-the bank first for lanes 0--15 and then 16--31. Thus the bank is sized for
-the paired operation rather than provisioned for 32 independent products
-on every issue. The direct unit latency/initiation interval is 6/1 for
-forward butterflies and 7/2 for inverse butterflies and full-warp modular
-multiplication.
+A bank of 16 signed $32\times32$ variable-product multipliers serves 16 lane
+pairs per issue. An instruction mode bit selects a 16-bit or 32-bit
+Montgomery reduction; pair routing, product pipeline, and writeback are
+shared, while the constant-arithmetic reduction networks differ. ML-KEM inverse
+butterflies use a second beat for sum-times-20159 Barrett reduction, while
+ML-DSA inverse butterflies use one beat. Scalar products use two beats for
+lanes 0--15 and 16--31. The direct latency/initiation interval is 7/1
+for CT butterflies and ML-DSA GS; it is 8/2 for ML-KEM GS and scalar
+products. The extra reduction stage also changes the ML-KEM baseline,
+so application cycles from the previous K-only design cannot be attributed
+to this shared datapath.
+Registering pair-selected operands before the multiplier separates lane
+routing from the DSP path without adding interface latency.
 
 The integration preserves the ML-KEM library API~\cite{mlkemnative}.
 Lane zero executes scalar control, broadcasts primitive arguments, and
@@ -341,14 +353,20 @@ API calls. Cooperative polynomial arithmetic and a warp-level allocation
 arena avoid replicating data and allocations across 32 lanes. This mapping
 allows the Keccak backend to change while keeping NTT, polynomial work,
 and request semantics fixed.
+ML-DSA uses the same Keccak units through its permutation hook. Its NTT
+hooks execute three lane-local and five paired layers; the inverse applies
+the hardware Montgomery scale. The NTT comparison fixes other arithmetic.
+Separately, W32 lanes reuse \texttt{NTTMUL.D} for independent pointwise
+products. Five-term dot products retain one 64-bit sum and final reduction
+per coefficient in software.
 
 \section{Implementation and Evaluation}
 \subsection{Experimental setup}
 Table~\ref{tab:setup} summarizes the primary configuration. We implement
 functional/timing models and synthesizable RTL in Vortex. XRT integration
 simulation executes the processor through the accelerator interface;
-SimX supplies additional controlled timing experiments. The headline
-six-backend comparison uses one all-enabled RTL build and the same
+SimX supplies additional controlled timing experiments. The ML-KEM
+six-backend comparison uses one all-enabled K-only RTL build and the same
 application structure. Every request uses fixed FIPS-203 inputs and checks
 public key, secret key, ciphertext, and both shared secrets against the
 reference. All reported arms pass. Across these six backends, SimX and XRT
@@ -365,19 +383,18 @@ Processor & RV32IM, 1 core, F/D disabled \\
 Warp / execution width & 8 resident warps, 32 lanes \\
 Memory & 16 KiB each: I-cache, D-cache, local \\
 Outer caches & L2 and L3 disabled \\
-Workload & ML-KEM-768 round trip, $M=1,8$ \\
+Workloads & KEM-768 / DSA-65, $M=1,8$ / $M=1$ \\
 Integration timing & XRT RTL simulation \\
-Physical design & Vivado 2025.1, OPT3, Alveo V80 \\
-Implementation target & 250 MHz, routed core top \\
+Routed cores & K-only / shared K/D; V80, 250 MHz \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Request cycles cover the complete device launch, including entry and exit
+Figure~\ref{fig:kem} cycles cover the complete device launch, including entry and exit
 but excluding host transfers. Permutation microbenchmarks isolate the
 measured interval with barriers so that another warp's initialization or
 output traffic cannot overlap it. Physical results are independent
-out-of-context core implementations, one implementation run per variant;
+Vivado 2025.1 OPT3 out-of-context core implementations, one run per variant;
 they measure post-route cost and timing, not board execution or energy.
 
 \subsection{Complete-request acceleration}
@@ -453,11 +470,10 @@ pack additional independent states and has a different occupancy tradeoff.
 
 \begin{figure}[t]
 \centering\input{figures/fusion_results.tex}
-\caption{Keccak granularity control in XRT: cycles per completed permutation,
-64 permutations per state, one state per active warp. Panel (b) contrasts the equal-expansion gain at primitive and application
-scope. Permutation points use XRT; complete-KEM points use a separate
-matched SimX control. The x-axis denotes active warps in (a) and, in (b),
-active warps for permutations or concurrent requests for ML-KEM.}
+\caption{Keccak granularity with 64 dependent permutations per state.
+(a) XRT cycles per permutation, one state per active warp.
+(b) Equal-expansion Stage/Round gain: XRT permutation versus matched
+SimX complete KEM at one/eight active warps or requests.}
 \label{fig:fusion}
 \end{figure}
 
@@ -470,59 +486,72 @@ Removing primitive instructions is effective, but after Stage acceleration
 those instructions occupy too little of the complete request to deliver a
 proportional gain.
 
+Independent phase probes explain the saturation: permutation occupies
+\StagePermPct{}\% of the instrumented Stage request and \RoundPermPct{}\%
+for Round, while absorb and squeeze together still occupy
+\StageSpongePct{}\% and \RoundSpongePct{}\%. The matched
+probe overhead is 6.6--8.3\%, so these fractions locate residual work
+without predicting an exact uninstrumented speedup.
+
+\subsection{One NTT unit for two schemes}
+Pointer Keccak and other polynomial work are fixed in one XRT build.
+Figure~\ref{fig:sharedntt} compares each scheme's W32 software NTT with
+the shared instructions using the sum of keypair, operation, and final
+on-device intervals. The hardware saves \KemNttSaved{}\% of complete
+KEM cycles and \DsaNttSaved{}\% of complete DSA cycles; scalar-to-W32
+mapping gains are excluded. These requests execute 15/9 ML-KEM and
+46/49 ML-DSA forward/inverse NTTs, respectively.
+
 \begin{figure}[t]
-\centering\input{figures/phase_results.tex}
-\caption{Mutually exclusive XRT phase intervals at $M=1$, using separate
-backend builds. Absorb and squeeze exclude nested permutations. Other
-includes sampling, encoding, control, memory, wrappers, and probe overhead;
-these instrumented intervals are not the headline launch measurements.}
-\label{fig:phases}
+\centering\input{figures/shared_ntt_results.tex}
+\caption{Complete-request XRT cycle reduction from one shared K/D NTT unit
+versus W32 register-shuffle software. Pointer Keccak and other arithmetic
+are fixed within each pair. K: ML-KEM-768; D: ML-DSA-65.}
+\label{fig:sharedntt}
 \end{figure}
 
-Figure~\ref{fig:phases} explains the saturation. Permutation accounts for
-4.96\% of the instrumented Stage request and 1.27\% for Round, while absorb
-and squeeze together still occupy 11.66\% and 12.90\%. For Pointer,
-permutation is only 0.52\%, but absorb and squeeze occupy 26.78\%.
-The dominant residual shifts attention to the surrounding implementation.
-Matched SimX controls measure 6.6--8.3\% probe overhead, so the profile
-supports bottleneck interpretation rather than an exact prediction of
-uninstrumented speedup.
+Both hardware paths pass byte-exact XRT request KATs; SimX also verifies D NTT
+with Stage Keccak. SimX and XRT retire identical instruction counts, with
+launch-cycle differences below \SharedParityMax{}\%.
+Separately, reusing \texttt{NTTMUL.D} for ML-DSA pointwise products and
+distributing five-term sums over W32 lanes cuts matched byte-exact XRT
+request cycles by \DsaPointwiseXrtSaved{}\%; SimX eight-request makespan
+falls by \DsaPointwiseEightSaved{}\%. This adds no RTL, and its gains are
+separate from Fig.~\ref{fig:sharedntt}.
 
-\balance
 \subsection{NTT communication and resource selection}
-The NTT design was selected against both register-shuffle and
-shared-memory software. Holding narrow multiplication fixed, replacing
-shuffle butterflies with paired collectives reduces matched SimX KEM
-intervals by 2.56\% at one request and 8.23\% at eight. The stronger
-shared-memory alternative groups layers and transposes coefficients;
-it is therefore also necessary for the final selection.
-In matched XRT runs, shared-memory NTT plus modular multiply takes
-7.792/11.049 million interval cycles, versus 7.711/10.523 million for
-register collectives with the full multiplier bank.
-These selection runs use an earlier pointer-enabled configuration with
-floating-point hardware present; comparisons are confined to that family.
+Holding narrow multiplication fixed, paired butterflies save 2.56\%/8.23\%
+of matched SimX KEM intervals at one/eight requests over register shuffles.
+A stronger shared-memory baseline groups layers and transposes coefficients.
+Matched XRT intervals are 7.792/11.049 million cycles for that baseline,
+versus 7.711/10.523 million for full-bank register collectives. These
+earlier pointer-enabled runs include floating-point hardware; comparisons
+remain within that family.
 
-Reducing the bank from 32 to 16 multipliers changes complete-KEM interval
-cycles by at most 0.041\% across matched simulation checks. Its routed
-implementation saves 14,767 LUTs, 1,565 flip-flops, and 16 DSPs while
-maintaining 250~MHz. The small application change despite an extra product
-phase justifies selecting the half bank. It avoids provisioning for peak
-lane-local multiplication when the application also depends on paired
-butterflies, memory, and control.
+Reducing the K-only bank from 32 to 16 multipliers changes matched KEM
+intervals by at most 0.041\% while saving 14,767 LUTs, 1,565 flip-flops,
+and 16 DSPs at 250~MHz. This half-bank is the starting point for the shared
+32-bit datapath, whose physical cost is measured separately.
 
 \subsection{Routed cost and RV64 sensitivity}
-Table~\ref{tab:ppa} reports independent integer-only core implementations.
-Relative to the NTT-equipped RV32IM core, Stage adds \StageLutPct{}\% LUTs
+Table~\ref{tab:ppa} reports five independent RV32IM post-route cores.
+The first three retain the earlier 16-bit K-only NTT. Relative to that
+NTT-equipped core, Stage adds \StageLutPct{}\% LUTs
 and \StageFfPct{}\% flip-flops; Round adds \RoundLutPct{}\% LUTs and
 \RoundFfPct{}\% flip-flops. Both close 250~MHz with zero routing errors.
 Round uses slightly fewer LUTs but more pipeline storage, so neither is
-uniformly smaller across resource types. These area builds each enable one
-Keccak backend; the all-enabled timing build is used for comparison
-consistency, not for a cross-build throughput-per-area ratio.
+uniformly smaller across resource types.
+The shared K/D NTT adds \SharedLutPct{}\% LUTs,
+\SharedFfPct{}\% flip-flops, and 64 DSPs over K-only NTT; it does not
+duplicate the multiplier bank. Adding Stage to this shared core costs
+\SharedStageLutPct{}\% LUTs and \SharedStageFfPct{}\% flip-flops without
+more DSPs. Both shared variants close 250~MHz with zero routing errors.
+The all-enabled XRT timing build is separate from these area builds.
 
 \begin{table}[t]
-\caption{Post-route RV32IM core cost at 250 MHz. All variants include the
-final half-bank NTT, 133 BRAM tiles, and disabled F/D.}
+\caption{Independent 250-MHz RV32IM post-route cores. K rows use the
+16-bit NTT; shared rows use one K/D unit. F/D are off; all use 133 BRAM
+tiles and route without errors.}
 \label{tab:ppa}
 \centering\small
 \begin{tabular}{@{}lrrrr@{}}
@@ -534,32 +563,24 @@ Variant & LUTs & FFs & DSPs & WNS (ns) \\
 \end{tabular}
 \end{table}
 
-RV64 halves the Keccak collective issue count, but complete-request
-instructions decrease by only 7.00\% for Stage and 5.73\% for Round.
-Matched XRT one-request cycles fall by 3.68\% and 2.54\%; at eight requests,
-Stage improves by 0.40\% and Round regresses by 0.18\%.
-The rest of the application and its memory behavior remain significant.
-Meanwhile, the RV64 NTT-only core uses 429,067 LUTs versus 220,950 for
-RV32. The RV64 Stage/Round implementations have WNS of
-$-0.148$/$-0.013$ ns at the same target, missing 250~MHz in these runs.
-Widening the core therefore does not provide a compelling measured tradeoff
-for this workload, despite simplifying the collective interface.
+RV64 halves Keccak collective issues, yet complete-request instructions
+fall only 7.00\% (Stage) and 5.73\% (Round). Matched XRT one-request cycles
+improve 3.68\%/2.54\%; at eight requests, Stage gains 0.40\% and Round loses
+0.18\%. RV64 NTT-only uses 429,067 LUTs versus RV32's 220,950, while its
+Stage/Round WNS is $-0.148$/$-0.013$ ns at 250~MHz. The wider core does not
+improve this measured cost-performance point.
 
 \section{Conclusion}
-Register-resident Keccak collectives accelerate a cooperative ML-KEM
-implementation while retaining ordinary SIMT operands, dependencies, and
-writeback. Stage instructions provide substantial complete-request gains
-at a small incremental RV32 core cost. An optimized, compact NTT path
-makes this benefit visible without overprovisioning modular arithmetic.
-The granularity experiments identify the practical limit: whole-round
-fusion improves the isolated permutation much more than the complete
-request, and a pointer engine wins at higher tested concurrency.
-State placement, application phases, and concurrency must therefore be
-considered together when selecting a cryptographic instruction boundary.
+Register-resident Keccak collectives and one shared K/D NTT unit accelerate
+byte-exact ML-KEM and ML-DSA requests. Fused rounds improve isolated
+permutations far more than complete requests; the pointer engine wins at
+higher measured concurrency. Reusing the NTT multiplier bank for ML-DSA
+pointwise work and distributing L5 sums across lanes needs no additional
+hardware.
 
-\section*{Content Generated by AI}
-AI tools assisted with drafting, literature organization, and figure code.
-Experimental results come from archived implementation measurements.
+\noindent\textbf{Content generated by AI.} AI tools assisted with drafting,
+literature organization, and figure code. Experimental results come from
+archived implementation measurements.
 
 \clearpage
 \nobalance

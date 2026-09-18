@@ -1,0 +1,209 @@
+{
+  "updated_utc": "2026-09-18T04:51:40.252897+00:00",
+  "state": "complete",
+  "completed_xrt": [
+    "fixed_c_xrt_m1_s0.log",
+    "fixed_shuffle_xrt_m1_s0.log",
+    "fixed_stage_xrt_m1_s0.log",
+    "fixed_round_xrt_m1_s0.log",
+    "fixed_pointer_xrt_m1_s0.log",
+    "fixed_stage_xrt_m2_s1.log",
+    "fixed_round_xrt_m2_s1.log"
+  ],
+  "pending_xrt": [],
+  "failed_xrt": [],
+  "comparisons": [
+    {
+      "backend": "c",
+      "requests": 1,
+      "first_input": 0,
+      "exact_instructions": true,
+      "simx_instructions": 14975878,
+      "xrt_instructions": 14975878,
+      "simx_launch_cycles": 145978648,
+      "xrt_launch_cycles": 148557534,
+      "cycle_gap_percent": 1.73595100198688,
+      "kernel_gap_percent": 1.7465941150815352
+    },
+    {
+      "backend": "pointer",
+      "requests": 1,
+      "first_input": 0,
+      "exact_instructions": true,
+      "simx_instructions": 5418842,
+      "xrt_instructions": 5418842,
+      "simx_launch_cycles": 55302688,
+      "xrt_launch_cycles": 54908275,
+      "cycle_gap_percent": 0.7183124947924516,
+      "kernel_gap_percent": 0.6989556859592677
+    },
+    {
+      "backend": "round",
+      "requests": 1,
+      "first_input": 0,
+      "exact_instructions": true,
+      "simx_instructions": 5499822,
+      "xrt_instructions": 5499822,
+      "simx_launch_cycles": 57248144,
+      "xrt_launch_cycles": 56825797,
+      "cycle_gap_percent": 0.7432311068158006,
+      "kernel_gap_percent": 0.7246302406234226
+    },
+    {
+      "backend": "round",
+      "requests": 2,
+      "first_input": 1,
+      "exact_instructions": true,
+      "simx_instructions": 20798144,
+      "xrt_instructions": 20798144,
+      "simx_launch_cycles": 111551419,
+      "xrt_launch_cycles": 110833797,
+      "cycle_gap_percent": 0.6474757875524196,
+      "kernel_gap_percent": 0.6377828321660424
+    },
+    {
+      "backend": "shuffle",
+      "requests": 1,
+      "first_input": 0,
+      "exact_instructions": true,
+      "simx_instructions": 6412170,
+      "xrt_instructions": 6412170,
+      "simx_launch_cycles": 69495498,
+      "xrt_launch_cycles": 69076532,
+      "cycle_gap_percent": 0.6065243692315069,
+      "kernel_gap_percent": 0.5908806576423115
+    },
+    {
+      "backend": "stage",
+      "requests": 1,
+      "first_input": 0,
+      "exact_instructions": true,
+      "simx_instructions": 5569662,
+      "xrt_instructions": 5569662,
+      "simx_launch_cycles": 57877573,
+      "xrt_launch_cycles": 57457078,
+      "cycle_gap_percent": 0.7318419499160748,
+      "kernel_gap_percent": 0.713435003235069
+    },
+    {
+      "backend": "stage",
+      "requests": 2,
+      "first_input": 1,
+      "exact_instructions": true,
+      "simx_instructions": 20981384,
+      "xrt_instructions": 20981384,
+      "simx_launch_cycles": 112391431,
+      "xrt_launch_cycles": 111665326,
+      "cycle_gap_percent": 0.6502510904772714,
+      "kernel_gap_percent": 0.6406348218263486
+    }
+  ],
+  "tolerance_percent": 5.0,
+  "comparison_outliers": [],
+  "scope": "ML-DSA-65 native x1 Keccak hooks; software NTT; RV32IM W8T32",
+  "manifest": {
+    "source_commit": "ee0fdf1f4c37efd5dda26c22eae5972c63338e5a",
+    "dirty_source": true,
+    "configs": "-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32",
+    "configure": [
+      "../configure",
+      "--xlen=32",
+      "--tooldir=/home/jiangbowang/tools-pqc-v3.0.1"
+    ],
+    "libc_path": "/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libc32",
+    "libcrt_path": "/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libcrt32",
+    "keccak": {
+      "c": {
+        "KECCAK": "sg1"
+      },
+      "shuffle": {
+        "KECCAK": "sg25_sw",
+        "UNROLL": "1"
+      },
+      "stage": {
+        "KECCAK": "sg25",
+        "UNROLL": "1"
+      },
+      "round": {
+        "KECCAK": "kround"
+      },
+      "pointer": {
+        "KECCAK": "pe"
+      }
+    },
+    "ram": "full",
+    "ntt": "portable C",
+    "fips202_integration": "native x1 permutation hook; scalar library absorb/squeeze",
+    "source_hashes": {
+      "VX_config.toml": "41e68e7f623921fb3fabebd0842b88b5b5330ce466580e03dd697949eead1f56",
+      "VX_types.toml": "d27c03e50ffd5652e3f5c71a13a4cefd8e1f01f7232f3ff40cb8eca2d81e6328",
+      "tests/pqc/mldsa/mld_vortex_alloc.h": "9cd47d7702e17de012c5e09c92f1e26b7bb06cf3f3bd4bf26f62a8c59077812f",
+      "tests/pqc/mldsa/vortex_mldsa_config.h": "b857dd4f144172c0faa3ecdb1c260de513f3dd50ac96e72d572ea3b53bcf08c2",
+      "tests/pqc/mldsa_profile/Makefile": "c1c98040353a4a1aa66b58258d2981ecd3ef0b752e3f56dce9162ca9f7491d32",
+      "tests/pqc/mldsa_profile/common.h": "bf711e8db52a5b592ecb684fa1c0d48cc20a72a3be976e5397e6c538b712707e",
+      "tests/pqc/mldsa_profile/host_reference.cpp": "de93671da922277590b5e7eecea5e66edfbdff3bce9b871ba3b9817500b64d6b",
+      "tests/pqc/mldsa_profile/host_reference.h": "5aed80c9a9a92b42cc540e2cc87579647808d3d201e15c9aef589b49d6dff44a",
+      "tests/pqc/mldsa_profile/kernel.cpp": "035469b91f5a2794fd927fa4685ef826c6997ff45560fc504be31d0b02f8746a",
+      "tests/pqc/mldsa_profile/main.cpp": "d232a6188e1f44b88d99518007239d880841e79718d85f0c62a2eadd83453e27",
+      "tests/pqc/mldsa_profile/mld_prof_arith.h": "d4f72b063d72f9680576ed72b92fd270da2be9e606dfd03ad5b76f05d0eca4e3",
+      "tests/pqc/mldsa_profile/mld_prof_counters.h": "ca53952117e3385018ce4fd779e07090ad14bd397a03155a31a1682c79116191",
+      "tests/pqc/mldsa_profile/mld_prof_fips202.h": "f1a552d47d148664af842fb63828aca97f1a8f5c15536cf142388b431b0fbcaf",
+      "tests/pqc/mldsa_profile/mld_sg25.h": "213219b00f665d3fff578caa1970d6806d9fa08493c18f2b58bcaef94bbd0f57",
+      "tests/pqc/mldsa_profile/vortex_mldsa_prof_config.h": "904701045f7d3867939c8c5d296881f261d7e87d31ae806105f0ec763923e136"
+    },
+    "runtime_hashes": {
+      "libsimx.so": "317dce5cb9090f9349939f275635a32adb5269ecd67536e0a9b5b7a6ef98dfaa",
+      "libvortex-simx.so": "34e63723b561780b3ac39fc533b25691897c1c1b79bb9dbfd2f62ffc1119d6b9",
+      "libvortex-xrt.so": "e99b2571298811108f0439e851d3abbf2359d1c8ddf6995f027da117bdd4c027",
+      "libvortex.so": "4e51d1e7d32a5919167575c638a5de9cff8238443a47e41d91ce9a246cc01298",
+      "libxrtsim.so": "91c7f52310906eb46326af02011367e9f50005298fdd53f735af08e2fe566b26"
+    },
+    "arm_hashes": {
+      "fixed/c/kernel.elf": "df95ca6c11d066e6cf2c1adf61d74230a96f23904cbe70f50904ab9a393eec85",
+      "fixed/c/kernel.vxbin": "8925707c000e54ac71d09b5955fdd24982f88bb87a49f93f584effcbc9e3488c",
+      "fixed/c/mldsa_profile": "510ebf220ab615f638aaaabe3723d81e96b57c3768ac575642346ee44cb4347f",
+      "fixed/pointer/kernel.elf": "9acd1a15d23bdc27b0e55b90002b00399600793d20b69e1d13bc52ae93e17635",
+      "fixed/pointer/kernel.vxbin": "18261b6ea008c2c94cdb9d4719842b8038c451d7f37e7e82815db419e467efaa",
+      "fixed/pointer/mldsa_profile": "c70eeab6d5fc0a45dd99add3da1e626306eae5b3b17d4c07a2313250850cbae8",
+      "fixed/round/kernel.elf": "f9a31c776d8d428391df823192c996ddf3d15b7afead6d9b6b76438130e1b4aa",
+      "fixed/round/kernel.vxbin": "a0008d681ae713f1189d0dfc82d6cbc0d7ad12014c35e65e849678cf5ba0622e",
+      "fixed/round/mldsa_profile": "f146c7c67246492ed5b82fb35cf0845a9fc95ed6d5c50c2f08219f61abedf8a9",
+      "fixed/shuffle/kernel.elf": "6b229737848ae401df3073a8e96b1369d05548abf907cc606827f819fe17198b",
+      "fixed/shuffle/kernel.vxbin": "7673156527d30fd52c5df70ebcca3476da9ef4b7e3a08ea9930d9843ba4032a1",
+      "fixed/shuffle/mldsa_profile": "557c77bbfffe1e68a980452a795b73672d782a45a05f74d561ab81fdf0bf1dea",
+      "fixed/stage/kernel.elf": "1a8e71e6c07d852e6767feedda47f16f2fc10c2b882cfe5f76379e3263422045",
+      "fixed/stage/kernel.vxbin": "c2ea8386e6a587f7d108555cf15aa67e7b6874e6d3eb5994eff1b597621c2fe5",
+      "fixed/stage/mldsa_profile": "650ca560c79f6399f1e8112e9a2e3dd98bcacc715e9fd9888f7853b7b6b6912b",
+      "fixed/stage_low/kernel.elf": "21902e01df3de5dd8c87201d42253477400c0ea9e494531e8da87dfc4ff06c8e",
+      "fixed/stage_low/kernel.vxbin": "9d6bcb9f2af4538d5d9ae9dc4664012e5636df9646321874f08c36ac69a03756",
+      "fixed/stage_low/mldsa_profile": "bc5b15096aa6af76ca81a4966adfcaf1e0f0f7619e463990519b0a4b54fd0f3c"
+    },
+    "patch_sha256": "ece2334da0dcc6278ff83955f4c6e9ef705b6adb5cc4b7cb5c9d9d9e5f63f815",
+    "expected_xrt_runs": [
+      "fixed_c_xrt_m1_s0.log",
+      "fixed_shuffle_xrt_m1_s0.log",
+      "fixed_stage_xrt_m1_s0.log",
+      "fixed_round_xrt_m1_s0.log",
+      "fixed_pointer_xrt_m1_s0.log",
+      "fixed_stage_xrt_m2_s1.log",
+      "fixed_round_xrt_m2_s1.log"
+    ],
+    "xrt_processes": {
+      "fixed_stage_xrt_m1_s0.log": 820021,
+      "fixed_round_xrt_m1_s0.log": 820964,
+      "fixed_c_xrt_m1_s0.log": 823293,
+      "fixed_pointer_xrt_m1_s0.log": 824139,
+      "fixed_shuffle_xrt_m1_s0.log": 825471,
+      "fixed_stage_xrt_m2_s1.log": 826409,
+      "fixed_round_xrt_m2_s1.log": 826484
+    },
+    "other_checks": {
+      "allocator_full": "allocator_check/full.log",
+      "allocator_low": "allocator_check/low.log",
+      "lane_baseline": "lane_baseline_simx_m2.log",
+      "ci_catalog": "750 cases linted; 4 new cases collected, not a full CI execution",
+      "memory_instrumentation": "host allocator harness used ASan and UBSan; mock hart ID only",
+      "papers_modified": false
+    }
+  }
+}

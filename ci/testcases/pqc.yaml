@@ -1,4 +1,4 @@
-# Test cases for pointer/collective Keccak and ML-KEM NTT arithmetic.
+# Test cases for Keccak collectives, ML-KEM arithmetic and ML-DSA integration.
 #
 # The vehicle is tests/pqc/keccak_pe, and it is deliberately NOT keccak_sg5.
 # sg5 has no warp axis -- its -t is lanes inside one warp -- so its twenty
@@ -581,6 +581,60 @@ tests:
   env: {KECCAK: pe, NTT: reg32, NTTBF: ise, NTTMUL: ise, ARITH: "basemul reduce"}
   args: -b 8 -t 32
 
+- id: mldsa_profile_sg25
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: sg25, UNROLL: "1", MLDSA_RAM: full}
+  args: -b 2 -s 1
+- id: mldsa_profile_kround
+  via: blackbox
+  tier: full
+  drivers: [simx, xrt]
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: kround, MLDSA_RAM: full}
+  args: -b 2 -s 1
+
+- id: model_parity-mldsa_profile_ntt_d
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise}
+  args: -b 1 -s 0
+- id: mldsa_profile_ntt_d_xrt
+  via: blackbox
+  tier: full
+  drivers: [xrt]
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise}
+  flags: --target=xrtsim
+  args: -b 1 -s 0
+
+- id: model_parity-mldsa_pointwise_d
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise, POINTWISE: ise, POINTWISE_L5: w32}
+  args: -b 1 -s 0
+
+- id: mldsa_pointwise_d_xrt
+  via: blackbox
+  tier: full
+  drivers: [xrt]
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise, POINTWISE: ise, POINTWISE_L5: w32}
+  flags: --target=xrtsim
+  args: -b 1 -s 0
+
 - id: keccak-unit
   via: script
   run: make -C hw/unittest/pqc_unit run
@@ -588,6 +642,10 @@ tests:
   via: script
   xlen: [32, 64]
   run: make -C hw/unittest/pqc_unit run-nttmul ALU_LANES=32 THREADS=4
+- id: nttmul-d-unit-w32
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul-d ALU_LANES=32 THREADS=4
 - id: agu-unit-4lane
   via: script
   run: make -C hw/unittest/pqc_unit run-agu MEM_LANES=4

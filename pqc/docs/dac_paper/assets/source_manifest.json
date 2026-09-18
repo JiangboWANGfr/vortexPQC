@@ -1,11 +1,11 @@
 {
-  "repository_source_commit": "084f79465",
   "mlkem_native_commit": "1d7b486c4db3bbc620b009d05e4f69eca9e68d22",
   "measurements": {
     "keccak_ntt_unified_xrt.csv": "80f8d20ec766e973f1839f578717cf64cafa28d0044d7ba2eeba21ed86e3f36b",
     "keccak_sg25_stages.csv": "604bb4c940d45af626a83496ca1823f3a17403532144b4df440105524f9791c8",
     "keccak_w32_controls.csv": "be14fac9a3aff9ce3f6b8340bab6499898c21762ba1c91d9e649f4448673e935",
     "keccak_w32_matched_xrt.csv": "3be971f54f40a6d4aa610be6e5042c3b9235a2fdc64875c86fbeabe0cb1a2629",
+    "mldsa_pointwise.csv": "badfb5b70048ff3c0b5e846a6efb16f72a17549c36b01cc4275e15dc1c164252",
     "mlkem_phase_profile.csv": "41ac1ed9e9545331b8775f9678368f3821fac67adac034e3f611ff891736f8c5",
     "mlkem_w32_controls.csv": "4c8a25183473f97537d00caae1ff75b43937a7ac4f094e23930cb70436f49fd0",
     "ntt_halfbank_validation.csv": "be196290100c73f0887a29d5d3a92872d79765b7a36f1be8b7d446cb406f5396",
@@ -14,7 +14,9 @@
     "nttbf_sg2_validation.csv": "2a9c276570dbf9e4dadfab91db3a94d596179da4b4241cb55ae937ca1f2dfb51",
     "rv32im_rv64im_keccak.csv": "5469912e2a376535c7cdf74b25b45a8b0a82aefda1444cf00e13abb90a01c1b1",
     "rv32im_rv64im_keccak_ppa.csv": "69c995bcaba60339680cdec487ea59c5859789fae80df34a76ae9e165d407d73",
-    "rv32im_rv64im_keccak_xrt_m8.csv": "e4ba6fd5a3a1c538bf1c0edca06d105c4f9662a78713723afdc297adeb697489"
+    "rv32im_rv64im_keccak_xrt_m8.csv": "e4ba6fd5a3a1c538bf1c0edca06d105c4f9662a78713723afdc297adeb697489",
+    "shared_ntt_ppa.csv": "fe969b97b5932cf402fb57d36a2c37adbd6ed21bc261dfd0934640eabc147f1d",
+    "shared_ntt_xrt.csv": "6c2aa455fed4594cdec9176431ddc6766a49fe66037211ea9993dd8f759727d1"
   },
   "derived_numbers": {
     "StageVsShuffleOne": 1.4620092384729826,
@@ -29,10 +31,23 @@
     "RoundLutPct": 0.8983933016519563,
     "StageFfPct": 1.3004749692711481,
     "RoundFfPct": 4.755003869557961,
+    "SharedLutPct": 4.430414120841819,
+    "SharedFfPct": 4.138150806537277,
+    "SharedStageLutPct": 2.231092273087776,
+    "SharedStageFfPct": 1.6218342902106997,
     "AllStageOne": 9.407682926829269,
     "AllStageEight": 12.90881360332295,
     "FusionOne": 3.1679654492535914,
     "FusionEight": 3.2912096118422145,
+    "StagePermPct": 4.964476822988897,
+    "StageSpongePct": 11.661453931195343,
+    "RoundPermPct": 1.266042098218752,
+    "RoundSpongePct": 12.902430741832148,
+    "DsaPointwiseXrtSaved": 12.5379001394065,
+    "DsaPointwiseEightSaved": 12.202074911410454,
+    "KemNttSaved": 4.912886949873618,
+    "DsaNttSaved": 5.939065248857977,
+    "SharedParityMax": 0.878635364724045,
     "FusionKemOne": 1.0276079042411477,
     "FusionKemEight": 1.0333872428120392
   }

@@ -755,6 +755,18 @@ module VX_decode import
                                 `USED_IREG (rs1);
                                 `USED_IREG (rs2);
                             end
+                            3'h3: begin // NTTMUL.D -- signed 32-bit Montgomery multiply
+                                ex_type = EX_ALU;
+                                op_type = INST_OP_BITS'(INST_ALU_NTTMUL_K);
+                                op_args.alu.xtype   = ALU_TYPE_ARITH;
+                                op_args.alu.is_w    = 0;
+                                op_args.alu.use_PC  = 0;
+                                op_args.alu.use_imm = 0;
+                                op_args.alu.imm20   = 20'h10;
+                                `USED_IREG (rd);
+                                `USED_IREG (rs1);
+                                `USED_IREG (rs2);
+                            end
                         `endif
                             default:;
                         endcase
@@ -769,6 +781,20 @@ module VX_decode import
                             op_args.alu.use_PC  = 0;
                             op_args.alu.use_imm = 0;
                             op_args.alu.imm20   = {16'b0, funct7[0], funct3};
+                            `USED_IREG (rd);
+                            `USED_IREG (rs1);
+                            `USED_IREG (rs2);
+                        end
+                    end
+                    7'h0a, 7'h0b: begin // NTTBF.{CT,GS}.D.XORs
+                        if ((funct3 <= 3'h4) && (`VX_CFG_NUM_ALU_LANES == 32)) begin
+                            ex_type = EX_ALU;
+                            op_type = INST_OP_BITS'(INST_ALU_NTTBF_K);
+                            op_args.alu.xtype   = ALU_TYPE_ARITH;
+                            op_args.alu.is_w    = 0;
+                            op_args.alu.use_PC  = 0;
+                            op_args.alu.use_imm = 0;
+                            op_args.alu.imm20   = {15'b0, 1'b1, funct7[0], funct3};
                             `USED_IREG (rd);
                             `USED_IREG (rs1);
                             `USED_IREG (rs2);

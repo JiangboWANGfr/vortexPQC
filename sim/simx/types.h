@@ -706,7 +706,10 @@ inline std::ostream &operator<<(std::ostream &os, const PqcType& type) {
 enum class NttType {
   MUL_K,
   BF_CT_K,
-  BF_GS_K
+  BF_GS_K,
+  MUL_D,
+  BF_CT_D,
+  BF_GS_D
 };
 
 struct IntrNttArgs {
@@ -718,6 +721,9 @@ inline std::ostream &operator<<(std::ostream &os, const NttType& type) {
   case NttType::MUL_K:   os << "NTTMUL.K"; break;
   case NttType::BF_CT_K: os << "NTTBF.CT.K"; break;
   case NttType::BF_GS_K: os << "NTTBF.GS.K"; break;
+  case NttType::MUL_D:   os << "NTTMUL.D"; break;
+  case NttType::BF_CT_D: os << "NTTBF.CT.D"; break;
+  case NttType::BF_GS_D: os << "NTTBF.GS.D"; break;
   default: os << "?"; break;
   }
   return os;

@@ -46,7 +46,7 @@
 #define MLD_CUSTOM_ALLOC(v, T, N) \
   T *v = (T *)mld_arena_alloc((uint32_t)(sizeof(T) * (N)))
 #define MLD_CUSTOM_FREE(v, T, N) \
-  do { (void)(v); } while (0)
+  mld_arena_free((void *)(v), (uint32_t)(sizeof(T) * (N)))
 #endif
 
 // SIMT_KECCAK=1 spreads the library's x4 Keccak batch across the lanes of a

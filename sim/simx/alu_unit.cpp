@@ -42,6 +42,19 @@ int32_t signed16(uint32_t value) {
 	return result < 0x8000 ? result : result - 0x10000;
 }
 
+int64_t signed32(uint32_t value) {
+  return value < 0x80000000u ? value : int64_t(value) - (int64_t(1) << 32);
+}
+
+int32_t montgomery_reduce_d(int32_t a, int32_t b) {
+  constexpr uint32_t kQInv = 58728449;
+  constexpr int64_t kModulus = 8380417;
+  int64_t product = int64_t(a) * b;
+  uint32_t inverted = uint32_t(uint64_t(product) * kQInv);
+  int64_t difference = product - signed32(inverted) * kModulus;
+  return int32_t(difference >> 32);
+}
+
 int32_t montgomery_reduce_k(int32_t a, int32_t b) {
 	constexpr uint32_t kQInv = 62209;
 	constexpr int32_t kModulus = 3329;
@@ -65,7 +78,8 @@ int32_t barrett_reduce_k(int32_t value) {
 bool ntt_uses_two_beats(const instr_trace_t* trace) {
 	auto ntt_type = std::get_if<NttType>(&trace->op_type);
 	return VX_CFG_NUM_ALU_LANES > 1 && ntt_type
-		&& *ntt_type != NttType::BF_CT_K;
+		&& (*ntt_type == NttType::MUL_K || *ntt_type == NttType::BF_GS_K
+		 || *ntt_type == NttType::MUL_D);
 }
 
 }
@@ -172,7 +186,7 @@ uint32_t AluUnit::latency_of(const instr_trace_t* trace) const {
 		}
 #ifdef VX_CFG_EXT_NTT_ENABLE
 	} else if (std::get_if<NttType>(&trace->op_type)) {
-		return ntt_uses_two_beats(trace) ? 7 : 6;
+		return ntt_uses_two_beats(trace) ? 8 : 7;
 #endif
 	}
 	std::abort();
@@ -828,6 +842,13 @@ void AluUnit::execute(instr_trace_t* trace) {
 				rd_data[t].i = static_cast<WordI>(montgomery_reduce_k(a, b));
 			}
 		} break;
+		case NttType::MUL_D: {
+			for (uint32_t t = thread_start; t < num_threads; ++t) {
+				if (!tmask.test(t)) continue;
+				rd_data[t].i = static_cast<WordI>(montgomery_reduce_d(
+				    int32_t(rs1_data[t].u), int32_t(rs2_data[t].u)));
+			}
+		} break;
 		case NttType::BF_CT_K:
 		case NttType::BF_GS_K: {
 			auto nttArgs = std::get<IntrNttArgs>(instrArgs);
@@ -859,6 +880,37 @@ void AluUnit::execute(instr_trace_t* trace) {
 						rd_data[low_lane].i = static_cast<WordI>(barrett_reduce_k(sum));
 						rd_data[high_lane].i =
 							static_cast<WordI>(montgomery_reduce_k(difference, zeta));
+					}
+				}
+			}
+		} break;
+		case NttType::BF_CT_D:
+		case NttType::BF_GS_D: {
+			auto nttArgs = std::get<IntrNttArgs>(instrArgs);
+			const uint32_t lanes = VX_CFG_NUM_ALU_LANES;
+			const uint32_t distance = 1u << nttArgs.stage;
+			if (lanes != 32 || distance >= lanes || (num_threads % lanes) != 0)
+				std::abort();
+			for (uint32_t base = 0; base < num_threads; base += lanes) {
+				for (uint32_t lo = 0; lo < lanes; ++lo) {
+					if (lo & distance) continue;
+					uint32_t low_lane = base + lo;
+					uint32_t high_lane = low_lane + distance;
+					bool low_active = tmask.test(low_lane);
+					bool high_active = tmask.test(high_lane);
+					if (low_active != high_active) std::abort();
+					if (!low_active) continue;
+					int32_t a = int32_t(rs1_data[low_lane].u);
+					int32_t b = int32_t(rs1_data[high_lane].u);
+					int32_t zeta = int32_t(rs2_data[low_lane].u);
+					if (ntt_type == NttType::BF_CT_D) {
+						int32_t product = montgomery_reduce_d(b, zeta);
+						rd_data[low_lane].i = static_cast<WordI>(a + product);
+						rd_data[high_lane].i = static_cast<WordI>(a - product);
+					} else {
+						rd_data[low_lane].i = static_cast<WordI>(a + b);
+						rd_data[high_lane].i = static_cast<WordI>(
+						    montgomery_reduce_d(a - b, zeta));
 					}
 				}
 			}

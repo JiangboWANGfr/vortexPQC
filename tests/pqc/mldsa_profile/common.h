@@ -18,9 +18,14 @@
 #define MLDSA_CY_KEYPAIR 0
 #define MLDSA_CY_SIGN    1
 #define MLDSA_CY_VERIFY  2
-#define MLDSA_CY_COUNT   3
+#define MLDSA_CY_START   3
+#define MLDSA_CY_END     4
+#define MLDSA_CY_COUNT   5
+
+#define MLDSA_POINTWISE_CY_COUNT (MLDSA_ST_COUNT * 2)
 
 typedef struct {
+  // Buffer dimensions below are per request.
   uint64_t seed_addr;     // in  : MLDSA_SEEDBYTES
   uint64_t rnd_addr;      // in  : MLDSA_RNDBYTES
   uint64_t msg_addr;      // in  : MLDSA_MSG_BYTES
@@ -29,8 +34,10 @@ typedef struct {
   uint64_t sig_addr;      // out : MLDSA_SIG_BYTES
   uint64_t status_addr;   // out : MLDSA_ST_COUNT * int32_t
   uint64_t cycles_addr;   // out : MLDSA_CY_COUNT * uint64_t
-  uint64_t arena_addr;    // out : 2 * uint32_t -- peak bytes, failure count
-  uint64_t counts_addr;   // out : MLD_PROF_COUNT * uint32_t
+  uint64_t arena_addr;    // out : 4 * uint32_t -- arena peak/fail, stack peak/span
+  uint64_t counts_addr;   // out : MLD_PROF_COUNT * uint32_t per request
+  uint64_t pointwise_cycles_addr; // out : MLDSA_POINTWISE_CY_COUNT * uint64_t
+  uint32_t requests;
 } kernel_arg_t;
 
 #endif

@@ -423,10 +423,17 @@ static op_string_t op_string(const Instr &instr) {
     ,[&](NttType ntt_type)-> op_string_t {
       switch (ntt_type) {
       case NttType::MUL_K: return {"NTTMUL.K", ""};
+      case NttType::MUL_D: return {"NTTMUL.D", ""};
       case NttType::BF_CT_K:
       case NttType::BF_GS_K: {
         auto nttArgs = std::get<IntrNttArgs>(instrArgs);
         return {(ntt_type == NttType::BF_CT_K ? "NTTBF.CT.K.XOR" : "NTTBF.GS.K.XOR")
+                + std::to_string(1u << nttArgs.stage), ""};
+      }
+      case NttType::BF_CT_D:
+      case NttType::BF_GS_D: {
+        auto nttArgs = std::get<IntrNttArgs>(instrArgs);
+        return {(ntt_type == NttType::BF_CT_D ? "NTTBF.CT.D.XOR" : "NTTBF.GS.D.XOR")
                 + std::to_string(1u << nttArgs.stage), ""};
       }
       default: std::abort();
@@ -973,6 +980,13 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
         instr->set_src_reg(0, rs1, RegType::Integer);
         instr->set_src_reg(1, rs2, RegType::Integer);
       } break;
+      case 3: { // NTTMUL.D
+        instr->set_fu_type(FUType::ALU);
+        instr->set_op_type(NttType::MUL_D);
+        instr->set_dest_reg(rd, RegType::Integer);
+        instr->set_src_reg(0, rs1, RegType::Integer);
+        instr->set_src_reg(1, rs2, RegType::Integer);
+      } break;
 #endif
       default: std::abort();
       }
@@ -984,6 +998,17 @@ Instr::Ptr Decoder::decode(uint32_t code, uint64_t uuid) {
         std::abort();
       instr->set_fu_type(FUType::ALU);
       instr->set_op_type(funct7 == 8 ? NttType::BF_CT_K : NttType::BF_GS_K);
+      instr->set_args(IntrNttArgs{funct3});
+      instr->set_dest_reg(rd, RegType::Integer);
+      instr->set_src_reg(0, rs1, RegType::Integer);
+      instr->set_src_reg(1, rs2, RegType::Integer);
+    } break;
+    case 10:
+    case 11: { // NTTBF.{CT,GS}.D
+      if (funct3 > 4 || VX_CFG_NUM_ALU_LANES != 32)
+        std::abort();
+      instr->set_fu_type(FUType::ALU);
+      instr->set_op_type(funct7 == 10 ? NttType::BF_CT_D : NttType::BF_GS_D);
       instr->set_args(IntrNttArgs{funct3});
       instr->set_dest_reg(rd, RegType::Integer);
       instr->set_src_reg(0, rs1, RegType::Integer);

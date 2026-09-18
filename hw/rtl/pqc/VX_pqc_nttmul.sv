@@ -18,9 +18,8 @@ module VX_pqc_nttmul import VX_gpu_pkg::*; #(
     parameter `STRING INSTANCE_ID = "",
     parameter NUM_LANES = 1
 ) (
-    input wire          clk,
-    input wire          reset,
-
+    input wire clk,
+    input wire reset,
     VX_execute_if.slave execute_if,
     VX_result_if.master result_if
 );
@@ -29,115 +28,105 @@ module VX_pqc_nttmul import VX_gpu_pkg::*; #(
 
     localparam TAG_WIDTH = $bits(alu_header_t);
     localparam LANE_BITS = `UP(`CLOG2(NUM_LANES));
-
-    function automatic logic signed [15:0] montgomery_factor(
-        input logic signed [15:0] product
-    );
-        logic [15:0] product_low;
-        begin
-            product_low = product[15:0];
-            montgomery_factor = product_low - (product_low << 8)
-                                              - (product_low << 10)
-                                              - (product_low << 11);
-        end
-    endfunction
-
-    function automatic logic signed [15:0] montgomery_finish(
-        input logic signed [31:0] product,
-        input logic signed [15:0] mont_factor
-    );
-        logic signed [31:0] mont_factor_ext;
-        logic signed [31:0] factor_q;
-        begin
-            mont_factor_ext = {{16{mont_factor[15]}}, mont_factor};
-            factor_q = mont_factor_ext
-                     + (mont_factor_ext <<< 8)
-                     + (mont_factor_ext <<< 10)
-                     + (mont_factor_ext <<< 11);
-            montgomery_finish = 16'($signed(product - factor_q) >>> 16);
-        end
-    endfunction
-
-    function automatic logic signed [15:0] barrett_quotient(
-        input logic signed [31:0] constant_product
-    );
-        logic signed [31:0] rounded;
-        logic signed [15:0] quotient;
-        begin
-            rounded = constant_product + 32'sd33554432;
-            quotient = 16'(rounded >>> 26);
-            barrett_quotient = quotient;
-        end
-    endfunction
-
-    function automatic logic signed [15:0] barrett_finish(
-        input logic signed [15:0] value,
-        input logic signed [15:0] quotient
-    );
-        logic signed [31:0] quotient_ext;
-        logic signed [31:0] quotient_q;
-        begin
-            quotient_ext = {{16{quotient[15]}}, quotient};
-            quotient_q = quotient_ext
-                       + (quotient_ext <<< 8)
-                       + (quotient_ext <<< 10)
-                       + (quotient_ext <<< 11);
-            barrett_finish = 16'({{16{value[15]}}, value}
-                               - quotient_q);
-        end
-    endfunction
-
     localparam NUM_MULTIPLIERS = (NUM_LANES + 1) / 2;
-    localparam BEAT_WIDTH = TAG_WIDTH + 1 + 1 + 3 + 1 + 16 * NUM_MULTIPLIERS;
+    localparam BEAT_WIDTH = TAG_WIDTH + 1 + 1 + 1 + 3 + 1 + 32 * NUM_MULTIPLIERS;
+
+    function automatic logic [31:0] sign16(input logic [15:0] value);
+        return {{16{value[15]}}, value};
+    endfunction
+
+    function automatic logic [15:0] k_mont_factor(input logic [15:0] value);
+        return value - (value << 8) - (value << 10) - (value << 11);
+    endfunction
+
+    function automatic logic [15:0] k_mont_finish(
+        input logic [31:0] product, input logic [15:0] factor
+    );
+        logic signed [31:0] f;
+        logic signed [31:0] fq;
+        begin
+            f = $signed(sign16(factor));
+            fq = f + (f <<< 8) + (f <<< 10) + (f <<< 11);
+            return 16'($signed(product - fq) >>> 16);
+        end
+    endfunction
+
+    function automatic logic [15:0] k_barrett_quotient(input logic [31:0] product);
+        return 16'(($signed(product) + 32'sd33554432) >>> 26);
+    endfunction
+
+    function automatic logic [15:0] k_barrett_finish(
+        input logic [15:0] value, input logic [15:0] quotient
+    );
+        logic signed [31:0] q;
+        logic signed [31:0] qq;
+        begin
+            q = $signed(sign16(quotient));
+            qq = q + (q <<< 8) + (q <<< 10) + (q <<< 11);
+            return 16'($signed(sign16(value)) - qq);
+        end
+    endfunction
 
     wire valid_out;
     alu_header_t header_out;
     wire [NUM_LANES-1:0][`VX_CFG_XLEN-1:0] data_out;
     wire advance = result_if.ready || ~valid_out;
-
     wire is_butterfly_in = execute_if.data.op_type == INST_ALU_NTTBF_K;
+    wire is_d_in = execute_if.data.op_args.alu.imm20[4];
     wire is_gs_in = execute_if.data.op_args.alu.imm20[3];
     wire [2:0] stage_in = execute_if.data.op_args.alu.imm20[2:0];
-    wire two_beats = (NUM_LANES > 1) && (!is_butterfly_in || is_gs_in);
-    wire [NUM_MULTIPLIERS-1:0][15:0] first_a, first_b, first_coefficients;
-    wire [NUM_MULTIPLIERS-1:0][15:0] second_a, second_b, second_coefficients;
+    wire two_beats = (NUM_LANES > 1)
+                   && (!is_butterfly_in || (!is_d_in && is_gs_in));
 
+    wire [NUM_MULTIPLIERS-1:0][31:0] first_a, first_b, first_coefficients;
+    wire [NUM_MULTIPLIERS-1:0][31:0] second_a, second_b, second_coefficients;
     for (genvar i = 0; i < NUM_MULTIPLIERS; ++i) begin : g_operands
-        wire [4:0][15:0] pair_a, pair_b, pair_zeta;
+        wire [4:0][31:0] pair_a, pair_b, pair_zeta;
         for (genvar s = 0; s < 5; ++s) begin : g_stage
             localparam LO = (i & ((1 << s) - 1)) | ((i >> s) << (s + 1));
             localparam HI = LO | (1 << s);
             if (HI < NUM_LANES) begin : g_pair
-                assign pair_a[s] = execute_if.data.rs1_data[LO][15:0];
-                assign pair_b[s] = execute_if.data.rs1_data[HI][15:0];
-                assign pair_zeta[s] = execute_if.data.rs2_data[LO][15:0];
+                assign pair_a[s] = execute_if.data.rs1_data[LO][31:0];
+                assign pair_b[s] = execute_if.data.rs1_data[HI][31:0];
+                assign pair_zeta[s] = execute_if.data.rs2_data[LO][31:0];
             end else begin : g_unused
                 assign pair_a[s] = '0;
                 assign pair_b[s] = '0;
                 assign pair_zeta[s] = '0;
             end
         end
-        wire [15:0] a = pair_a[stage_in];
-        wire [15:0] b = pair_b[stage_in];
-        assign first_a[i] = is_butterfly_in
-            ? (is_gs_in ? b - a : b) : execute_if.data.rs1_data[i][15:0];
-        assign first_b[i] = is_butterfly_in
-            ? pair_zeta[stage_in] : execute_if.data.rs2_data[i][15:0];
-        assign first_coefficients[i] = a;
+        wire [31:0] a = pair_a[stage_in];
+        wire [31:0] b = pair_b[stage_in];
+        assign first_a[i] = is_d_in
+            ? (is_butterfly_in ? (is_gs_in ? a - b : b)
+                               : execute_if.data.rs1_data[i][31:0])
+            : (is_butterfly_in ? sign16(is_gs_in ? b[15:0] - a[15:0]
+                                                : b[15:0])
+                               : sign16(execute_if.data.rs1_data[i][15:0]));
+        assign first_b[i] = is_d_in
+            ? (is_butterfly_in ? pair_zeta[stage_in]
+                               : execute_if.data.rs2_data[i][31:0])
+            : (is_butterfly_in ? sign16(pair_zeta[stage_in][15:0])
+                               : sign16(execute_if.data.rs2_data[i][15:0]));
+        assign first_coefficients[i] = is_d_in
+            ? (is_gs_in ? a + b : a) : sign16(a[15:0]);
+        assign second_coefficients[i] = sign16(a[15:0] + b[15:0]);
         if (i + NUM_MULTIPLIERS < NUM_LANES) begin : g_second
             assign second_a[i] = is_butterfly_in
-                ? a + b : execute_if.data.rs1_data[i + NUM_MULTIPLIERS][15:0];
-            assign second_b[i] = is_butterfly_in
-                ? 16'd20159 : execute_if.data.rs2_data[i + NUM_MULTIPLIERS][15:0];
+                ? second_coefficients[i]
+                : (is_d_in ? execute_if.data.rs1_data[i + NUM_MULTIPLIERS][31:0]
+                           : sign16(execute_if.data.rs1_data[i + NUM_MULTIPLIERS][15:0]));
+            assign second_b[i] = is_butterfly_in ? 32'd20159
+                : (is_d_in ? execute_if.data.rs2_data[i + NUM_MULTIPLIERS][31:0]
+                           : sign16(execute_if.data.rs2_data[i + NUM_MULTIPLIERS][15:0]));
         end else begin : g_single
             assign second_a[i] = '0;
             assign second_b[i] = '0;
         end
-        assign second_coefficients[i] = a + b;
     end
 
     reg pending_second;
-    reg [NUM_MULTIPLIERS-1:0][15:0] saved_a, saved_b;
+    reg [NUM_MULTIPLIERS-1:0][31:0] saved_a, saved_b;
     reg [BEAT_WIDTH-1:0] saved_tag;
     always @(posedge clk) begin
         if (reset) begin
@@ -152,34 +141,48 @@ module VX_pqc_nttmul import VX_gpu_pkg::*; #(
         if (advance && execute_if.valid && !pending_second && two_beats) begin
             saved_a <= second_a;
             saved_b <= second_b;
-            saved_tag <= {execute_if.data.header, is_butterfly_in, is_gs_in,
-                          stage_in, 1'b1, second_coefficients};
+            saved_tag <= {execute_if.data.header, is_d_in, is_butterfly_in,
+                          is_gs_in, stage_in, 1'b1, second_coefficients};
         end
     end
 
-    wire [NUM_MULTIPLIERS-1:0][15:0] factor_a = pending_second ? saved_a : first_a;
-    wire [NUM_MULTIPLIERS-1:0][15:0] factor_b = pending_second ? saved_b : first_b;
+    wire [NUM_MULTIPLIERS-1:0][31:0] factor_a = pending_second ? saved_a : first_a;
+    wire [NUM_MULTIPLIERS-1:0][31:0] factor_b = pending_second ? saved_b : first_b;
     wire [BEAT_WIDTH-1:0] tag_in = pending_second ? saved_tag
-        : {execute_if.data.header, is_butterfly_in, is_gs_in,
+        : {execute_if.data.header, is_d_in, is_butterfly_in, is_gs_in,
            stage_in, !two_beats, first_coefficients};
+
+    wire valid_operands;
+    wire [BEAT_WIDTH-1:0] tag_operands;
+    wire [NUM_MULTIPLIERS-1:0][31:0] operand_a, operand_b;
+    VX_shift_register #(
+        .DATAW (1 + BEAT_WIDTH + 64 * NUM_MULTIPLIERS),
+        .DEPTH (1), .RESETW (1)
+    ) operand_pipe (
+        .clk (clk), .reset (reset), .enable (advance),
+        .data_in ({pending_second || execute_if.valid, tag_in, factor_a, factor_b}),
+        .data_out ({valid_operands, tag_operands, operand_a, operand_b})
+    );
+
     wire valid_mul;
     alu_header_t header_mul;
-    wire is_butterfly_mul, is_gs_mul, last_mul;
+    wire is_d_mul, is_butterfly_mul, is_gs_mul, last_mul;
     wire [2:0] stage_mul;
-    wire [NUM_MULTIPLIERS-1:0][15:0] coefficients_mul;
+    wire [NUM_MULTIPLIERS-1:0][31:0] coefficients_mul;
     VX_shift_register #(
-        .DATAW  (1 + BEAT_WIDTH),
-        .DEPTH  (`LATENCY_IMUL),
+        .DATAW (1 + BEAT_WIDTH),
+        .DEPTH (`LATENCY_IMUL - 1),
         .RESETW (1)
     ) tag_pipe (
-        .clk      (clk),
-        .reset    (reset),
-        .enable   (advance),
-        .data_in  ({pending_second || execute_if.valid, tag_in}),
-        .data_out ({valid_mul, header_mul, is_butterfly_mul, is_gs_mul,
+        .clk (clk), .reset (reset), .enable (advance),
+        .data_in ({valid_operands, tag_operands}),
+        .data_out ({valid_mul, header_mul, is_d_mul, is_butterfly_mul, is_gs_mul,
                     stage_mul, last_mul, coefficients_mul})
     );
 
+    wire probe_request_valid = execute_if.valid;
+    wire probe_request_ready = execute_if.ready;
+    wire [NUM_LANES-1:0] probe_request_mask = execute_if.data.header.tmask;
 `ifdef SIMULATION
     wire [LANE_BITS-1:0] distance_in = LANE_BITS'(1) << stage_in;
     reg pair_mask_valid;
@@ -199,81 +202,99 @@ module VX_pqc_nttmul import VX_gpu_pkg::*; #(
          NUM_LANES, stage_in, execute_if.data.header.tmask))
 `endif
 
-    wire [NUM_MULTIPLIERS-1:0][31:0] product_out;
-    wire [NUM_MULTIPLIERS-1:0][15:0] mont_factor_mul, barrett_quotient_mul;
+    wire [NUM_MULTIPLIERS-1:0][63:0] product_out;
     for (genvar i = 0; i < NUM_MULTIPLIERS; ++i) begin : g_multiplier
         VX_multiplier #(
-            .A_WIDTH (16),
-            .B_WIDTH (16),
-            .R_WIDTH (32),
-            .SIGNED  (1),
-            .LATENCY (`LATENCY_IMUL)
+            .A_WIDTH (32), .B_WIDTH (32), .R_WIDTH (64),
+            .SIGNED (1), .LATENCY (`LATENCY_IMUL - 1)
         ) multiplier (
-            .clk    (clk),
-            .enable (advance),
-            .dataa  (factor_a[i]),
-            .datab  (factor_b[i]),
+            .clk (clk), .enable (advance),
+            .dataa (operand_a[i]), .datab (operand_b[i]),
             .result (product_out[i])
         );
-        assign mont_factor_mul[i] = montgomery_factor($signed(product_out[i][15:0]));
-        assign barrett_quotient_mul[i] = barrett_quotient($signed(product_out[i]));
     end
+
+    wire valid_factor;
+    alu_header_t header_factor;
+    wire is_d_factor, is_butterfly_factor, is_gs_factor, last_factor;
+    wire [2:0] stage_factor;
+    wire [NUM_MULTIPLIERS-1:0][31:0] coefficients_factor, mont_factor;
+    wire [NUM_MULTIPLIERS-1:0][31:0] k_factor;
+    wire [NUM_MULTIPLIERS-1:0][63:0] product_factor;
+    wire [NUM_MULTIPLIERS-1:0][31:0] mont_factor_in;
+    wire [NUM_MULTIPLIERS-1:0][31:0] k_factor_in;
+    for (genvar i = 0; i < NUM_MULTIPLIERS; ++i) begin : g_factor
+        assign mont_factor_in[i] = product_out[i][31:0] * 32'd58728449;
+        assign k_factor_in[i] = {k_barrett_quotient(product_out[i][31:0]),
+                                 k_mont_factor(product_out[i][15:0])};
+    end
+    VX_shift_register #(
+        .DATAW (1 + BEAT_WIDTH + 128 * NUM_MULTIPLIERS),
+        .DEPTH (1), .RESETW (1)
+    ) factor_pipe (
+        .clk (clk), .reset (reset), .enable (advance),
+        .data_in ({valid_mul, header_mul, is_d_mul, is_butterfly_mul, is_gs_mul,
+                   stage_mul, last_mul, coefficients_mul, product_out,
+                   mont_factor_in, k_factor_in}),
+        .data_out ({valid_factor, header_factor, is_d_factor,
+                    is_butterfly_factor, is_gs_factor, stage_factor, last_factor,
+                    coefficients_factor, product_factor, mont_factor, k_factor})
+    );
 
     wire valid_reduce;
     alu_header_t header_reduce;
-    wire is_butterfly_reduce, is_gs_reduce, last_reduce;
+    wire is_d_reduce, is_butterfly_reduce, is_gs_reduce, last_reduce;
     wire [2:0] stage_reduce;
-    wire [NUM_MULTIPLIERS-1:0][15:0] coefficients_reduce;
-    wire [NUM_MULTIPLIERS-1:0][31:0] product_reduce;
-    wire [NUM_MULTIPLIERS-1:0][15:0] mont_factor_reduce, barrett_quotient_reduce;
+    wire [NUM_MULTIPLIERS-1:0][31:0] coefficients_reduce, montgomery;
+    wire [NUM_MULTIPLIERS-1:0][31:0] montgomery_in, barrett_in, barrett_reduce;
+    for (genvar i = 0; i < NUM_MULTIPLIERS; ++i) begin : g_reduce
+        wire signed [63:0] tq = $signed(mont_factor[i]) * 64'sd8380417;
+        wire signed [63:0] difference = $signed(product_factor[i]) - tq;
+        assign montgomery_in[i] = is_d_factor ? difference[63:32]
+            : sign16(k_mont_finish(product_factor[i][31:0], k_factor[i][15:0]));
+        assign barrett_in[i] = sign16(k_barrett_finish(
+            coefficients_factor[i][15:0], k_factor[i][31:16]));
+    end
     VX_shift_register #(
-        .DATAW  (1 + BEAT_WIDTH + 64 * NUM_MULTIPLIERS),
-        .DEPTH  (1),
-        .RESETW (1)
+        .DATAW (1 + BEAT_WIDTH + 64 * NUM_MULTIPLIERS),
+        .DEPTH (1), .RESETW (1)
     ) reduction_pipe (
-        .clk      (clk),
-        .reset    (reset),
-        .enable   (advance),
-        .data_in  ({valid_mul, header_mul, is_butterfly_mul, is_gs_mul,
-                    stage_mul, last_mul, coefficients_mul, product_out,
-                    mont_factor_mul, barrett_quotient_mul}),
-        .data_out ({valid_reduce, header_reduce, is_butterfly_reduce, is_gs_reduce,
-                    stage_reduce, last_reduce, coefficients_reduce, product_reduce,
-                    mont_factor_reduce, barrett_quotient_reduce})
+        .clk (clk), .reset (reset), .enable (advance),
+        .data_in ({valid_factor, header_factor, is_d_factor, is_butterfly_factor,
+                   is_gs_factor, stage_factor, last_factor,
+                   coefficients_factor, montgomery_in, barrett_in}),
+        .data_out ({valid_reduce, header_reduce, is_d_reduce, is_butterfly_reduce,
+                    is_gs_reduce, stage_reduce, last_reduce,
+                    coefficients_reduce, montgomery, barrett_reduce})
     );
 
-    wire [NUM_MULTIPLIERS-1:0][15:0] montgomery, result_low, result_high;
-    reg [NUM_MULTIPLIERS-1:0][15:0] partial_results;
-    // Two-beat operations remain adjacent through every globally stalled stage.
+    reg [NUM_MULTIPLIERS-1:0][31:0] partial_results;
     always @(posedge clk) begin
-        if (advance && valid_reduce && !last_reduce) begin
+        if (advance && valid_reduce && !last_reduce)
             partial_results <= montgomery;
-        end
     end
-    for (genvar i = 0; i < NUM_MULTIPLIERS; ++i) begin : g_finish
-        assign montgomery[i] = montgomery_finish(
-            $signed(product_reduce[i]), $signed(mont_factor_reduce[i]));
-        wire [15:0] barrett = barrett_finish(
-            $signed(coefficients_reduce[i]), $signed(barrett_quotient_reduce[i]));
-        assign result_low[i] = is_gs_reduce
-            ? barrett : coefficients_reduce[i] + montgomery[i];
-        assign result_high[i] = is_gs_reduce
-            ? partial_results[i] : coefficients_reduce[i] - montgomery[i];
-    end
-
     wire [NUM_LANES-1:0][`VX_CFG_XLEN-1:0] data_reduce;
     for (genvar i = 0; i < NUM_LANES; ++i) begin : g_result
-        wire [4:0][15:0] butterfly;
+        wire [4:0][31:0] butterfly;
         for (genvar s = 0; s < 5; ++s) begin : g_stage
             localparam BANK = (i & ((1 << s) - 1)) | ((i >> (s + 1)) << s);
             if (BANK < NUM_MULTIPLIERS) begin : g_pair
+                wire [31:0] low_d = is_gs_reduce ? coefficients_reduce[BANK]
+                    : coefficients_reduce[BANK] + montgomery[BANK];
+                wire [31:0] high_d = is_gs_reduce ? montgomery[BANK]
+                    : coefficients_reduce[BANK] - montgomery[BANK];
+                wire [31:0] low_k = is_gs_reduce ? barrett_reduce[BANK]
+                    : sign16(coefficients_reduce[BANK][15:0] + montgomery[BANK][15:0]);
+                wire [31:0] high_k = is_gs_reduce ? partial_results[BANK]
+                    : sign16(coefficients_reduce[BANK][15:0] - montgomery[BANK][15:0]);
                 assign butterfly[s] = (i & (1 << s)) != 0
-                    ? result_high[BANK] : result_low[BANK];
+                    ? (is_d_reduce ? high_d : high_k)
+                    : (is_d_reduce ? low_d : low_k);
             end else begin : g_unused
                 assign butterfly[s] = '0;
             end
         end
-        wire [15:0] nttmul;
+        wire [31:0] nttmul;
         if (NUM_LANES == 1) begin : g_single
             assign nttmul = montgomery[i];
         end else if (i < NUM_MULTIPLIERS) begin : g_first
@@ -286,14 +307,11 @@ module VX_pqc_nttmul import VX_gpu_pkg::*; #(
     end
 
     VX_shift_register #(
-        .DATAW  (1 + TAG_WIDTH + `VX_CFG_XLEN * NUM_LANES),
-        .DEPTH  (1),
-        .RESETW (1)
+        .DATAW (1 + TAG_WIDTH + `VX_CFG_XLEN * NUM_LANES),
+        .DEPTH (1), .RESETW (1)
     ) result_pipe (
-        .clk      (clk),
-        .reset    (reset),
-        .enable   (advance),
-        .data_in  ({valid_reduce && last_reduce, header_reduce, data_reduce}),
+        .clk (clk), .reset (reset), .enable (advance),
+        .data_in ({valid_reduce && last_reduce, header_reduce, data_reduce}),
         .data_out ({valid_out, header_out, data_out})
     );
 
@@ -301,5 +319,4 @@ module VX_pqc_nttmul import VX_gpu_pkg::*; #(
     assign result_if.valid = valid_out;
     assign result_if.data.header = header_out;
     assign result_if.data.data = data_out;
-
 endmodule

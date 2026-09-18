@@ -56,7 +56,7 @@ private:
     instr_trace_t* trace = nullptr;
     bool last = false;
   };
-  std::array<std::array<NttBeat, 4>, VX_CFG_NUM_ALU_BLOCKS> ntt_pipeline_{};
+  std::array<std::array<NttBeat, 5>, VX_CFG_NUM_ALU_BLOCKS> ntt_pipeline_{};
   std::array<instr_trace_t*, VX_CFG_NUM_ALU_BLOCKS> ntt_second_{};
   std::array<SimChannel<instr_trace_t*>, VX_CFG_NUM_ALU_BLOCKS> ntt_results_;
 #endif

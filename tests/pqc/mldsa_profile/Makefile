@@ -19,13 +19,86 @@ MLDSA_FLAGS := -I$(MLDSA_DIR)/mldsa -I$(VORTEX_HOME)/tests/pqc/mldsa -I$(SRC_DIR
 VX_CFLAGS += $(MLDSA_FLAGS)
 CXXFLAGS  += $(MLDSA_FLAGS)
 
-# KECCAK=pe routes the permutation to the KECCAKF instruction, inside this
-# counting build, so the PE arm and its own baseline and floor are one build.
+VX_CFLAGS += -DPQC_MLDSA_WARP_REQUEST
+CXXFLAGS += -DPQC_MLDSA_WARP_REQUEST
+
 ifeq ($(KECCAK),pe)
 	VX_CFLAGS += -DPQC_KECCAK_PE
-	CXXFLAGS  += -DPQC_KECCAK_PE
-else ifneq ($(KECCAK),)
-$(error KECCAK must be pe or unset -- got '$(KECCAK)')
+	CXXFLAGS += -DPQC_KECCAK_PE
+else ifeq ($(KECCAK),sg25_sw)
+	VX_CFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_SG25_SW
+	CXXFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_SG25_SW
+else ifeq ($(KECCAK),sg25)
+	VX_CFLAGS += -DPQC_KECCAK_SG25
+	CXXFLAGS += -DPQC_KECCAK_SG25
+else ifeq ($(KECCAK),kround)
+	VX_CFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_KROUND25
+	CXXFLAGS += -DPQC_KECCAK_SG25 -DPQC_KECCAK_KROUND25
+else ifneq ($(filter-out sg1,$(KECCAK)),)
+$(error KECCAK must be sg1, sg25_sw, sg25, kround, pe, or unset)
+endif
+
+ifeq ($(NTT),reg32)
+	VX_CFLAGS += -DPQC_NTT_REG32
+	CXXFLAGS += -DPQC_NTT_REG32
+else ifneq ($(NTT),)
+$(error NTT must be reg32 or unset)
+endif
+ifeq ($(NTTMUL),ise)
+ifneq ($(NTT),reg32)
+$(error NTTMUL=ise requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_NTTMUL_D
+	CXXFLAGS += -DPQC_NTTMUL_D
+else ifneq ($(NTTMUL),)
+$(error NTTMUL must be ise or unset)
+endif
+ifeq ($(NTTBF),ise)
+ifneq ($(NTT),reg32)
+$(error NTTBF=ise requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_NTTBF_D
+	CXXFLAGS += -DPQC_NTTBF_D
+else ifneq ($(NTTBF),)
+$(error NTTBF must be ise or unset)
+endif
+
+ifeq ($(POINTWISE),ise)
+ifneq ($(NTTMUL),ise)
+$(error POINTWISE=ise requires NTTMUL=ise)
+endif
+	VX_CFLAGS += -DPQC_POINTWISE_ISE
+	CXXFLAGS += -DPQC_POINTWISE_ISE
+else ifneq ($(POINTWISE),)
+$(error POINTWISE must be ise or unset)
+endif
+ifeq ($(POINTWISE_L5),w32)
+ifneq ($(NTT),reg32)
+$(error POINTWISE_L5=w32 requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_POINTWISE_L5_W32
+	CXXFLAGS += -DPQC_POINTWISE_L5_W32
+else ifneq ($(POINTWISE_L5),)
+$(error POINTWISE_L5 must be w32 or unset)
+endif
+
+ifeq ($(UNROLL),1)
+ifeq ($(filter sg25 sg25_sw,$(KECCAK)),)
+$(error UNROLL=1 requires KECCAK=sg25 or sg25_sw)
+endif
+	VX_CFLAGS += -DPQC_KECCAK_UNROLL
+	CXXFLAGS += -DPQC_KECCAK_UNROLL
+else ifneq ($(UNROLL),)
+$(error UNROLL must be 1 or unset)
+endif
+
+ifneq ($(ABLATE),)
+ifneq ($(NTT),)
+$(error ABLATE requires software NTT)
+endif
+ifneq ($(filter-out sg1,$(KECCAK)),)
+$(error ABLATE requires KECCAK=sg1 or unset)
+endif
 endif
 
 # ABLATE=keccak|ntt turns the matching hooks into no-ops that still claim
@@ -67,6 +140,23 @@ ifeq ($(MLDSA_RAM),full)
 	CXXFLAGS  += -DPQC_MLDSA_RAM_FULL
 else ifneq ($(filter-out low,$(MLDSA_RAM)),)
 $(error MLDSA_RAM must be low or full -- got '$(MLDSA_RAM)')
+endif
+
+VX_HDRS := $(HDRS) $(SRC_DIR)/mld_prof_fips202.h \
+           $(SRC_DIR)/mld_prof_arith.h $(SRC_DIR)/vortex_mldsa_prof_config.h \
+           $(VORTEX_HOME)/tests/pqc/mldsa/vortex_mldsa_config.h \
+           $(VORTEX_HOME)/tests/pqc/mldsa/mld_vortex_alloc.h
+ifeq ($(NTT),reg32)
+VX_HDRS += $(SRC_DIR)/mld_ntt_reg32.h \
+           $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h
+endif
+ifneq ($(filter ise w32,$(POINTWISE) $(POINTWISE_L5)),)
+VX_HDRS += $(SRC_DIR)/mld_pointwise_w32.h
+endif
+ifneq ($(filter sg25 sg25_sw kround,$(KECCAK)),)
+VX_HDRS += $(SRC_DIR)/mld_sg25.h \
+           $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ksg25.h \
+           $(VORTEX_HOME)/sw/kernel/include/pqc/vx_kround25.h
 endif
 
 KERNEL_LIB := vortex2

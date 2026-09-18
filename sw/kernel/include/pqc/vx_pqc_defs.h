@@ -31,6 +31,8 @@
 #define VX_PQC_FUNCT7       0x05
 #define VX_PQC_F7_NTTBF_CT_K 0x08
 #define VX_PQC_F7_NTTBF_GS_K 0x09
+#define VX_PQC_F7_NTTBF_CT_D 0x0a
+#define VX_PQC_F7_NTTBF_GS_D 0x0b
 
 // funct3 within row 0x05.
 //
@@ -51,6 +53,7 @@
 // measuring before it is worth encoding.
 #define VX_PQC_F3_KECCAKF   0   /* per-lane: permute the state each active lane names */
 #define VX_PQC_F3_NTTMUL_K  2   /* per-lane: ML-KEM Montgomery multiplication */
+#define VX_PQC_F3_NTTMUL_D  3   /* per-lane: ML-DSA Montgomery multiplication */
 
 // funct3 encodes log2 of the NTTBF XOR partner distance.
 #define VX_PQC_F3_NTTBF_XOR1   0

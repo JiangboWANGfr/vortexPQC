@@ -26,7 +26,7 @@ RTL_DEPS += $(wildcard $(RTL_DIR)/core/*.sv $(RTL_DIR)/rtu/*.sv $(RTL_DIR)/libs/
 override CONFIGS += -DVX_CFG_EXT_RTU_ENABLE -DVX_CFG_EXT_F_DISABLE
 endif
 
-ifeq ($(TOP),VX_pqc_nttmul_tb)
+ifneq ($(filter VX_pqc_nttmul_tb VX_pqc_nttmul_d_tb,$(TOP)),)
 EXT_CONFIG := -DVX_CFG_EXT_NTT_ENABLE
 RTL_INCLUDE += -I$(RTL_DIR)/core
 RTL_DEPS += $(wildcard $(RTL_DIR)/core/*.sv $(RTL_DIR)/libs/*.sv)
@@ -35,7 +35,7 @@ override CONFIGS += -DVX_CFG_NUM_THREADS=$(ALU_LANES) \
                     -DVX_CFG_NUM_ALU_LANES=$(ALU_LANES)
 endif
 
-.PHONY: all run run-agu run-sfu run-nttmul clean
+.PHONY: all run run-agu run-sfu run-nttmul run-nttmul-d clean
 all: $(OBJ_DIR)/V$(TOP)
 
 $(OBJ_DIR)/V$(TOP): $(RTL_DEPS) $(ROOT_DIR)/hw/VX_config.vh Makefile
@@ -57,6 +57,9 @@ run-sfu:
 
 run-nttmul:
 	$(MAKE) TOP=VX_pqc_nttmul_tb run
+
+run-nttmul-d:
+	$(MAKE) TOP=VX_pqc_nttmul_d_tb run
 
 clean:
 	rm -rf obj_VX_pqc_*

@@ -16,15 +16,12 @@
 // here, it is what makes ML-DSA run at all.
 //
 // The arena is a file-scope array, which the linker places in device memory
-// rather than on the stack. Freeing is a no-op: allocations are not released
-// in LIFO order, and a single KEM/signature operation is short enough that
-// growing to the peak and resetting between operations is simpler and has no
-// measurable cost. mld_arena_peak records that peak, which is a result in its
-// own right -- it is the working-set figure any hardware design has to budget
-// for.
+// rather than on the stack. The pinned library frees in reverse allocation
+// order, including each rejected signing attempt. Reclaiming those frames
+// keeps the live working set independent of the number of retries.
 //
-// One arena per hart, indexed by mhartid: a single shared arena would trade
-// the stack race for an arena race the moment a second lane runs.
+// Each independent request needs its own arena. Warp-request kernels allocate
+// only on their leader; lane-request kernels need one arena per hart.
 
 #ifndef MLD_VORTEX_ALLOC_H
 #define MLD_VORTEX_ALLOC_H
@@ -32,27 +29,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Same hart count and size as the ML-KEM arena (tests/pqc/mlkem/
-// mlk_vortex_alloc.h): one number for both schemes. Measured ML-DSA-65 peak is
-// 21,568 bytes, so 24 KB leaves 12% headroom; 128 KB per hart would be 2 MB of
-// .bss the loader zero-fills at every launch.
 #define MLD_HARTS (VX_CFG_NUM_CLUSTERS * VX_CFG_NUM_CORES * \
                    VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS)
-// Two budgets, because MLDSA_RAM selects two different working sets. Low: the
-// lazy matrix path, measured peak 21,568 B. Full: A materialised, measured peak
-// 86,912 B. Both sized with headroom, and mld_arena_fail makes an overflow a
-// test failure rather than a silent wrong answer, so tight is safe.
-//
-// .bss is MLD_HARTS * MLD_ARENA_BYTES and the loader zero-fills it every launch:
-// 3.1 MB at 8 warps x 4 threads on the full budget. That is load time, not
-// device cycles, but it is worth knowing before wondering why a run got slower
-// to start.
+// Materializing A needs a larger budget than lazy matrix expansion.
 #if defined(PQC_MLDSA_RAM_FULL)
 #define MLD_ARENA_BYTES 90112u
 #else
 #define MLD_ARENA_BYTES 24576u
 #endif
 #define MLD_ARENA_ALIGN 32u
+#if defined(PQC_MLDSA_WARP_REQUEST)
+#define MLD_ARENA_SLOTS (MLD_HARTS / VX_CFG_NUM_THREADS)
+#else
+#define MLD_ARENA_SLOTS MLD_HARTS
+#endif
 
 #if defined(__VORTEX__)
 
@@ -61,19 +51,28 @@
 #include <VX_config.h>
 #include <vx_intrinsics.h>
 
-static uint8_t mld_arena[MLD_HARTS][MLD_ARENA_BYTES]
+static uint8_t mld_arena[MLD_ARENA_SLOTS][MLD_ARENA_BYTES]
     __attribute__((aligned(MLD_ARENA_ALIGN)));
-static uint32_t mld_arena_top[MLD_HARTS];
-static uint32_t mld_arena_peak[MLD_HARTS];
-static uint32_t mld_arena_fail[MLD_HARTS];
+static uint32_t mld_arena_top[MLD_ARENA_SLOTS];
+static uint32_t mld_arena_peak[MLD_ARENA_SLOTS];
+static uint32_t mld_arena_fail[MLD_ARENA_SLOTS];
+
+static inline uint32_t mld_arena_index(void)
+{
+#if defined(PQC_MLDSA_WARP_REQUEST)
+  return (uint32_t)vx_hart_id() / VX_CFG_NUM_THREADS;
+#else
+  return (uint32_t)vx_hart_id();
+#endif
+}
 
 static inline void *mld_arena_alloc(uint32_t bytes)
 {
-  const uint32_t t = (uint32_t)vx_hart_id();
+  const uint32_t t = mld_arena_index();
   uint32_t base;
   // Out-of-range would alias another hart's arena, which is the bug this
   // header exists to prevent; fail instead.
-  if (t >= MLD_HARTS)
+  if (t >= MLD_ARENA_SLOTS)
     return NULL;
   base = (mld_arena_top[t] + (MLD_ARENA_ALIGN - 1u)) & ~(MLD_ARENA_ALIGN - 1u);
   if (base + bytes > MLD_ARENA_BYTES)
@@ -84,16 +83,31 @@ static inline void *mld_arena_alloc(uint32_t bytes)
     mld_arena_fail[t]++;
     return NULL;
   }
-  mld_arena_top[t] = base + bytes;
-  if (mld_arena_top[t] > mld_arena_peak[t])
-    mld_arena_peak[t] = mld_arena_top[t];
+  mld_arena_top[t] = (base + bytes + MLD_ARENA_ALIGN - 1u) & ~(MLD_ARENA_ALIGN - 1u);
+  if (base + bytes > mld_arena_peak[t])
+    mld_arena_peak[t] = base + bytes;
   return &mld_arena[t][base];
+}
+
+static inline void mld_arena_free(void *ptr, uint32_t bytes)
+{
+  const uint32_t t = mld_arena_index();
+  if (ptr == NULL || t >= MLD_ARENA_SLOTS)
+    return;
+  const uint32_t base = (uint8_t *)ptr - mld_arena[t];
+  const uint32_t end = (base + bytes + MLD_ARENA_ALIGN - 1u) & ~(MLD_ARENA_ALIGN - 1u);
+  if (end != mld_arena_top[t])
+  {
+    mld_arena_fail[t]++;
+    return;
+  }
+  mld_arena_top[t] = base;
 }
 
 static inline void mld_arena_reset(void)
 {
-  const uint32_t t = (uint32_t)vx_hart_id();
-  if (t < MLD_HARTS)
+  const uint32_t t = mld_arena_index();
+  if (t < MLD_ARENA_SLOTS)
     mld_arena_top[t] = 0;
 }
 

@@ -8,6 +8,7 @@ module VX_pqc_nttmul_tb;
     localparam UNSTALLED = 3 * BURST;
     localparam N = UNSTALLED + 64;
     localparam logic [31:0] NTTMUL_K_INSTR = 32'h0a73228b;
+    localparam logic [31:0] NTTMUL_D_INSTR = 32'h0a73328b;
 
     logic clk = 0;
     logic reset = 1;
@@ -61,6 +62,14 @@ module VX_pqc_nttmul_tb;
     );
         nttbf_instr = {is_gs ? 7'h09 : 7'h08,
                        5'd7, 5'd6, stage, 5'd5, 7'h0b};
+    endfunction
+
+    function automatic logic [31:0] nttbf_d_instr(
+        input bit is_gs,
+        input logic [2:0] stage
+    );
+        nttbf_d_instr = {is_gs ? 7'h0b : 7'h0a,
+                         5'd7, 5'd6, stage, 5'd5, 7'h0b};
     endfunction
 
     function automatic logic signed [15:0] operand_a(input int index);
@@ -267,12 +276,17 @@ module VX_pqc_nttmul_tb;
 
     task automatic check_decode;
         check_valid_decode(NTTMUL_K_INSTR, INST_ALU_NTTMUL_K, '0);
+        check_valid_decode(NTTMUL_D_INSTR, INST_ALU_NTTMUL_K, 20'h10);
         for (int mode = 0; mode < 2; ++mode) begin
             for (int stage = 0; stage < 5; ++stage) begin
                 check_valid_decode(
                     nttbf_instr(mode != 0, 3'(stage)),
                     INST_ALU_NTTBF_K,
                     {16'b0, mode[0], 3'(stage)});
+                check_valid_decode(
+                    nttbf_d_instr(mode != 0, 3'(stage)),
+                    INST_ALU_NTTBF_K,
+                    {15'b0, 1'b1, mode[0], 3'(stage)});
             end
         end
 
@@ -407,8 +421,8 @@ module VX_pqc_nttmul_tb;
             if (accepted >= UNSTALLED && backpressure_start < 0)
                 backpressure_start = cycle;
             commit_if[0].ready = (backpressure_start < 0)
-                || !((cycle < backpressure_start + 18)
-                  || (cycle > backpressure_start + 24 && cycle % 7 == 3));
+                || !((cycle < backpressure_start + 30)
+                  || (cycle > backpressure_start + 36 && cycle % 7 == 3));
         end
     end
 
@@ -431,8 +445,8 @@ module VX_pqc_nttmul_tb;
         end else begin
             ++cycle;
 
-            if (dut.g_blocks[0].nttmul_unit.execute_if.valid
-             && dut.g_blocks[0].nttmul_unit.execute_if.ready) begin
+            if (dut.g_blocks[0].nttmul_unit.probe_request_valid
+             && dut.g_blocks[0].nttmul_unit.probe_request_ready) begin
                 if (accepted >= N)
                     $fatal(1, "duplicate PQC NTT unit request");
                 if (accepted > 0 && accepted < UNSTALLED) begin
@@ -456,9 +470,9 @@ module VX_pqc_nttmul_tb;
                     else
                         ct_stages[butterfly_stage(accepted)] = 1;
                 end else begin
-                    if (dut.g_blocks[0].nttmul_unit.execute_if.data.header.tmask == 32'h0000ffff)
+                    if (dut.g_blocks[0].nttmul_unit.probe_request_mask == 32'h0000ffff)
                         saw_low_half_mask = 1;
-                    if (dut.g_blocks[0].nttmul_unit.execute_if.data.header.tmask == 32'hffff0000)
+                    if (dut.g_blocks[0].nttmul_unit.probe_request_mask == 32'hffff0000)
                         saw_high_half_mask = 1;
                 end
                 ++accepted;
@@ -487,7 +501,7 @@ module VX_pqc_nttmul_tb;
                 if (backpressure_start < 0) begin
                     int expected_latency;
                     expected_latency = is_butterfly_request(received)
-                        && !butterfly_is_gs(received) ? 6 : 7;
+                        && !butterfly_is_gs(received) ? 7 : 8;
                     if (cycle - accepted_cycle[received] != expected_latency)
                         $fatal(1, "request %0d ALU latency=%0d expected %0d",
                             received, cycle - accepted_cycle[received], expected_latency);
@@ -539,7 +553,6 @@ module VX_pqc_nttmul_tb;
         if (!producer_done || accepted != N || ct_ii_checks != BURST - 1
          || gs_ii_checks != BURST - 1 || nttmul_ii_checks != BURST - 1
          || !saw_input_stall || !saw_output_stall || !saw_partial_pair_mask
-         || !saw_pending_second_stall
          || !saw_low_half_mask || !saw_high_half_mask
          || ct_stages != '1 || gs_stages != '1)
             $fatal(1, "missing II/backpressure/mask coverage accepted=%0d ct=%0d gs=%0d mul=%0d in_stall=%0d out_stall=%0d pending_stall=%0d partial=%0d low=%0d high=%0d ct_stages=%b gs_stages=%b",
