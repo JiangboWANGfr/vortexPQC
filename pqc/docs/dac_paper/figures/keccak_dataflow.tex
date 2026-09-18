@@ -1,0 +1,68 @@
+\begin{tikzpicture}[
+  x=1mm,y=1mm,font=\fontsize{8}{9}\selectfont,
+  flow/.style={-{Latex[length=1.4mm]},line width=.55pt},
+  cell/.style={draw=cDark!45,line width=.3pt},
+  label/.style={font=\fontsize{8}{9}\selectfont\bfseries,anchor=west}]
+\path[use as bounding box] (0,0) rectangle (178,36);
+\draw[cGray] (57,3) -- (57,35);
+\draw[cGray] (117,3) -- (117,35);
+\node[label,text=cBlue] at (1,33) {(a) $\theta$: column parity};
+\node[label,text=cGold] at (61,33) {(b) $\rho/\pi$: rotate and gather};
+\node[label,text=cTeal] at (121,33) {(c) $\chi/\iota$: row mixing};
+
+\foreach \x in {0,...,4} {
+  \foreach \y in {0,...,4} {
+    \draw[cell,fill=cGray!35] (2+4*\x,9+4*\y) rectangle ++(4,4);
+  }
+}
+\foreach \y in {0,...,4} {
+  \draw[cell,fill=cBlue!28] (10,9+4*\y) rectangle ++(4,4);
+}
+\draw[decorate,decoration={brace,amplitude=1.4mm},cBlue]
+  (24,29) -- (24,9);
+\node[circle,draw=cBlue,fill=white,inner sep=1pt] (parity) at (33,19) {$\oplus$};
+\draw[flow,cBlue] (26,19) -- (parity);
+\draw[flow,cBlue] (parity) -- (43,19);
+\node[anchor=west] at (43,19) {$C_x$};
+\node[anchor=west] at (2,3.8)
+  {$D_x=C_{x-1}\oplus\operatorname{ROL}_1(C_{x+1})$};
+
+\foreach \x in {0,...,4} {
+  \foreach \y in {0,...,4} {
+    \draw[cell,fill=cGray!35] (61+3.6*\x,10+3.6*\y) rectangle ++(3.6,3.6);
+    \draw[cell,fill=cGray!35] (96+3.6*\x,10+3.6*\y) rectangle ++(3.6,3.6);
+  }
+}
+\draw[cell,fill=cGold!38] (64.6,24.4) rectangle ++(3.6,3.6);
+\node[inner sep=0,font=\fontsize{7}{8}\selectfont] at (66.4,26.2) {1};
+\draw[cell,fill=cGold!38] (96,17.2) rectangle ++(3.6,3.6);
+\node[inner sep=0,font=\fontsize{7}{8}\selectfont] at (97.8,19) {10};
+\draw[flow,cGold] (80.5,19) -- (94.5,19);
+\node[font=\fontsize{8}{9}\selectfont] at (87.5,23) {$\operatorname{ROL}_1$};
+\node at (87.5,3.8) {$(x,y)\mapsto(y,2x+3y)$};
+
+\foreach \x in {0,...,4} {
+  \foreach \y in {0,...,4} {
+    \draw[cell,fill=cGray!35] (121+3.6*\x,10+3.6*\y) rectangle ++(3.6,3.6);
+  }
+}
+\foreach \x in {0,...,4} {
+  \draw[cell,fill=cTeal!22] (121+3.6*\x,17.2) rectangle ++(3.6,3.6);
+}
+\foreach \x in {0,1,2} {
+  \draw[cell,fill=cTeal!48] (121+3.6*\x,17.2) rectangle ++(3.6,3.6);
+}
+\draw[flow,cTeal] (140.5,19) -- (147,19);
+\foreach \x/\s in {0/a,1/b,2/c} {
+  \node[draw=cTeal,fill=cTeal!10,minimum width=6mm,minimum height=5mm,
+        inner sep=0pt] at (150+8*\x,24) {$\s$};
+}
+\node[draw=cTeal,fill=cTeal!8,rounded corners=.6pt,
+      minimum width=25mm,minimum height=6mm,inner sep=0pt] (mix) at (158,13)
+  {$a\oplus(\neg b\land c)$};
+\draw[flow,cTeal] (150,21.5) -- (150,16);
+\draw[flow,cTeal] (158,21.5) -- (158,16);
+\draw[flow,cTeal] (166,21.5) -- (166,16);
+\draw[flow,cTeal] (mix.east) -- (177,13);
+\node at (149,3.8) {$A_{0,0}\gets A_{0,0}\oplus\mathrm{RC}_r$};
+\end{tikzpicture}

@@ -3,6 +3,7 @@
   "mlkem_native_commit": "1d7b486c4db3bbc620b009d05e4f69eca9e68d22",
   "measurements": {
     "keccak_ntt_unified_xrt.csv": "80f8d20ec766e973f1839f578717cf64cafa28d0044d7ba2eeba21ed86e3f36b",
+    "keccak_sg25_stages.csv": "604bb4c940d45af626a83496ca1823f3a17403532144b4df440105524f9791c8",
     "keccak_w32_controls.csv": "be14fac9a3aff9ce3f6b8340bab6499898c21762ba1c91d9e649f4448673e935",
     "keccak_w32_matched_xrt.csv": "3be971f54f40a6d4aa610be6e5042c3b9235a2fdc64875c86fbeabe0cb1a2629",
     "mlkem_phase_profile.csv": "41ac1ed9e9545331b8775f9678368f3821fac67adac034e3f611ff891736f8c5",
@@ -27,6 +28,12 @@
     "StageLutPct": 1.1287621633853773,
     "RoundLutPct": 0.8983933016519563,
     "StageFfPct": 1.3004749692711481,
-    "RoundFfPct": 4.755003869557961
+    "RoundFfPct": 4.755003869557961,
+    "AllStageOne": 9.407682926829269,
+    "AllStageEight": 12.90881360332295,
+    "FusionOne": 3.1679654492535914,
+    "FusionEight": 3.2912096118422145,
+    "FusionKemOne": 1.0276079042411477,
+    "FusionKemEight": 1.0333872428120392
   }
 }

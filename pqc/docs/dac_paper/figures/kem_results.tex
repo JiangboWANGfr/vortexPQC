@@ -1,0 +1,27 @@
+\begin{tikzpicture}
+\begin{groupplot}[
+ group style={group size=2 by 1,horizontal sep=12mm},
+ width=82mm,height=43mm,
+ ybar,/pgf/bar width=7mm,
+ xmin=-0.6,xmax=5.6,ymin=0,
+ xtick={0,1,2,3,4,5},
+ xticklabels={C,PQRV,Shuffle,Stage,Round,Pointer},
+ ylabel={Cycles ($10^6$)},
+ tick label style={font=\footnotesize},
+ label style={font=\footnotesize},title style={font=\small},
+ axis lines*=left,ymajorgrids,grid style={black!10},
+ nodes near coords,point meta=y,
+ every node near coord/.append style={font=\footnotesize,/pgf/number format/fixed,/pgf/number format/precision=2,/pgf/number format/fixed zerofill},
+ enlargelimits=false]
+\nextgroupplot[title={(a) One request},ymax=35,ytick={0,10,20,30}]
+\addplot[fill=cGray,draw=cDark!50,bar shift=0,restrict x to domain=0:2] table[x=index,y=mone]{assets/kem.dat};
+\addplot[fill=cGold,draw=cGold!80!black,bar shift=0,restrict x to domain=3:3] table[x=index,y=mone]{assets/kem.dat};
+\addplot[fill=cPurple,draw=cPurple,bar shift=0,restrict x to domain=4:4] table[x=index,y=mone]{assets/kem.dat};
+\addplot[fill=cTeal!65,draw=cTeal,bar shift=0,restrict x to domain=5:5] table[x=index,y=mone]{assets/kem.dat};
+\nextgroupplot[title={(b) Eight requests},ymax=55,ytick={0,15,30,45}]
+\addplot[fill=cGray,draw=cDark!50,bar shift=0,restrict x to domain=0:2] table[x=index,y=meight]{assets/kem.dat};
+\addplot[fill=cGold,draw=cGold!80!black,bar shift=0,restrict x to domain=3:3] table[x=index,y=meight]{assets/kem.dat};
+\addplot[fill=cPurple,draw=cPurple,bar shift=0,restrict x to domain=4:4] table[x=index,y=meight]{assets/kem.dat};
+\addplot[fill=cTeal!65,draw=cTeal,bar shift=0,restrict x to domain=5:5] table[x=index,y=meight]{assets/kem.dat};
+\end{groupplot}
+\end{tikzpicture}

@@ -1,0 +1,53 @@
+% Fig. 3: pair butterfly through ordinary operands, and multiplier-bank reuse.
+\begin{tikzpicture}[x=1mm,y=1mm,font=\scriptsize,
+  vec/.style={draw=black!30,fill=black!4,inner sep=0pt,minimum width=2.3mm,minimum height=3.2mm},
+  op/.style={draw,circle,inner sep=0pt,minimum size=4mm,fill=white},
+  arr/.style={-{Latex[length=1.3mm]},line width=.6pt},
+  lbl/.style={font=\tiny,inner sep=1pt}]
+% ---------------------------------------------------------------- (a) one pair, one product
+\node[anchor=west,font=\scriptsize\bfseries] at (-3,30.5) {(a) CT pair at distance 16};
+\foreach \n/\y/\name in {rs1/23/rs1,rs2/18.5/rs2} {
+  \node[anchor=east] at (-0.5,\y) {\code{\name}};
+  \foreach \l in {0,...,31} { \node[vec] (\n\l) at (2.3*\l,\y) {}; }
+}
+\node[anchor=east] at (-0.5,-1) {\code{rd}};
+\foreach \l in {0,...,31} { \node[vec] (rd\l) at (2.3*\l,-1) {}; }
+\node[vec,fill=cblue!40,draw=cblue] at (rs15) {};
+\node[vec,fill=cteal!40,draw=cteal] at (rs121) {};
+\node[vec,fill=corange!45,draw=corange] at (rs25) {};
+\node[vec,fill=black!15,draw=black!30] at (rs221) {};
+\node[vec,fill=cblue!40,draw=cblue] at (rd5) {};
+\node[vec,fill=cteal!40,draw=cteal] at (rd21) {};
+\node[lbl,cblue] at ([yshift=2.6mm]rs15.north) {$a$ (lane 5)};
+\node[lbl,cteal] at ([yshift=2.6mm]rs121.north) {$b$ (lane 21)};
+\node[lbl,corange,anchor=north] at ([yshift=-.4mm]rs25.south) {$\zeta$};
+\node[lbl,black!50,anchor=north] at ([yshift=-.4mm]rs221.south) {ignored};
+\node[op] (mul) at (30,9.5) {$\times$};
+\node[op] (add) at (16,3.5) {$+$};
+\node[op] (sub) at (44,3.5) {$-$};
+\draw[arr,cteal] (rs121.south) -- ++(0,-1.5) -| (mul.north);
+\draw[arr,corange] (rs25.south) -- ++(0,-1.2) -| ([xshift=-1mm]mul.north);
+\draw[arr] (mul.south) |- (add.east);
+\draw[arr] (mul.south) |- (sub.west);
+\draw[arr,cblue] (rs15.south) -- ++(0,-2.2) -| (add.north);
+\draw[arr,cblue] (rs15.south) ++(0,-2.2) -| ([xshift=-1mm]sub.north);
+\draw[arr] (add.south) -- (rd5.north);
+\draw[arr] (sub.south) -- (rd21.north);
+\node[lbl,anchor=west] at (33,9.5) {Mont. $b\zeta$};
+% ---------------------------------------------------------------- (b) bank of 16 multipliers, beats
+\begin{scope}[shift={(0,-14)}]
+\node[anchor=west,font=\scriptsize\bfseries] at (-3,2) {(b) 16 multipliers, 32 lanes};
+\foreach \i in {0,...,15} { \node[draw,fill=black!6,minimum width=3.6mm,minimum height=3.2mm,inner sep=0pt] at (4.4*\i+2,-2.5) {}; }
+\node[lbl,anchor=east] at (-0.5,-2.5) {bank};
+\node[lbl,anchor=east] at (-0.5,-7.5) {CT};
+\node[lbl,anchor=east] at (-0.5,-11) {GS};
+\node[lbl,anchor=east] at (-0.5,-14.5) {MUL};
+\node[draw,fill=cblue!25,minimum width=33mm,minimum height=2.8mm,inner sep=0pt] at (19,-7.5) {16 pairs: $b\zeta$};
+\node[draw,fill=cblue!25,minimum width=33mm,minimum height=2.8mm,inner sep=0pt] at (19,-11) {16 pairs: $(b-a)\zeta$};
+\node[draw,fill=corange!30,minimum width=33mm,minimum height=2.8mm,inner sep=0pt] at (54,-11) {16 pairs: $(a+b)\cdot20159$};
+\node[draw,fill=cblue!25,minimum width=33mm,minimum height=2.8mm,inner sep=0pt] at (19,-14.5) {lanes 0--15};
+\node[draw,fill=cblue!25,minimum width=33mm,minimum height=2.8mm,inner sep=0pt] at (54,-14.5) {lanes 16--31};
+\draw[-{Latex[length=1.2mm]},black!60] (0,-17) -- node[lbl,below,black!60] {beat 1} (36,-17);
+\draw[-{Latex[length=1.2mm]},black!60] (37,-17) -- node[lbl,below,black!60] {beat 2} (72,-17);
+\end{scope}
+\end{tikzpicture}

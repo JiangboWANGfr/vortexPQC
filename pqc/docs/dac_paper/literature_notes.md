@@ -23,7 +23,7 @@
 | 背景 | [CryptoPIM, DAC 2020](https://doi.org/10.1109/DAC18072.2020.9218730) | NTT 数据移动与近存算术的前作；不是普通 SIMT GPR collective | 本地是 **16 页单栏 ePrint**，正文至 p13，参考 p13–16 |
 
 作者、年份、DOI 依据本地原文出版信息、作者机构或出版记录核对。
-主文使用前六篇；GEM/GATSPI/MATCHA/CryptoPIM用于结构和范围判断，没有为了凑引用数量加入正文。
+当前正文引用其中 PacQ、NTT-PIM、CHAM、BP-NTT、SynGPU 五篇 DAC 论文，全稿共 14 条被引用文献。ZK-Flex、GEM、GATSPI、MATCHA、CryptoPIM 的阅读用于结构、作图和范围判断；ZK-Flex 的 BibTeX 条目保留，但当前正文没有引用。
 
 ## 图表数量与用途核查
 
@@ -41,7 +41,11 @@
 
 分类可有重叠：同一图可以同时解释动机与新机制。上述文件的页数和模板不同，不能把计数解读成统一的六页投稿要求。
 
-我们的七图安排把机制图从两幅增至四幅，结果图保持三幅。新增的是状态布局/通信图，以及 RV32 L/H 依赖图；CT 图补充 half-bank phase。优先用图代替难以理解的机制描述，不以继续增加柱状图凑数量。
+当前稿件采用 Introduction、Background and Motivation、Design、Implementation and Evaluation、Conclusion 五章。主线是寄存器 Keccak 集体指令在完整 ML-KEM 中的收益与粒度选择，NTT 是配套算术路径。
+
+8 幅图全部使用 TikZ/PGFPlots：图 1 为 Keccak 固定通信；图 2 为整核接口及 Stage/Round 流水；图 3 为 RV32 L/H 依赖；图 4 为 NTT 布局和 paired butterfly；图 5 为完整 KEM；图 6 为八种 stage-use 消融；图 7 将融合微基准与应用收益放在两个面板；图 8 为阶段 profile。图 7 明确区分原语 XRT 与应用 SimX 数据；图 6 是独立的较早处理器 RTL 实验。半 bank 的 GS/NTTMUL 调度在正文解释，没有将其伪画成 CT 的额外时钟阶段。
+
+具体作图借鉴：PacQ 用数据路径展示收益在哪里丢失，因此图 2 画源寄存器、流水寄存器和写回路径；SynGPU 让瓶颈与机制一一对应，因此图 6/7 分别检验 stage 替换和融合收益；NTT-PIM 用小规模伙伴位置解释映射，因此图 4 只展开两个代表 lane；BP-NTT 用具体小例子代替大段 RTL 说明，因此蝶形只保留 a、b、ζ、Mont 与加减连线。参与约束、计量口径和例外放进图注及正文，图内保留短标签。
 
 ## 具体怎么借鉴
 
@@ -80,7 +84,7 @@ p6 在部分应用面积效率不如 LegoZK 时解释利用率原因，没有只
 ### BP-NTT：一个具体实例比长篇 RTL 描述有效
 
 p3 画 bit-parallel 布局，p4 用 3-bit 例子展示 carry/shift 机制，p5–6 再证实资源和规模效果。
-用于我们：图 3 具体到 lane5、lane21，标出 `rs1`、pair-low `rs2` 和两个 `rd`；解释 GS 为什么需要第二次物理乘法。
+用于我们：图 4 具体到 lane 5、lane 21，用 a、b、ζ、加减结果和连线表示 pair-low twiddle 与分布式输出；GS 为什么需要第二次物理乘法在正文解释。
 其 SRAM/CPU 的带宽结论不能直接当成 Vortex 的已测瓶颈。
 
 ### SynGPU、GEM、GATSPI、MATCHA

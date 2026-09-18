@@ -1,0 +1,640 @@
+\documentclass[conference,letterpaper]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,booktabs,array,graphicx,cite,xcolor}
+\usepackage{tikz,pgfplots,pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\usepackage[hidelinks]{hyperref}
+\input{assets/numbers.tex}
+\definecolor{cblue}{HTML}{315C85}
+\definecolor{cteal}{HTML}{00867D}
+\definecolor{corange}{HTML}{D28527}
+\definecolor{cpurple}{HTML}{873E75}
+\newcommand{\Mont}{\operatorname{Mont}}
+\newcommand{\Barrett}{\operatorname{Barrett}}
+\newcommand{\Rot}{\operatorname{rol}}
+\newcommand{\code}[1]{\texttt{#1}}
+\makeatletter
+\newcommand{\tablerows}[1]{\@@input #1 }
+\makeatother
+\hypersetup{pdftitle={Warp-Collective NTT and Keccak Instructions for ML-KEM on a RISC-V SIMT GPU},
+pdfauthor={Anonymous authors}}
+
+\title{Warp-Collective NTT and Keccak Instructions\\for ML-KEM on a RISC-V SIMT GPU}
+\author{\IEEEauthorblockN{Anonymous Authors}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+ML-KEM spends most of its time in two primitives whose parallelism maps naturally
+onto a SIMT warp but whose communication does not: a number-theoretic transform
+(NTT) pairs lanes at power-of-two distances, whereas a Keccak round reduces
+columns, gathers words, and combines row neighbors of a $5\times5$ state.
+Software must synthesize this communication from shuffles, and a memory-coupled
+accelerator moves the entire state through the cache on every call. In this
+paper we present warp-collective instructions that keep both states in ordinary
+lane registers of an open RISC-V GPU and expose the required communication as
+fixed datapaths, while preserving the standard two-source, one-destination
+operand contract. A pair-butterfly instruction returns both outputs of a
+Cooley--Tukey or Gentleman--Sande butterfly from one modular product and shares
+16 multipliers across 32 lanes. Keccak is offered at two granularities, three
+per-stage instructions or one whole-round instruction, each producing one 32-bit
+half of the next state on RV32. Implemented in the Vortex core and evaluated
+with cycle-accurate XRT simulation and post-route Alveo~V80 implementation, the
+collectives accelerate complete ML-KEM-768 by up to \RoundVsShuffleEight$\times$
+over the same shuffle-based mapping and \RoundVsScalarOne$\times$ over scalar
+software, for a \RoundLutThirtyTwoPct--\StageLutThirtyTwoPct\% LUT increase over
+an NTT-equipped core at 250\,MHz. Whole-round fusion triples permutation
+throughput yet improves complete requests by only \FusionAppEightPct\%, and the
+memory-coupled engine overtakes register collectives at eight concurrent
+requests. Collective granularity must therefore be chosen at application scope.
+\end{abstract}
+
+\begin{IEEEkeywords}
+post-quantum cryptography, ML-KEM, NTT, Keccak, SIMT, RISC-V, instruction-set extension
+\end{IEEEkeywords}
+
+\section{Introduction}
+Post-quantum key establishment is now mandatory in TLS and VPN deployments,
+and ML-KEM~\cite{fips203} is the standardized mechanism. A server terminating
+many connections sees ML-KEM as a throughput workload, which makes a GPU an
+attractive host. Each ML-KEM-768 request executes 140 Keccak-f[1600]
+permutations~\cite{fips202} and 24 forward or inverse NTTs; on a scalar RISC-V
+core, Keccak alone accounts for about \ScalarKeccakSharePct\% of a request and
+the transforms for another \ScalarNttSharePct\%.
+
+Both primitives contain enough independent work to occupy a 32-lane warp, but
+they communicate across the warp in different ways (Fig.~\ref{fig:comm}). An NTT
+butterfly exchanges one coefficient with a partner lane at distance
+$16,8,4,2$ and applies a modular product; a Keccak round reduces five-word
+columns, permutes and rotates all 25 words, and combines three row neighbors.
+A SIMT core supports only lane-local arithmetic and generic shuffles, so a
+cooperative software mapping pays for every pattern with shuffle and select
+instructions: on our platform a 25-lane shuffle mapping still spends
+\MicroPermShuffle{} cycles per permutation, and in a transform whose products
+already use a modular-multiply instruction, shuffle communication accounts for
+about two thirds of the cycles. The usual alternative, a
+memory-coupled Keccak engine reached through a pointer, removes the
+arithmetic but transfers the 200-byte state through the load/store unit on
+each invocation and leaves absorb and squeeze on a single lane.
+
+Register-coupled cryptographic extensions are well established for scalar
+RISC-V cores~\cite{risqv,nannipieri}, a 25-thread Keccak layout has been used
+in GPU software~\cite{mlcube}, and a warp-collective Keccak round has been
+described in a patent application~\cite{collectivepatent}. What is missing is
+an open implementation that fits such collectives into the operand and
+writeback constraints of a real SIMT pipeline, and a controlled measurement of
+how large a collective should be. A larger instruction removes issue slots and
+shuffles, but it also adds pipeline storage, and its benefit is bounded by the
+work that remains outside the primitive. Concurrency changes the answer again,
+because a memory-coupled engine overlaps with other warps while a register
+collective occupies the whole warp.
+
+In this paper we present warp-collective NTT and Keccak instructions for the
+open Vortex RISC-V GPU~\cite{vortex}. The key idea is to keep each primitive's
+state in ordinary general-purpose registers, distributed across lanes in the
+layout that its communication graph prefers, and to implement the cross-lane
+edges of that graph as fixed wiring inside an execution unit that still reads
+two source vectors and writes one destination vector. We make three
+contributions.
+\begin{enumerate}
+\item We define a register interface that fits multi-input, multi-output
+cryptographic operations into standard SIMT operands: a pair butterfly whose
+pair-low lane supplies the twiddle and whose two outputs return through the two
+lanes' own destinations, and 25-lane Keccak stage and round instructions with
+explicit low/high output halves on RV32. No instruction carries hidden state,
+memory side effects, or a second destination.
+\item We build datapaths matched to each communication structure: a
+statically routed NTT unit that shares 16 multipliers across 32 lanes and
+saves \HalfBankLutSavePct\% of core LUTs and \HalfBankDspSave{} DSPs at a
+cycle cost below \HalfBankMaxCyclePct\%, and two-stage and four-stage Keccak
+pipelines that add \StageLutThirtyTwoPct\% and \RoundLutThirtyTwoPct\% LUTs to
+a routed 250\,MHz core.
+\item We evaluate complete ML-KEM-768 rather than isolated primitives.
+Register collectives speed up whole requests by up to
+\RoundVsShuffleEight$\times$ over the same shuffle mapping and
+\RoundVsScalarOne$\times$ over scalar software. Fusing a round into one
+instruction triples permutation throughput but adds only
+\FusionAppEightPct\% at request scope, and a pointer engine wins by
+\PointerVsRoundEight$\times$ at eight concurrent requests despite losing at
+one. The profile that explains both results is measured directly.
+\end{enumerate}
+
+\begin{figure}[t]
+\centering\input{figures/comm.tex}
+\caption{Cross-lane communication of the two primitives inside one warp.
+(a)~With coefficient $a[l+32k]$ in register $R_k$ of lane $l$, the first three
+NTT levels pair registers of one lane and the last four pair lanes at XOR
+distance $d$. (b)~Lane $x+5y$ holds Keccak word $A[x,y]$; $\theta$ reduces a
+column, $\rho\pi$ gathers and rotates a word, and $\chi$ combines row neighbors.}
+\label{fig:comm}
+\end{figure}
+
+\section{Background and Motivation}
+\subsection{ML-KEM on a SIMT warp}
+ML-KEM-768 works in $\mathbb{Z}_q[X]/(X^{256}+1)$ with $q=3329$. Its NTT
+has seven levels with butterfly distances $128,64,\ldots,2$; each butterfly
+reads a pair $(a,b)$ and a twiddle $\zeta$ and writes
+$(a+t,\,a-t)$ with $t=\Mont(b\zeta)$. Hashing, sampling, and key derivation
+use SHAKE and SHA-3, whose Keccak-f[1600] permutation applies 24 rounds of
+$\theta$, $\rho\pi$, $\chi$, and $\iota$ to a $5\times5$ array of 64-bit
+words. One request therefore alternates between polynomial arithmetic on 256
+coefficients and permutations of a 1600-bit state, with sampling, encoding,
+and control in between.
+
+Vortex is an open SIMT GPU whose warps have 32 threads and whose execution
+units are 32 lanes wide. Every ALU-class instruction reads up to three
+source vectors from the register file, executes in one of several processing
+elements, and commits one result vector, one word per lane. The ISA offers a
+lane shuffle for cross-lane data movement and can be extended with custom
+opcodes. Our final core has eight resident warps, 16\,KiB instruction and data
+caches, 16\,KiB local memory, and no L2; the floating-point units are removed
+so that every reported area is an integer core.
+
+\subsection{Communication, not arithmetic, is the cost}
+Fig.~\ref{fig:comm} shows the two communication graphs. Distributing a
+polynomial as $R_k[l]=a[l+32k]$ makes the first three levels lane-local: the
+partner of $R_k$ is $R_{k\,\mathrm{xor}\,4}$, $R_{k\,\mathrm{xor}\,2}$, or
+$R_{k\,\mathrm{xor}\,1}$ in the same lane. The remaining four levels pair lane
+$l$ with lane $l\,\mathrm{xor}\,d$ for $d=16,8,4,2$; there is no distance-one
+level in ML-KEM. Keccak has no such split. With word $A[x,y]$ in lane $x+5y$,
+$\theta$ needs the XOR of five lanes in a column, $\rho\pi$ moves every word to
+a fixed different lane and rotates it, and $\chi$ needs the two right-hand
+neighbors in the same row.
+
+Software cooperative mappings can express all of these patterns with shuffles,
+and they already beat scalar code (Table~\ref{tab:micro}): spreading one state
+over 25 lanes completes a permutation \MicroShuffleVsPqrv$\times$ faster than
+optimized RV32 assembly on one lane~\cite{pqrv}, and a five-lane column
+mapping that exchanges words through local memory lies in between. But each
+shuffled Keccak round still needs dozens of instructions per lane, and a
+shuffled butterfly level needs a shuffle, two selects, and a product for every
+coefficient. Fixed wiring can implement the same edges in one instruction,
+provided that the instruction's inputs and outputs still fit the register file
+interface; the last two rows of Table~\ref{tab:micro} are the result.
+
+\begin{table}[t]
+\caption{Cycles per Keccak-f[1600] permutation for six mappings on the same
+core: eight warps, one state per warp, eight dependent permutations, XRT.}
+\label{tab:micro}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Mapping & State placement & Cycles / perm. \\
+\midrule
+Scalar C & one lane, memory & \MicroPermScalarC \\
+PQRV assembly~\cite{pqrv} & one lane, registers & \MicroPermPqrv \\
+Five-lane columns & five lanes, local memory & \MicroPermSgFive \\
+25-lane shuffle & 25 lanes, registers & \MicroPermShuffle \\
+Stage collectives (ours) & 25 lanes, registers & \MicroPermStage \\
+Round collective (ours) & 25 lanes, registers & \MicroPermRound \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Related work}
+Register-coupled accelerators for scalar RISC-V cores implement NTT butterflies
+and whole Keccak rounds inside the pipeline~\cite{risqv} or add modular
+multiply and butterfly instructions~\cite{nannipieri}; they show the value of
+register residence but have a single lane and no cross-lane problem. ML-Cube
+maps Keccak to 25 GPU threads with shuffles~\cite{mlcube}, and an NVIDIA
+patent application describes a warp-collective 64-bit Keccak
+round~\cite{collectivepatent}; neither reports an implementation cost or a
+granularity comparison. Near-memory NTT designs choose their operation size
+from where butterfly partners reside~\cite{nttpim,bpntt}, the same principle
+we apply to a register file. CHAM and ZK-Flex show that primitive-level
+speedups in lattice and zero-knowledge accelerators shrink at application
+scope~\cite{cham,zkflex}, and PacQ and SynGPU show how a SIMT datapath can be
+extended without changing the general core~\cite{pacq,syngpu}. In contrast to
+all of these, we implement both a lane-pair collective and a 25-lane
+collective in one open GPU, keep the one-destination contract, and measure
+granularity, concurrency, and area together on complete ML-KEM.
+
+\section{Warp-Collective Instruction Design}
+\subsection{Overview and contract}
+Fig.~\ref{fig:overview} places the new units in the Vortex pipeline. Three
+processing elements sit beside the integer ALU and multiplier: an NTT unit,
+a Keccak stage unit, and a Keccak round unit. Each is reached by the ordinary
+execute interface, which delivers the warp's source vectors and thread mask,
+and returns through the ordinary result interface into ALU arbitration and
+commit. A memory-coupled pointer engine, attached to the load/store path, is
+retained as the baseline for a coarser execution boundary.
+
+All collectives obey one contract. An instruction reads two source vectors and
+writes one destination vector, one word per lane. It has no pointer operand, no
+memory ordering effect, and no state that survives between instructions; a
+multi-instruction operation such as an RV32 round recomputes from identical
+operands rather than retaining a partial result, so warps may interleave at
+any instruction boundary and no context needs saving on a warp switch. Keccak collectives require all
+32 lanes of the warp to be active, including the seven lanes that hold no
+state and return zero; NTT collectives require both lanes of every enabled pair
+to be active. These rules let the units use fixed wiring instead of a
+permutation network and keep dependence tracking, backpressure, and writeback
+arbitration unchanged.
+
+\begin{figure}[t]
+\centering\input{figures/overview.tex}
+\caption{The collective units are ordinary ALU processing elements of the
+Vortex core: they read source vectors from the register file and commit one
+destination vector. The pointer engine is the memory-coupled baseline.}
+\label{fig:overview}
+\end{figure}
+
+\subsection{NTT: pair butterflies with one destination per lane}
+A butterfly has three inputs and two outputs, so it does not fit a
+two-source, one-destination instruction if each lane owns one coefficient.
+The pair collective resolves this by letting the two lanes of a pair
+cooperate on one product (Fig.~\ref{fig:pair}a). For a distance $d=2^s$,
+lane $p$ with bit $s$ clear is the pair-low lane and $h=p\,\mathrm{xor}\,d$
+is the pair-high lane. The first source vector supplies $a$ at lane $p$ and
+$b$ at lane $h$; the second source vector supplies the twiddle at lane $p$, and
+its value at lane $h$ is ignored by definition. The Cooley--Tukey (CT) form
+computes
+\begin{equation}
+t=\Mont(b\zeta),\qquad r_p=a+t,\qquad r_h=a-t,
+\end{equation}
+and the Gentleman--Sande (GS) inverse form computes
+\begin{equation}
+r_p=\Barrett(a+b),\qquad r_h=\Mont\bigl((b-a)\zeta\bigr),
+\end{equation}
+with the library's signed 16-bit wrap-around semantics. Each lane writes its
+own destination, so the pair's two outputs use two ordinary writebacks and no
+second destination register. The instruction encodes $s\in\{0,\ldots,4\}$;
+ML-KEM issues eight instructions per cross-lane level and 32 per transform
+direction, and every twiddle is a per-lane operand rather than a table lookup
+inside the unit. A separate lane-local instruction, \code{NTTMUL}, performs
+one Montgomery product and serves the three in-lane levels, the inverse
+scaling, and the base multiplication of polynomial arithmetic.
+
+\begin{figure}[t]
+\centering\input{figures/ntt_pair.tex}
+\caption{(a)~A CT pair butterfly at distance 16: lane 5 supplies $a$ and the
+twiddle, lane 21 supplies $b$, one Montgomery product serves both, and each
+lane commits its own result. (b)~Sixteen multipliers cover 32 lanes: CT needs
+one beat, GS needs a second beat for the Barrett quotient, and lane-local
+\code{NTTMUL} processes the two lane halves in turn.}
+\label{fig:pair}
+\end{figure}
+
+\subsection{Keccak: stage and round collectives}
+Lane $l=x+5y$ holds word $A[x,y]$ as two 32-bit registers on RV32 or one
+register on RV64. With coordinates modulo five, one round computes
+\begin{align}
+C[x]&=\textstyle\bigoplus_{y=0}^{4}A[x,y],\\
+T[x,y]&=A[x,y]\oplus C[x{-}1]\oplus\Rot(C[x{+}1],1),\\
+B[y,2x{+}3y]&=\Rot\bigl(T[x,y],\rho[x,y]\bigr),\\
+U[x,y]&=B[x,y]\oplus\bigl(\neg B[x{+}1,y]\wedge B[x{+}2,y]\bigr),
+\end{align}
+followed by XOR of the round constant into lane zero. The \emph{stage}
+design exposes three instructions, $\theta$, $\rho\pi$, and $\chi\iota$.
+On RV32 each exists in a low and a high form, \code{.L} and \code{.H},
+that read the same old state vectors and return the selected half of the new
+word (Fig.~\ref{fig:keccak}a). Both halves must be computed from the full
+64-bit words: the one-bit rotation in $\theta$ and the $\rho$ rotations cross
+the half-word boundary, so two independent 32-bit operations would be wrong.
+$\chi$ operates on one half at a time and takes a warp-uniform round index as
+its second source. Six issues implement one round, and the programmer must not
+overwrite an old half before the instruction that reads it has issued, which
+is an ordinary register dependence.
+
+The \emph{round} design fuses column parity, $\theta$, $\rho\pi$, and
+$\chi\iota$ into one instruction with a literal round index
+(Fig.~\ref{fig:keccak}b). On RV32, \code{KROUND.L} and \code{KROUND.H} each
+read the complete old state and compute their half of the complete new state;
+the pair recomputes from identical operands instead of keeping the second
+half in hidden storage, so different warps may interleave freely. A
+permutation is 48 RV32 issues instead of 144. RV64 changes only the word
+interface: every stage returns a whole word and one \code{KROUND} issue
+completes a round. Table~\ref{tab:isa} summarizes the collectives.
+
+\begin{figure}[t]
+\centering\input{figures/keccak_unit.tex}
+\caption{Keccak collectives on RV32. (a)~The stage unit computes one selected
+half of $\theta$, $\rho\pi$, or $\chi\iota$ through two pipeline registers; six
+issues form a round. (b)~The round unit computes a selected half of the whole
+round through four pipeline registers; two issues form a round.}
+\label{fig:keccak}
+\end{figure}
+
+\begin{table}[t]
+\caption{Warp-collective instructions. Issues are per NTT level or per RV32
+Keccak round; RV64 halves the Keccak counts.}
+\label{tab:isa}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Instruction & Lanes cooperating & Result per lane & Issues \\
+\midrule
+\code{NTTMUL} & none & Montgomery product & 4 / level \\
+\code{NTTBF.CT/GS} & XOR pair, $d=2^s$ & butterfly output & 8 / level \\
+\code{KTHETA.L/H} & column of five & half of $T[x,y]$ & 2 / round \\
+\code{KRHOPI.L/H} & fixed source lane & half of $B[x,y]$ & 2 / round \\
+\code{KCHII.L/H} & row neighbors & half of $U[x,y]$ & 2 / round \\
+\code{KROUND.L/H} & all 25 & half of next state & 2 / round \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Programming the complete request}
+The ML-KEM implementation is mlkem-native~\cite{mlkemnative} compiled for
+Vortex. Lane zero runs the scalar control flow. Wrappers around FIPS-202, the
+transforms, and cooperative polynomial arithmetic activate the full warp,
+broadcast the leader's arguments, execute the collective kernel, and restore
+the leader mask. A request-level allocation arena replaces per-lane copies of
+the workspace. The register-resident sponge keeps its state in lanes across
+absorb, permutation, and squeeze of one call; the incremental SHAKE context
+is saved to memory between API calls. The NTT kernel loads eight
+coefficients per lane, runs all seven levels in registers, and stores them
+back, so the transform makes no intermediate memory access.
+
+The contract imposes three rules on kernel code. First, a Keccak collective
+must be reached by all 32 lanes at the same instruction; loads and stores may
+be guarded by \code{lane<25}, but the warp must reconverge before the
+collective, and guarding the collective itself is a contract violation that
+simulation reports. Second, the round operand of $\chi\iota$ must be uniform
+across lanes and lie in $0,\ldots,23$; the round collective encodes the index
+and needs no operand. Third, on RV32 the two halves of a stage must be issued
+before either destination overwrites an old half, which the compiler satisfies
+with one temporary. The permutation loop uses five general-purpose registers
+and contains no load, store, call, or stack frame; the expanded round version
+is 48 instructions with no branch.
+
+\section{Implementation}
+\subsection{Shared multiplier bank}
+A 32-lane butterfly instruction needs only 16 products, so the NTT unit
+instantiates 16 signed $16\times16$ multipliers (Fig.~\ref{fig:pair}b). Pair
+operands are routed to bank element $i$ by static wiring for each of the five
+encoded distances, which avoids a general permutation network. CT enters the
+bank once. GS enters twice: the first beat forms $(b-a)\zeta$ and the second
+forms the Barrett quotient product $(a+b)\cdot20159$, with the first result
+held in a register until both are complete. Lane-local \code{NTTMUL} also
+takes two beats, one per 16-lane half. With a registered reduction stage and a
+registered result stage, CT has a latency of six cycles and an initiation
+interval of one; GS and \code{NTTMUL} have seven and two. Multi-beat
+operations stay adjacent under backpressure and results retain their lane
+positions and warp metadata.
+
+\subsection{Keccak pipelines}
+The stage unit computes column parity, the $\rho\pi$ gather, or the $\chi$
+row logic in its first stage and applies the $\theta$ correction or the round
+constant in its second; two pipeline registers give an initiation interval of
+one. The round unit has four registered stages, parity, $\theta$, $\rho\pi$,
+and $\chi\iota$, also with initiation interval one; its stages hold complete
+64-bit words, which is where its extra flip-flops come from. Padding lanes
+25--31 are wired to zero. Simulation assertions check the full-mask,
+uniform-round, and round-range rules, and instruction-level contract tests
+exercise them with different twiddles per lane and partial masks.
+
+\subsection{Verification and physical flow}
+Unit tests check the butterfly against the reference for all five distances,
+334,080 outputs in total, and the Keccak units against FIPS-202 for all 24
+rounds, 10,200 word comparisons. Complete ML-KEM-768 requests reproduce the
+FIPS 203 known-answer test byte for byte for every backend. Cycle results
+come from XRT simulation of the accelerator function unit and processor RTL;
+a functional timing model (SimX) reproduces the retired instruction counts
+exactly and its whole-launch cycles agree within \ModelGapPct\% on the
+matched controls. Physical results use Vivado~2025.1 for the Alveo~V80
+(xcv80) with a 250\,MHz constraint, post-route physical optimization, and an
+independent full-core run per configuration.
+
+\section{Evaluation}
+\subsection{Methodology}
+All performance runs use one RV32IM Vortex core with eight warps of 32
+threads, the cache configuration of Sec.~II, and a single runtime that
+enables the NTT unit, both Keccak units, and the pointer engine. Only the
+Keccak backend of the software changes between arms; the NTT and polynomial
+arithmetic collectives are fixed. We compare six backends: scalar reference
+C, PQRV assembly~\cite{pqrv}, the 25-lane shuffle mapping (\emph{Shuffle}),
+the stage collectives (\emph{Stage}), the round collective (\emph{Round}),
+and the pointer engine (\emph{Pointer}). Each request performs key generation,
+encapsulation, and decapsulation with the FIPS~203 known-answer inputs. We
+report whole-launch device cycles for one request ($M{=}1$), which measures
+latency, and for eight concurrent requests ($M{=}8$), which measures batch
+completion time; overlapping per-request intervals are never summed.
+
+\subsection{Complete ML-KEM-768}
+Fig.~\ref{fig:kem} gives the headline result. The cooperative shuffle mapping
+alone improves on PQRV assembly by \ShuffleVsPqrvOne$\times$ at $M{=}1$, so
+scalar software is not a fair denominator for an instruction extension. Against
+the identical shuffle mapping, the stage collectives improve complete requests
+by \StageVsShuffleOne$\times$/\StageVsShuffleEight$\times$ and the round
+collective by \RoundVsShuffleOne$\times$/\RoundVsShuffleEight$\times$ at
+$M{=}1$/$M{=}8$. Over scalar C the round backend reaches
+\RoundVsScalarOne$\times$ and \RoundVsScalarEight$\times$, and over PQRV
+\RoundVsPqrvOne$\times$ and \RoundVsPqrvEight$\times$; these larger ratios
+include the mapping change.
+
+\begin{figure}[t]
+\centering\input{figures/kem_xrt.tex}
+\caption{Complete ML-KEM-768 whole-launch cycles on one common XRT runtime,
+NTT and polynomial collectives fixed, six Keccak backends. Every request
+passes the known-answer test. Lower is better.}
+\label{fig:kem}
+\end{figure}
+
+The best backend depends on concurrency. At one request the round collective
+beats the pointer engine by \RoundVsPointerOne$\times$; at eight requests the
+pointer engine finishes the batch \PointerVsRoundEight$\times$ faster than
+Round and \PointerVsStageEight$\times$ faster than Stage. The batch gain from
+one to eight requests is \BatchPointer$\times$ for Pointer and
+\BatchScalar$\times$ for scalar C but only \BatchShuffle--\BatchStage$\times$
+for the three 25-lane mappings, whose retired instructions per cycle at $M{=}8$
+are \IpcStageEight{} against \IpcPointerEight{} for Pointer. All three
+cooperative mappings issue lane-parallel sponge code that occupies the whole
+32-wide datapath and load/store unit, whereas the pointer backend's
+permutations execute in a separate unit and overlap with other warps. The
+measurements establish the crossover; attributing it to one scheduler or
+cache mechanism would need counters we do not have.
+
+Instruction counts rule out the simplest explanation. At $M{=}8$ the round
+backend retires \InstrRoundEight{} million instructions and the pointer
+backend \InstrPointerEight{} million, so the pointer backend executes more
+instructions and still finishes first. Its advantage is overlap, not work:
+while one warp waits for the engine, the other seven issue scalar sponge and
+polynomial code. A register collective has no such overlap; eight 25-lane
+sponges contend for one 32-wide datapath, one load/store unit, and a 16\,KiB
+data cache. The shuffle mapping, which uses no collective hardware, shows the
+same small batch gain, so the effect belongs to the lane-parallel software
+mapping rather than to the new units.
+
+\subsection{Granularity: primitive gains versus request gains}
+Round fusion cuts the RV32 issues per permutation from 144 to 48, but the
+round kernel is also fully unrolled because the round index is a literal.
+To isolate fusion we expand the stage kernel to the same 24-round straight-line
+code and time 64 dependent permutations per warp. Fig.~\ref{fig:fusion} shows
+the outcome. At primitive scope, Round completes a permutation in
+\PermRoundOne{} cycles against \PermStageExpOne{} for expanded Stage with one
+active warp, and \PermRoundEight{} against \PermStageExpEight{} per completed
+permutation with eight warps, a \FusionPrimOne$\times$ and
+\FusionPrimEight$\times$ gain. At request scope, the same two kernels in
+complete ML-KEM differ by \FusionAppOne$\times$ at $M{=}1$ and
+\FusionAppEight$\times$ at $M{=}8$.
+
+\begin{figure}[t]
+\centering\input{figures/fusion.tex}
+\caption{Gain of the round collective over the equally expanded stage
+collectives. The primitive gain (64 dependent permutations per warp) does not
+transfer to complete ML-KEM.}
+\label{fig:fusion}
+\end{figure}
+
+Fig.~\ref{fig:profile} explains the gap with directly measured, mutually
+exclusive intervals of a single instrumented request. With stage collectives,
+permutations take \PermStagePct\% of the request; with the round collective,
+\PermRoundPct\%; with the pointer engine, \PermPointerPct\%. Absorb and
+squeeze, which exclude nested permutations, take \SpongeStagePct\% for Stage
+but \SpongePointerPct\% for Pointer, because the pointer backend runs them on
+one lane and moves the state through memory around every permutation. The
+transforms take about \NttStagePct\% and cooperative polynomial arithmetic
+\PolyStagePct\%. The remainder, sampling, encoding, comparison, control, and
+wrapper overhead, is the majority of the request for every backend. Amdahl's
+law with $f=\PermStagePct\%$ and $s=\FusionPrimOne$ predicts a
+$1/(1-f+f/s)\approx1.03\times$ gain from fusion, matching the measurement.
+Instrumentation adds \ProbeMinPct--\ProbeMaxPct\% to these runs, so the
+headline speedups use the uninstrumented launches.
+
+\begin{figure}[t]
+\centering\input{figures/profile.tex}
+\caption{Mutually exclusive intervals of one instrumented ML-KEM-768 request
+on XRT for the three hardware backends. Permutation is a small fraction after
+any of them; the pointer backend pays instead in absorb and squeeze.}
+\label{fig:profile}
+\end{figure}
+
+\subsection{NTT communication and multiplier sharing}
+The NTT study holds the modular multiplier fixed and changes only how the
+four cross-lane levels communicate (Fig.~\ref{fig:ntt}). Replacing the
+scalar product with \code{NTTMUL} speeds a forward transform up by
+\NttMulVsCFwdOne$\times$; replacing shuffles with pair butterflies adds
+another \NttPairVsShuffleFwdOne$\times$ (\NttPairVsShuffleInvOne$\times$ for
+the inverse), so the communication instruction is worth more than the
+arithmetic instruction. A stronger software control that performs the
+cross-lane levels through a shared-memory transpose is still
+\NttPairVsSmemFwdOne$\times$ slower at $M{=}1$ and \NttPairVsSmemFwdEight$\times$
+at $M{=}8$. At request scope, pair butterflies reduce complete ML-KEM cycles by
+\NttKemPairVsShuffleOnePct\%/\NttKemPairVsShuffleEightPct\% over the shuffle
+version and \NttKemPairVsSmemOnePct\%/\NttKemPairVsSmemEightPct\% over the
+shared-memory version at $M{=}1$/$M{=}8$; the transforms are a small share of
+a request (Fig.~\ref{fig:profile}), so these are the expected magnitudes.
+
+\begin{figure}[t]
+\centering\input{figures/ntt_direct.tex}
+\caption{Isolated 256-point forward and inverse transform cycles for one and
+eight concurrent transforms. \emph{MUL} denotes the \code{NTTMUL} product,
+\emph{Pair} the butterfly collective, and \emph{SharedMem} a transpose through
+local memory.}
+\label{fig:ntt}
+\end{figure}
+
+Sharing the multiplier bank is free at this scope. Against a matched
+full-core implementation with one multiplier per lane, the 16-multiplier
+unit removes \HalfBankLutSave{} LUTs (\HalfBankLutSavePct\%), \HalfBankFfSave{}
+flip-flops, and \HalfBankDspSave{} DSPs, while the same binary changes
+complete-KEM cycles by at most \HalfBankMaxCyclePct\%. The final NTT hierarchy
+occupies \NttHierLut{} LUTs, \NttHierFf{} flip-flops, and \NttHierDsp{} DSPs.
+
+\subsection{Area, timing, and integer width}
+Table~\ref{tab:ppa} reports independent post-route implementations of the
+integer-only core with the NTT unit and, in turn, each register Keccak unit.
+On RV32, the stage unit adds \StageLutThirtyTwoPct\% LUTs and
+\StageFfThirtyTwoPct\% flip-flops to the whole core and the round unit adds
+\RoundLutThirtyTwoPct\% and \RoundFfThirtyTwoPct\%. The round unit's
+pipeline of complete 64-bit words costs three times the flip-flops of the
+stage unit; its own hierarchy also has more LUTs, but the routed core is
+slightly smaller, so whole-core deltas include placement effects. Both close
+250\,MHz. In a matched sweep of an earlier
+core generation that still contained the floating-point units, the pointer
+engine added \BackendPointerLutDelta{} LUTs, \PointerVsRoundLutDelta$\times$
+the increment of the round unit, so its eight-request advantage is bought with
+the largest area of the three backends.
+
+\begin{table}[t]
+\caption{Independent post-route implementations on the Alveo~V80 at 250\,MHz,
+one core, eight warps of 32 threads, no floating point. Keccak columns are the
+unit hierarchy alone; WNS is worst negative slack in ns.}
+\label{tab:ppa}
+\centering\footnotesize\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}llrrrrr@{}}
+\toprule
+ISA & Core & LUT & FF & Keccak LUT & Keccak FF & WNS \\
+\midrule
+\tablerows{assets/ppa_rows.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+A 64-bit core halves the Keccak issue count, and one might expect it to
+favor the collectives. Recompiling the same software for RV64IM reduces
+whole-launch instructions by only \RvSixtyFourStageInstrPct\% (Stage) and
+\RvSixtyFourRoundInstrPct\% (Round), because NTT, sampling, and encoding do
+not shrink with the word size. Single-request cycles fall by
+\RvSixtyFourStageMOnePct\% and \RvSixtyFourRoundMOnePct\%, eight-request
+cycles change by \RvSixtyFourStageMEightPct\% and
+\RvSixtyFourRoundMEightPct\%, and the RV64 cores use
+\RvSixtyFourLutRatio$\times$ the LUTs of their RV32 counterparts without
+meeting 250\,MHz (Table~\ref{tab:ppa}). The narrow core, with its 16-bit NTT
+arithmetic independent of the integer width, remains the better design point.
+
+\subsection{Choosing a design point}
+Table~\ref{tab:points} collects the three hardware backends on the axes that
+matter to a designer. The stage collectives add the fewest flip-flops and
+expose three individually testable operations; they suit a register-limited
+core. The round collective costs \RoundFfDeltaThirtyTwo{} flip-flops against
+\StageFfDeltaThirtyTwo{} but fewer LUTs, gives the lowest single-request
+latency, and provides about \RoundPerLutVsStage$\times$ the permutation
+throughput per added LUT; it suits a latency-bound client or a hashing-heavy
+workload. The pointer engine adds several times the logic of either
+collective and loses at one request, but its permutations overlap with other
+warps and it wins the eight-request batch by \PointerVsRoundEight$\times$.
+None of this is visible from the permutation microbenchmark
+(Table~\ref{tab:micro}), where the round collective leads shuffles by
+\MicroRoundVsShuffle$\times$.
+
+\begin{table}[t]
+\caption{Design points. Cycles are millions per launch on the common runtime;
+area deltas are whole-core post-route increments over the NTT-only core.
+$^\dagger$Earlier core generation with floating point; not comparable in
+absolute terms.}
+\label{tab:points}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrl@{}}
+\toprule
+Backend & $M{=}1$ & $M{=}8$ & $\Delta$LUT & $\Delta$FF & Best for \\
+\midrule
+Stage & \KemStageOne & \KemStageEight & \StageLutDeltaThirtyTwo & \StageFfDeltaThirtyTwo & small state, testability \\
+Round & \KemRoundOne & \KemRoundEight & \RoundLutDeltaThirtyTwo & \RoundFfDeltaThirtyTwo & latency, hashing-heavy \\
+Pointer & \KemPointerOne & \KemPointerEight & \BackendPointerLutDelta$^\dagger$ & \BackendPointerFfDelta$^\dagger$ & batched throughput \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Scope and limitations}
+The evidence covers ML-KEM-768 at fixed known-answer inputs, two request
+counts, and one core geometry; rejection sampling makes other inputs shift
+absolute cycles for every backend alike. One state per warp is a fixed occupancy point, not an optimum;
+scalar and five-lane software can pack more independent states into a warp
+and would gain more on a hashing workload with many independent streams. All
+cycle results are XRT simulation of the RTL rather than board execution, and
+each physical row is one implementation seed. We make no energy claim, since
+no activity-based power measurement exists, and no side-channel claim.
+
+\section{Conclusion}
+We presented warp-collective NTT and Keccak instructions that keep
+cryptographic state in the ordinary registers of a RISC-V SIMT GPU and
+implement each primitive's cross-lane communication as fixed wiring behind a
+standard two-source, one-destination interface. A pair butterfly with 16
+shared multipliers and stage or round Keccak collectives add about one
+percent of LUTs to a routed 250\,MHz core and speed up complete ML-KEM-768 by
+up to \RoundVsShuffleEight$\times$ over the same cooperative software mapping
+and \RoundVsScalarOne$\times$ over scalar code. At request scope a threefold
+permutation gain from round fusion becomes \FusionAppEightPct\%, and a
+memory-coupled engine overtakes the register collectives at eight concurrent
+requests. State placement, granularity, and concurrency must be chosen
+together at the scope of the complete request.
+
+\clearpage
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\end{document}

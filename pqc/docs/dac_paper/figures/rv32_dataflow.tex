@@ -1,0 +1,52 @@
+\begin{tikzpicture}[
+  x=1mm,y=1mm,font=\fontsize{8}{9}\selectfont,
+  flow/.style={-{Latex[length=1.2mm]},line width=.45pt},
+  op/.style={draw,rounded corners=.6pt,minimum width=12mm,
+             minimum height=5mm,inner sep=0pt},
+  half/.style={circle,fill=cDark,inner sep=.55pt}]
+\path[use as bounding box] (0,0) rectangle (85,42);
+\node[anchor=west,font=\fontsize{8}{9}\selectfont\bfseries,text=cGold] at (0,40)
+  {Stage: 6 issues / round};
+\foreach \n/\x/\s in {theta/21/\theta,rhopi/43/{\rho\pi},chii/65/{\chi\iota}} {
+  \node[op,draw=cGold,fill=cGold!9] (\n-L) at (\x,34) {$\s_L$};
+  \node[op,draw=cGold,fill=cGold!9] (\n-H) at (\x,27) {$\s_H$};
+}
+\node[anchor=east] at (6,34) {$L$};
+\node[anchor=east] at (6,27) {$H$};
+\node[half] (oldL) at (7,34) {};
+\node[half] (oldH) at (7,27) {};
+\draw[flow] (oldL) -- (theta-L.west);
+\draw[flow] (oldH) -- (theta-H.west);
+\draw[flow,cDark!65] (oldL) -- (theta-H.west);
+\draw[flow,cDark!65] (oldH) -- (theta-L.west);
+\draw[flow] (theta-L.east) -- (rhopi-L.west);
+\draw[flow] (theta-H.east) -- (rhopi-H.west);
+\draw[flow,cDark!65] (theta-L.east) -- (rhopi-H.west);
+\draw[flow,cDark!65] (theta-H.east) -- (rhopi-L.west);
+\draw[flow] (rhopi-L.east) -- (chii-L.west);
+\draw[flow] (rhopi-H.east) -- (chii-H.west);
+\draw[flow] (chii-L.east) -- (78,34);
+\draw[flow] (chii-H.east) -- (78,27);
+\node[anchor=west] at (78,34) {$L'$};
+\node[anchor=west] at (78,27) {$H'$};
+
+\draw[cGray] (0,22) -- (85,22);
+\node[anchor=west,font=\fontsize{8}{9}\selectfont\bfseries,text=cPurple] at (0,19)
+  {Round: 2 issues / round};
+\node[anchor=east] at (10,12) {$L$};
+\node[anchor=east] at (10,5) {$H$};
+\node[half] (roundoldL) at (11,12) {};
+\node[half] (roundoldH) at (11,5) {};
+\node[op,draw=cPurple,fill=cPurple!9,minimum width=30mm] (roundL) at (45,12)
+  {$[\theta\rightarrow\rho\pi\rightarrow\chi\iota]_L$};
+\node[op,draw=cPurple,fill=cPurple!9,minimum width=30mm] (roundH) at (45,5)
+  {$[\theta\rightarrow\rho\pi\rightarrow\chi\iota]_H$};
+\draw[flow] (roundoldL) -- (roundL.west);
+\draw[flow] (roundoldH) -- (roundH.west);
+\draw[flow,cDark!65] (roundoldL) -- (roundH.west);
+\draw[flow,cDark!65] (roundoldH) -- (roundL.west);
+\draw[flow] (roundL.east) -- (76,12);
+\draw[flow] (roundH.east) -- (76,5);
+\node[anchor=west] at (76,12) {$L'$};
+\node[anchor=west] at (76,5) {$H'$};
+\end{tikzpicture}

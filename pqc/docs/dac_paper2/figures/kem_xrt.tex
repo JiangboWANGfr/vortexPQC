@@ -1,0 +1,21 @@
+% Fig.: complete ML-KEM-768 whole-launch cycles, six Keccak backends, M=1 and M=8.
+\pgfplotstableread{assets/kem_xrt.dat}\kemtable
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1,horizontal sep=9mm},
+  width=.56\columnwidth,height=3.6cm,
+  ybar,/pgf/bar width=4.2pt,
+  ymin=0,enlarge x limits=0.12,
+  xtick=data,xticklabels from table={\kemtable}{backend},
+  x tick label style={rotate=35,anchor=east,font=\tiny,yshift=1pt,xshift=2pt},
+  ylabel style={font=\scriptsize,yshift=-4pt},
+  y tick label style={font=\tiny},
+  title style={font=\scriptsize,yshift=-4pt},
+  nodes near coords,nodes near coords style={font=\tiny,/pgf/number format/fixed,/pgf/number format/precision=1},
+  axis line style={black!50},ymajorgrids,grid style={black!12},
+  every axis plot/.append style={fill=cblue!70,draw=cblue!80!black}]
+\nextgroupplot[title={$M{=}1$ request},ylabel={Mcycles},ymax=36]
+\addplot table[x expr=\coordindex,y=m1]{\kemtable};
+\nextgroupplot[title={$M{=}8$ requests},ymax=58,every axis plot/.append style={fill=corange!75,draw=corange!80!black}]
+\addplot table[x expr=\coordindex,y=m8]{\kemtable};
+\end{groupplot}
+\end{tikzpicture}

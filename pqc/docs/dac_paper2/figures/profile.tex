@@ -1,0 +1,22 @@
+% Fig.: where a single request spends its time after acceleration (XRT, M=1).
+\pgfplotstableread{assets/profile.dat}\proftable
+\begin{tikzpicture}
+\begin{axis}[width=\columnwidth,height=2.9cm,
+  xbar stacked,/pgf/bar width=7pt,
+  xmin=0,xmax=100,
+  ytick=data,yticklabels from table={\proftable}{backend},y dir=reverse,
+  y tick label style={font=\scriptsize},
+  x tick label style={font=\tiny},
+  xlabel={share of instrumented request (\%)},xlabel style={font=\scriptsize,yshift=3pt},
+  axis line style={black!50},
+  legend style={font=\tiny,draw=none,at={(0.5,1.02)},anchor=south,legend columns=5,column sep=3pt},
+  legend image code/.code={\draw[#1] (0cm,-0.08cm) rectangle (0.2cm,0.08cm);},
+  enlarge y limits=0.3]
+\addplot[fill=corange!85,draw=corange!80!black] table[y expr=\coordindex,x=permute]{\proftable};
+\addplot[fill=cblue!70,draw=cblue!80!black] table[y expr=\coordindex,x=sponge]{\proftable};
+\addplot[fill=cteal!70,draw=cteal!80!black] table[y expr=\coordindex,x=ntt]{\proftable};
+\addplot[fill=cpurple!60,draw=cpurple!80!black] table[y expr=\coordindex,x=poly]{\proftable};
+\addplot[fill=black!10,draw=black!35] table[y expr=\coordindex,x=other]{\proftable};
+\legend{permute,absorb+squeeze,NTT/INTT,poly.\ arith.,other}
+\end{axis}
+\end{tikzpicture}

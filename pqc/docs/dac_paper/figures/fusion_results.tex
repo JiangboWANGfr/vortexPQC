@@ -1,0 +1,39 @@
+\begin{tikzpicture}
+\begin{groupplot}[
+ group style={group size=1 by 2,vertical sep=13mm},
+ width=\columnwidth,height=36mm,
+ axis lines*=left,ymajorgrids,grid style={black!10},
+ tick label style={font=\footnotesize},label style={font=\footnotesize},
+ title style={font=\footnotesize},
+ legend style={font=\footnotesize,draw=none,cells={anchor=west}},
+ legend image code/.code={\draw[#1] (0cm,-0.06cm) rectangle (0.20cm,0.06cm);},
+ nodes near coords,
+ every node near coord/.append style={font=\footnotesize,/pgf/number format/fixed},
+ enlarge x limits=false]
+\nextgroupplot[
+ title={(a) Permutation cost (XRT)},
+ ybar,/pgf/bar width=6mm,
+ legend image code/.code={\draw[#1] (0cm,-0.06cm) rectangle (0.20cm,0.06cm);},
+ xmin=0.5,xmax=2.5,ymin=0,ymax=2900,
+ xtick={1,2},xticklabels={1 warp,8 warps},
+ ytick={0,1000,2000},ylabel={Cycles / perm.},
+ legend style={at={(0.98,0.98)},anchor=north east},
+ every node near coord/.append style={/pgf/number format/precision=0}]
+\addplot[fill=cGray,draw=cDark!50] table[x expr=\coordindex+1,y=loop]{assets/fusion.dat};
+\addplot[fill=cGold,draw=cGold!80!black] table[x expr=\coordindex+1,y=expanded]{assets/fusion.dat};
+\addplot[fill=cPurple,draw=cPurple] table[x expr=\coordindex+1,y=round]{assets/fusion.dat};
+\legend{Stage: loop,Stage: expanded,Round: expanded}
+\nextgroupplot[
+ title={(b) Fusion gain: equal expansion},
+ ybar,/pgf/bar width=7mm,
+ legend image code/.code={\draw[#1] (0cm,-0.06cm) rectangle (0.20cm,0.06cm);},
+ xmin=-0.5,xmax=1.5,ymin=0,ymax=4.5,
+ xtick={0,1},xticklabels={1,8},
+ ytick={0,1,2,3,4},ylabel={Stage / Round},
+ legend style={at={(0.5,-0.35)},anchor=north,legend columns=2,column sep=1mm},
+ every node near coord/.append style={/pgf/number format/precision=3}]
+\addplot[fill=cPurple!65,draw=cPurple] table[x=index,y=perm]{assets/fusion_gain.dat};
+\addplot[fill=cTeal!65,draw=cTeal] table[x=index,y=kem]{assets/fusion_gain.dat};
+\legend{Permutation (XRT),ML-KEM (SimX)}
+\end{groupplot}
+\end{tikzpicture}

@@ -1,0 +1,20 @@
+% Fig.: isolated 256-point transform cycles for four NTT implementations.
+\pgfplotstableread{assets/ntt_direct.dat}\ntttable
+\begin{tikzpicture}
+\begin{axis}[width=\columnwidth,height=3.4cm,
+  ybar,/pgf/bar width=4.6pt,
+  ymin=0,ymax=78,enlarge x limits=0.18,
+  xtick=data,xticklabels from table={\ntttable}{variant},
+  x tick label style={font=\scriptsize},
+  y tick label style={font=\tiny},
+  ylabel={kcycles / transform},ylabel style={font=\scriptsize,yshift=-4pt},
+  axis line style={black!50},ymajorgrids,grid style={black!12},
+  legend style={font=\tiny,draw=none,at={(0.98,0.97)},anchor=north east,legend columns=2,column sep=3pt},
+  legend image code/.code={\draw[#1] (0cm,-0.08cm) rectangle (0.2cm,0.08cm);}]
+\addplot[fill=cblue!70,draw=cblue!80!black] table[x expr=\coordindex,y=fwd1]{\ntttable};
+\addplot[fill=cblue!30,draw=cblue!80!black] table[x expr=\coordindex,y=inv1]{\ntttable};
+\addplot[fill=corange!80,draw=corange!80!black] table[x expr=\coordindex,y=fwd8]{\ntttable};
+\addplot[fill=corange!35,draw=corange!80!black] table[x expr=\coordindex,y=inv8]{\ntttable};
+\legend{NTT $M{=}1$,INTT $M{=}1$,NTT $M{=}8$,INTT $M{=}8$}
+\end{axis}
+\end{tikzpicture}

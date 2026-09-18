@@ -1,0 +1,54 @@
+\begin{tikzpicture}[
+  x=1cm,y=1cm,font=\fontsize{8}{9}\selectfont,
+  nttcell/.style={draw=cGray,minimum width=8.5mm,minimum height=3.1mm,inner sep=0pt},
+  nttflow/.style={-{Latex[length=1.2mm]},semithick},
+  nttop/.style={circle,draw=cDark,minimum size=4.5mm,inner sep=0pt}]
+\path[use as bounding box] (0,0) rectangle (8.5,4.35);
+\node[anchor=west,font=\fontsize{8}{9}\selectfont\bfseries] at (0,4.18) {(a) Register layout};
+\node[anchor=west,font=\fontsize{8}{9}\selectfont\bfseries] at (4.15,4.18) {(b) Paired butterfly};
+\node at (1.15,3.83) {lane 5};
+\node at (2.60,3.83) {lane 21};
+\foreach \k in {0,...,7} {
+  \pgfmathtruncatemacro{\a}{5+32*\k}
+  \pgfmathtruncatemacro{\b}{21+32*\k}
+  \node[nttcell] (nL\k) at (1.15,3.43-.35*\k) {$a_{\a}$};
+  \node[nttcell] (nR\k) at (2.60,3.43-.35*\k) {$a_{\b}$};
+}
+\node[nttcell,fill=cBlue!12,draw=cBlue] at (nL0) {$a_5$};
+\node[nttcell,fill=cBlue!12,draw=cBlue] at (nL1) {$a_{37}$};
+\node[nttcell,fill=cTeal!12,draw=cTeal] at (nR0) {$a_{21}$};
+\draw[nttflow,cBlue] (nL0.west) to[bend right=58]
+  node[left=1pt,text=cBlue] {32} (nL1.west);
+\draw[nttflow,cTeal] (nL0.east) -- node[above=1pt,text=cTeal] {16} (nR0.west);
+\draw[decorate,decoration={brace,amplitude=3pt},cGray]
+  (3.20,3.59) -- (3.20,.82);
+\node[rotate=90,text=cDark!70] at (3.52,2.20) {8 registers};
+\node at (1.85,.38) {$a_{l+32k},\quad k=0,\ldots,7$};
+
+\node (na) at (4.35,3.35) {$a$};
+\node (nb) at (4.35,1.92) {$b$};
+\node[draw=cGold,fill=cGold!12,minimum width=10mm,minimum height=5mm,inner sep=1pt]
+  (nm) at (5.65,1.92) {Mont};
+\node (nz) at (5.65,2.73) {$\zeta$};
+\node[nttop,fill=cBlue!10] (np) at (7.28,3.35) {$+$};
+\node[nttop,fill=cTeal!10] (nn) at (7.28,1.92) {$-$};
+\draw[nttflow] (na) -- (np);
+\draw[nttflow] (nb) -- (nm);
+\draw[nttflow] (nz) -- (nm);
+\draw[nttflow] (nm) -- (nn);
+\draw[nttflow] (4.93,3.35) -- (nn.north west);
+\draw[nttflow] (6.23,1.92) -- (np.south west);
+\fill[cDark] (4.93,3.35) circle (.035);
+\fill[cDark] (6.23,1.92) circle (.035);
+\node[above=1pt] at (6.35,1.92) {$t$};
+\draw[nttflow] (np) -- (8.12,3.35);
+\draw[nttflow] (nn) -- (8.12,1.92);
+\node[anchor=south] at (8.03,3.40) {$a+t$};
+\node[anchor=south] at (8.03,1.97) {$a-t$};
+\node[text=cDark!70] at (7.96,3.00) {lane 5};
+\node[text=cDark!70] at (7.96,1.57) {lane 21};
+\draw[decorate,decoration={brace,amplitude=3pt,mirror},cGray]
+  (4.20,1.19) -- (8.40,1.19);
+\node at (6.30,.78) {$16$ pairs / warp};
+\node[text=cDark!70] at (6.30,.38) {$16$ multipliers};
+\end{tikzpicture}

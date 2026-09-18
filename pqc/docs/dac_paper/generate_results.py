@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
-"""Build paper figures and tables from the archived measurement snapshots."""
+"""Derive TeX numbers and PGFPlots tables from archived measurements."""
 
 import csv
 import hashlib
 import json
 from pathlib import Path
-
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
 
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "data"
@@ -28,95 +23,70 @@ def one(records, **filters):
     return found[0]
 
 
-def save(name):
-    plt.savefig(OUT / name, bbox_inches="tight", pad_inches=0.025)
-    plt.close()
+def table(name, header, records):
+    lines = [" ".join(header)]
+    lines += [" ".join(f"{v:.6f}" if isinstance(v, float) else str(v) for v in r)
+              for r in records]
+    (OUT / name).write_text("\n".join(lines) + "\n")
 
 
-plt.rcParams.update({
-    "font.family": "DejaVu Sans", "font.size": 8,
-    "axes.labelsize": 8, "axes.titlesize": 8, "legend.fontsize": 7,
-    "xtick.labelsize": 7, "ytick.labelsize": 7,
-    "axes.spines.top": False, "axes.spines.right": False,
-    "pdf.fonttype": 42, "ps.fonttype": 42,
-})
-colors = ["#778899", "#315c85", "#00867d", "#d28527", "#873e75", "#748342"]
 kem = rows("keccak_ntt_unified_xrt.csv")
 assert len(kem) == 12 and all(r["result"] == "PASS" for r in kem)
 assert len({r["xrtsim_sha256"] for r in kem}) == 1
 backends = ["sg1_serial", "pqrv_asm", "sg25_sw", "sg25_stages", "kround25", "pointer_keccakf"]
-labels = ["Scalar C", "PQRV", "Shuffle", "Stage", "Round", "Pointer"]
 cycles = {(b, m): int(one(kem, backend=b, requests=m)["device_cycles"])
           for b in backends for m in (1, 8)}
-fig, axs = plt.subplots(1, 2, figsize=(7.05, 1.9))
-for ax, m in zip(axs, (1, 8)):
-    vals = [cycles[b, m] / 1e6 for b in backends]
-    bars = ax.bar(np.arange(6), vals, color=colors, width=0.7)
-    ax.bar_label(bars, labels=[f"{v:.2f}" for v in vals], fontsize=7, padding=2)
-    ax.set_xticks(np.arange(6), labels, rotation=22, ha="right")
-    ax.set_ylim(0, max(vals) * 1.2)
-    ax.set_ylabel("Whole-launch cycles (million)")
-    ax.set_title(f"({'a' if m == 1 else 'b'}) M = {m} request{'s' if m > 1 else ''}; lower is better")
-    ax.grid(axis="y", alpha=0.17)
-    ax.set_axisbelow(True)
-fig.tight_layout(pad=0.4, w_pad=1.5)
-save("kem_xrt.pdf")
+table("kem.dat", ["index", "mone", "meight"],
+      [(i, cycles[b, 1] / 1e6, cycles[b, 8] / 1e6) for i, b in enumerate(backends)])
+
+controls = rows("keccak_w32_controls.csv")
+fusion = {}
+for arm in ["stage_loop", "stage_unrolled", "kround"]:
+    for m in (1, 8):
+        r = one(controls, arm=arm, driver="xrt", batch=m, states_per_warp=1,
+                permutations_per_state=64)
+        assert r["result"] == "PASS"
+        fusion[arm, m] = int(r["span_cycles"]) / (64 * m)
+table("fusion.dat", ["warps", "loop", "expanded", "round"],
+      [(m, fusion["stage_loop", m], fusion["stage_unrolled", m], fusion["kround", m])
+       for m in (1, 8)])
+
+stages = rows("keccak_sg25_stages.csv")
+stage_cost = {}
+for arm in ["000", "100", "010", "001", "110", "101", "011", "111"]:
+    for m in (1, 8):
+        low = one(stages, driver="rtlsim", arm=arm, batch_warps=m, permutations_per_state=4)
+        high = one(stages, driver="rtlsim", arm=arm, batch_warps=m, permutations_per_state=8)
+        assert low["elf_sha256"] == high["elf_sha256"]
+        assert low["passed"] == high["passed"] == "1"
+        stage_cost[arm, m] = (int(high["span_cycles"]) - int(low["span_cycles"])) / (4 * m)
+table("stage_ablation.dat", ["index", "one", "eight"],
+      [(i, stage_cost["000", 1] / stage_cost[arm, 1], stage_cost["000", 8] / stage_cost[arm, 8])
+       for i, arm in enumerate(["000", "100", "010", "001", "110", "101", "011", "111"])])
 
 profile = rows("mlkem_phase_profile.csv")
-names = ["stage", "whole_round", "pointer"]
-phase_names = ["Permute", "Absorb", "Squeeze", "NTT/INTT", "Poly. arith.", "Other"]
-phase_colors = ["#d28527", "#315c85", "#58a2c0", "#00867d", "#873e75", "#dadde1"]
-fig, ax = plt.subplots(figsize=(3.42, 1.9))
-for y, name in enumerate(names):
-    r = one(profile, measurement="phase", backend=name, driver="xrt", requests=1)
-    vals = [int(r["keccak_permute_cycles"]), int(r["keccak_absorb_cycles"]),
-            int(r["keccak_squeeze_cycles"]), int(r["ntt_cycles"]) + int(r["intt_cycles"]),
-            sum(int(r[k]) for k in ["mulcache_cycles", "basemul_cycles", "reduce_cycles"]),
-            int(r["other_cycles"])]
+phase_records = []
+for i, backend in enumerate(["stage", "whole_round", "pointer"]):
+    r = one(profile, measurement="phase", backend=backend, driver="xrt", requests=1)
+    parts = [int(r["keccak_permute_cycles"]), int(r["keccak_absorb_cycles"]),
+             int(r["keccak_squeeze_cycles"]), int(r["ntt_cycles"]) + int(r["intt_cycles"]),
+             sum(int(r[k]) for k in ["mulcache_cycles", "basemul_cycles", "reduce_cycles"]),
+             int(r["other_cycles"])]
     total = int(r["interval_or_makespan_cycles"])
-    assert sum(vals) == total
-    left = 0
-    for i, v in enumerate(vals):
-        percent = 100 * v / total
-        ax.barh(y, percent, left=left, height=0.56, color=phase_colors[i], label=phase_names[i] if y == 0 else None)
-        if i == 5:
-            ax.text(left + percent / 2, y, f"{percent:.1f}%", ha="center", va="center", fontsize=7)
-        left += percent
-ax.set_yticks(range(3), ["Stage", "Round", "Pointer"])
-ax.invert_yaxis()
-ax.set_xlim(0, 100)
-ax.set_xlabel("Share of instrumented request interval (%)")
-ax.legend(loc="lower center", bbox_to_anchor=(0.43, 1.0), ncol=3, frameon=False, columnspacing=0.8, handlelength=1)
-fig.tight_layout(pad=0.4)
-save("phase_profile.pdf")
-
-ctrl = rows("keccak_w32_controls.csv")
-fig, ax = plt.subplots(figsize=(3.42, 1.8))
-xx = np.arange(2)
-for i, (arm, label, color) in enumerate(zip(["stage_loop", "stage_unrolled", "kround"], ["Stage loop", "Stage expanded", "Round expanded"], colors[2:5])):
-    vals = [int(one(ctrl, arm=arm, driver="xrt", batch=m, states_per_warp=1,
-                    permutations_per_state=64)["span_cycles"]) / (64 * m) for m in (1, 8)]
-    bars = ax.bar(xx + (i - 1) * 0.24, vals, width=0.23, label=label, color=color)
-    ax.bar_label(bars, labels=[f"{v:.0f}" for v in vals], padding=2, fontsize=7)
-ax.set_xticks(xx, ["1 active warp", "8 active warps"])
-ax.set_ylabel("Cycles / completed permutation")
-ax.set_ylim(0, 2650)
-ax.legend(frameon=False, fontsize=6.7, loc="upper right")
-ax.grid(axis="y", alpha=0.17)
-ax.set_axisbelow(True)
-fig.tight_layout(pad=0.4)
-save("granularity.pdf")
+    assert sum(parts) == total and r["kat"] == "PASS"
+    phase_records.append([i] + [100 * v / total for v in parts])
+table("profile.dat", ["index", "perm", "absorb", "squeeze", "ntt", "poly", "other"], phase_records)
 
 ppa = rows("rv32im_rv64im_keccak_ppa.csv")
-table = []
-for variant, label in [("ntt_only", "NTT only"), ("ntt_stage", "NTT + Stage"), ("ntt_kround", "NTT + Round")]:
+ppa_lines = []
+for variant, label in [("ntt_only", "NTT only"), ("ntt_stage", "+ Stage"), ("ntt_kround", "+ Round")]:
     r = one(ppa, xlen=32, variant=variant)
-    table.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & {r['dsps']} & {float(r['wns_ns']):+.3f} \\")
-(OUT / "ppa_rows.tex").write_text("\n".join(s + "\\" for s in table) + "\n")
-
-baseline = one(ppa, xlen=32, variant="ntt_only")
+    ppa_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & {r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")
+(OUT / "ppa_rows.tex").write_text("\n".join(ppa_lines) + "\n")
+base = one(ppa, xlen=32, variant="ntt_only")
 stage = one(ppa, xlen=32, variant="ntt_stage")
 round_unit = one(ppa, xlen=32, variant="ntt_kround")
+kem_controls = rows("mlkem_w32_controls.csv")
 numbers = {
     "StageVsShuffleOne": cycles["sg25_sw", 1] / cycles["sg25_stages", 1],
     "StageVsShuffleEight": cycles["sg25_sw", 8] / cycles["sg25_stages", 8],
@@ -126,11 +96,22 @@ numbers = {
     "RoundVsPqrvEight": cycles["pqrv_asm", 8] / cycles["kround25", 8],
     "RoundVsPointerOne": cycles["pointer_keccakf", 1] / cycles["kround25", 1],
     "PointerVsRoundEight": cycles["kround25", 8] / cycles["pointer_keccakf", 8],
-    "StageLutPct": 100 * (int(stage["total_luts"]) / int(baseline["total_luts"]) - 1),
-    "RoundLutPct": 100 * (int(round_unit["total_luts"]) / int(baseline["total_luts"]) - 1),
-    "StageFfPct": 100 * (int(stage["ffs"]) / int(baseline["ffs"]) - 1),
-    "RoundFfPct": 100 * (int(round_unit["ffs"]) / int(baseline["ffs"]) - 1),
+    "StageLutPct": 100 * (int(stage["total_luts"]) / int(base["total_luts"]) - 1),
+    "RoundLutPct": 100 * (int(round_unit["total_luts"]) / int(base["total_luts"]) - 1),
+    "StageFfPct": 100 * (int(stage["ffs"]) / int(base["ffs"]) - 1),
+    "RoundFfPct": 100 * (int(round_unit["ffs"]) / int(base["ffs"]) - 1),
+    "AllStageOne": stage_cost["000", 1] / stage_cost["111", 1],
+    "AllStageEight": stage_cost["000", 8] / stage_cost["111", 8],
+    "FusionOne": fusion["stage_unrolled", 1] / fusion["kround", 1],
+    "FusionEight": fusion["stage_unrolled", 8] / fusion["kround", 8],
 }
+for m, name in [(1, "One"), (8, "Eight")]:
+    s = one(kem_controls, arm="stage_unrolled", driver="simx", batch=m)
+    r = one(kem_controls, arm="kround", driver="simx", batch=m)
+    numbers["FusionKem" + name] = int(s["device_cycles"]) / int(r["device_cycles"])
+table("fusion_gain.dat", ["index", "perm", "kem"],
+      [(i, numbers["Fusion" + name], numbers["FusionKem" + name])
+       for i, name in enumerate(["One", "Eight"])])
 (OUT / "numbers.tex").write_text("\n".join(f"\\newcommand{{\\{k}}}{{{v:.3f}}}" for k, v in numbers.items()) + "\n")
 (OUT / "source_manifest.json").write_text(json.dumps({
     "repository_source_commit": "084f79465",

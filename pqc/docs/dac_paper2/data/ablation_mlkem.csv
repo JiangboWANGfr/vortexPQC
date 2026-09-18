@@ -1,0 +1,67 @@
+# Amdahl bounds for ML-KEM-768, measured by ablation rather than estimated.
+#
+# tests/pqc/mlkem_profile, simx, 1 core / 4 warps / 4 threads, L2-L3 off, one lane.
+# An ablated primitive's hook returns SUCCESS without doing the work: the call
+# structure is untouched and the cycle delta is that primitive's real cost,
+# including call overhead. Results are wrong by construction -- this build is an
+# ablation, never a correctness test.
+#
+# COINS: the FIPS 203 KAT vectors d || z || m, the SAME input tests/pqc/mlkem runs.
+# This changed on 2026-09-07 and every number below moved with it. The profile
+# previously filled its coin buffer with h_scr[i] = i, which is reproducible but is
+# a DIFFERENT INPUT from the baseline it exists to describe. Rejection sampling
+# makes the permutation count depend on the bytes drawn: those coins landed on 156
+# permutations, a 6.28%-probability tail seed, while the KAT coins land on 144, the
+# mode at 92.6% of 20,000 host seeds. Quoting a fraction measured on one input
+# against a baseline measured on another is the mixing next_steps_recipes.md:996
+# forbids by name, and is what produced the long-retired 72.3%.
+#
+# DENOMINATOR: the instrumented profile build (33,492,153), not the plain baseline.
+# One build, one subtraction, internally consistent.
+#
+# THE OLD CAVEAT IS GONE, AND THAT IS THE POINT.
+# On the 156-permutation coins, ABLATE=keccak dropped the count to 144 because a
+# stubbed squeeze returns constant bytes and the rejection sampler stopped needing
+# its 12 top-up blocks -- so the delta also removed work that was not Keccak. On
+# the KAT coins the count is 144 in BOTH arms (measured, printed by both runs), so
+# the ablation is now a pure substitution: same call structure, same permutation
+# count, only the work removed. This bound is cleaner than any before it.
+#
+# ABLATE=both does not exist; unknown ABLATE values are a build error.
+variant,cycles,delta_vs_baseline,fraction,amdahl_bound,keccak_x1,keccak_x4,notes
+baseline,33492153,,,,144,24,profile build with counters
+ablate_keccak,11505678,21986475,0.6565,2.911,144,24,count unchanged -- pure substitution
+ablate_ntt,29248971,4243182,0.1267,1.145,144,24,15 fwd + 9 inv transforms
+#
+# CROSS-CHECK THAT VALIDATES THE WHOLE RE-RUN.
+# The NTT transform count (15 forward + 9 inverse) does not depend on rejection
+# sampling, so its absolute ablation delta MUST be invariant to the coins. It is:
+#   156 coins   4,243,133 cycles
+#   144 coins   4,243,182 cycles      0.0012% apart
+# The only thing that changed between the two builds is Keccak-related work, which
+# is exactly what was intended.
+#
+# WHAT MOVED, against the retired 156-coin figures:
+#   baseline cycles     35,447,271 -> 33,492,153     -5.52%
+#   Keccak delta        24,004,023 -> 21,986,475     -8.41%  (2,017,548 cycles;
+#                                    12 fewer permutations x 151,872 = 1,822,464,
+#                                    the remainder being their rejection top-up work)
+#   Keccak fraction         0.6772 -> 0.6565         -2.07 percentage points
+#   AMDAHL BOUND             3.098 -> 2.911          -6.03%
+#   NTT fraction            0.1197 -> 0.1267         +0.70 pp
+#   NTT Amdahl               1.136 -> 1.145          +0.79%
+# The survey estimated the modal-seed fraction would be ~1.4 pp lower and the bound
+# ~2.97x. The direction was right and the magnitude was understated: 2.07 pp
+# and 2.911x, measured.
+#
+# Estimator cross-check, and it improved too:
+#   144 perms x 151,777 cycles = 21,855,888 estimated vs 21,986,475 measured
+#   estimator runs 0.59% low, against 1.30% low on the 156 coins. The earlier gap
+#   was partly the count mismatch between the two arms, which no longer exists.
+#
+# 2.911x IS THE NUMBER THE PAPER LEADS WITH. It is measured on the modal seed, on
+# the same input as the baseline, with equal permutation counts across arms. The
+# distribution belongs in a footnote: 144 at 92.6% of 20,000 host seeds, 156 at
+# 6.28%. ML-DSA cannot be treated this way -- its 782 permutations sit at the 35th
+# percentile with mode 574, mean 1414 and p95 3243, so it needs a distribution and
+# not a point estimate (Riou et al.).

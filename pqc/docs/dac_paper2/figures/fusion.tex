@@ -1,0 +1,20 @@
+% Fig.: round fusion gain at primitive scope versus application scope, equal code expansion.
+\pgfplotstableread{assets/fusion.dat}\fusiontable
+\begin{tikzpicture}
+\begin{axis}[width=.7\columnwidth,height=3.4cm,
+  ybar,/pgf/bar width=12pt,
+  ymin=0,ymax=4.2,enlarge x limits=0.45,
+  xtick=data,xticklabels from table={\fusiontable}{scope},
+  x tick label style={font=\scriptsize},
+  y tick label style={font=\tiny},
+  ylabel={Round / Stage},ylabel style={font=\scriptsize,yshift=-4pt},
+  nodes near coords,nodes near coords style={font=\tiny,/pgf/number format/fixed,/pgf/number format/precision=2},
+  axis line style={black!50},ymajorgrids,grid style={black!12},
+  legend style={font=\tiny,draw=none,at={(0.97,0.97)},anchor=north east,row sep=-2pt},
+  legend image code/.code={\draw[#1] (0cm,-0.08cm) rectangle (0.2cm,0.08cm);}]
+\addplot[fill=cblue!70,draw=cblue!80!black] table[x expr=\coordindex,y=one]{\fusiontable};
+\addplot[fill=corange!75,draw=corange!80!black] table[x expr=\coordindex,y=eight]{\fusiontable};
+\legend{1 warp / $M{=}1$,8 warps / $M{=}8$}
+\draw[black!40,dashed] (axis cs:-0.5,1) -- (axis cs:1.5,1);
+\end{axis}
+\end{tikzpicture}

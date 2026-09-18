@@ -1,0 +1,17 @@
+\begin{tikzpicture}
+\begin{axis}[
+ width=\columnwidth,height=45mm,
+ ybar,/pgf/bar width=3.2mm,
+ xmin=-0.6,xmax=7.6,ymin=0,ymax=15,
+ xtick={0,...,7},xticklabels={\texttt{---},\texttt{T--},\texttt{-R-},\texttt{--C},\texttt{TR-},\texttt{T-C},\texttt{-RC},\texttt{TRC}},
+ ytick={0,5,10,15},ylabel={Speedup over shuffle},
+ axis lines*=left,ymajorgrids,grid style={black!10},
+ tick label style={font=\footnotesize},label style={font=\footnotesize},
+ legend style={font=\footnotesize,draw=none,at={(0.02,0.98)},anchor=north west,cells={anchor=west}},
+ legend image code/.code={\draw[#1] (0cm,-0.06cm) rectangle (0.20cm,0.06cm);},
+ enlarge x limits=false]
+\addplot[fill=cBlue!50,draw=cBlue] table[x=index,y=one]{assets/stage_ablation.dat};
+\addplot[fill=cGold,draw=cGold!80!black] table[x=index,y=eight]{assets/stage_ablation.dat};
+\legend{1 active warp,8 active warps}
+\end{axis}
+\end{tikzpicture}

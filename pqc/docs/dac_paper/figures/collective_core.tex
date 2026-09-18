@@ -1,0 +1,96 @@
+\begin{tikzpicture}[
+  x=1mm,y=1mm,font=\fontsize{8}{9}\selectfont,
+  flow/.style={-{Latex[length=1.35mm]},line width=.5pt},
+  bus/.style={flow,double,double distance=.35pt,line width=.3pt},
+  block/.style={draw=cDark!70,fill=white,rounded corners=.6pt,
+                minimum height=6mm,inner sep=1pt,align=center},
+  cut/.style={draw=cDark!70,fill=cGray,line width=.4pt}]
+\path[use as bounding box] (0,0) rectangle (178,50);
+\node[anchor=west,font=\fontsize{8}{9}\selectfont\bfseries] at (0,48)
+  {(a) Register interface};
+\draw[cGray] (87,1) -- (87,49);
+\node[block,minimum width=24mm] (issue) at (42.5,41) {Issue / decode};
+\node[block,fill=cGray!35,minimum width=77mm,minimum height=7mm] (gpr)
+  at (42.5,31.5) {Lane GPRs};
+\foreach \x in {7,9,11,13,15,70,72,74,76,78} {
+  \draw[cDark!45,line width=.3pt] (\x,29) -- (\x,34);
+}
+\draw[flow] (issue) -- (gpr);
+\draw[rounded corners=1pt,draw=cDark!40,fill=cGray!12]
+  (2,9) rectangle (83,24.5);
+\node[font=\fontsize{8}{9}\selectfont\itshape,text=cDark!85] at (42.5,22)
+  {ALU PEs};
+\node[block,fill=cGray!35,minimum width=17mm] (alu) at (12,15)
+  {Integer};
+\node[block,draw=cGold,fill=cGold!10,minimum width=17mm] (stage) at (32.3,15)
+  {Stage};
+\node[block,draw=cPurple,fill=cPurple!10,minimum width=17mm] (round) at (52.7,15)
+  {Round};
+\node[block,draw=cTeal,fill=cTeal!9,minimum width=17mm] (ntt) at (73,15)
+  {NTT};
+\draw (42.5,28) -- (42.5,26.5);
+\draw (12,26.5) -- (73,26.5);
+\foreach \n/\x in {alu/12,stage/32.3,round/52.7,ntt/73} {
+  \draw[flow] (\x,26.5) -- (\n.north);
+  \draw (\n.south) -- (\x,7.5);
+}
+\draw (12,7.5) -- (73,7.5);
+\node[block,minimum width=26mm] (wb) at (42.5,3.5) {Writeback};
+\draw[flow] (42.5,7.5) -- (wb.north);
+\draw[flow,cDark!65] (wb.west) -- (0.5,3.5) -- (0.5,31.5) -- (gpr.west);
+
+\node[anchor=west,text=cGold,font=\fontsize{8}{9}\selectfont\bfseries]
+  at (91,47) {(b) Stage: $\theta$};
+\node[anchor=east] at (178,47) {latency / II: 2 / 1};
+\node[block,draw=cGold,fill=cGold!10,minimum width=16mm] (parity)
+  at (106,36) {Parity};
+\node[block,draw=cGold,fill=cGold!10,minimum width=19mm] (correct)
+  at (143,36) {Correction};
+\draw[bus] (91,36) -- (parity.west);
+\draw[bus] (parity.east) -- (119,36);
+\draw[bus] (121,36) -- (correct.west);
+\draw[bus] (correct.east) -- (165,36);
+\draw[bus] (167,36) -- (178,36);
+\draw (94,36) -- (94,28) -- (119,28);
+\draw[flow] (121,28) -- (143,28) -- (correct.south);
+\draw[cut] (119,26) rectangle (121,41);
+\draw[cut] (165,31) rectangle (167,41);
+\node[anchor=south] at (106,28) {$A_h$};
+\node[anchor=south] at (127,37) {$5\!\times\!64$};
+\node[anchor=south] at (172,37) {$\mathrm{rd}_h$};
+
+\node[anchor=west,text=cPurple,font=\fontsize{8}{9}\selectfont\bfseries]
+  at (91,23) {(c) Round};
+\node[anchor=east] at (178,23) {latency / II: 4 / 1};
+\node[block,draw=cPurple,fill=cPurple!10,minimum width=11mm] (rparity)
+  at (99,13) {$C$};
+\node[block,draw=cPurple,fill=cPurple!10,minimum width=11mm] (rtheta)
+  at (117,13) {$\theta$};
+\node[block,draw=cPurple,fill=cPurple!10,minimum width=11mm] (rrhopi)
+  at (136,13) {$\rho/\pi$};
+\node[block,draw=cPurple,fill=cPurple!10,minimum width=10mm] (rchii)
+  at (155,13) {$\chi/\iota$};
+\draw[bus] (91,13) -- (rparity.west);
+\draw[bus] (rparity.east) -- (107,13);
+\draw[bus] (109,13) -- (rtheta.west);
+\draw[bus] (rtheta.east) -- (126,13);
+\draw[bus] (128,13) -- (rrhopi.west);
+\draw[bus] (rrhopi.east) -- (145,13);
+\draw[bus] (147,13) -- (rchii.west);
+\draw[bus] (rchii.east) -- (162,13);
+\draw[bus] (165,13) -- (168.5,13);
+\draw[bus] (170.5,13) -- (178,13);
+\draw (92,13) -- (92,5) -- (107,5);
+\draw[flow] (109,5) -- (117,5) -- (rtheta.south);
+\draw[cut] (107,3.5) rectangle (109,18);
+\foreach \x in {126,145,168.5} {
+  \draw[cut] (\x,9) rectangle ++(2,9);
+}
+\draw[draw=cPurple,fill=cPurple!15]
+  (162,9.5) -- (165,11) -- (165,15) -- (162,16.5) -- cycle;
+\node[anchor=south] at (163.5,17.5) {$h$};
+\draw[flow] (163.5,17.5) -- (163.5,16);
+\node[anchor=south] at (99,5) {$A$};
+\node at (135,5) {$25\times64$};
+\node[anchor=south] at (174,14) {$\mathrm{rd}_h$};
+\end{tikzpicture}

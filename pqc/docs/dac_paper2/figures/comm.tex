@@ -1,0 +1,67 @@
+% Fig. 1: communication structure of the two primitives inside one warp.
+\begin{tikzpicture}[x=1mm,y=1mm,font=\scriptsize,
+  cell/.style={draw=black!25,fill=black!4,inner sep=0pt,minimum width=1.4mm,minimum height=2.4mm},
+  kc/.style={draw=black!40,fill=black!4,inner sep=0pt,minimum size=4.2mm},
+  arr/.style={-{Latex[length=1.3mm]},line width=.6pt},
+  darr/.style={{Latex[length=1.3mm]}-{Latex[length=1.3mm]},line width=.6pt}]
+% ---------------------------------------------------------------- (a) NTT
+\node[anchor=west,font=\scriptsize\bfseries] at (-6,28.5) {(a) NTT: 8 registers $\times$ 32 lanes};
+\foreach \l in {0,...,31} {
+  \foreach \k in {0,...,7} {
+    \node[cell] (c\l\k) at (1.4*\l,-2.4*\k+20) {};
+  }
+}
+% lane index ticks
+\node[anchor=east] at (-1.2,20) {$R_0$};
+\node[anchor=east] at (-1.2,20-2.4*7) {$R_7$};
+\node[anchor=north] at (0,1.5) {lane 0};
+\node[anchor=north] at (1.4*31,1.5) {31};
+% highlighted owner cell: lane 5, R0
+\node[cell,fill=cblue!35,draw=cblue] at (c50) {};
+\node[cell,fill=cblue!35,draw=cblue] at (c54) {};
+\node[cell,fill=cblue!35,draw=cblue] at (c52) {};
+\node[cell,fill=cblue!35,draw=cblue] at (c51) {};
+\node[cell,fill=cteal!35,draw=cteal] at (c210) {};
+\node[cell,fill=cteal!35,draw=cteal] at (c130) {};
+\node[cell,fill=cteal!35,draw=cteal] at (c10) {};
+\node[cell,fill=cteal!35,draw=cteal] at (c70) {};
+% in-lane partners (vertical, blue)
+\draw[darr,cblue] (c50.west) ++(-0.4,0) to[out=-150,in=150] ([xshift=-0.4mm]c54.west);
+\draw[darr,cblue] (c50.east) ++(0.4,0) to[out=-30,in=30]  ([xshift=0.4mm]c52.east);
+\draw[darr,cblue] ([xshift=-1.0mm]c50.west) -- ([xshift=-1.0mm]c51.west);
+% cross-lane partners (horizontal, teal) drawn above row R0
+\draw[darr,cteal] (c50.north) ++(0,0.4) to[out=60,in=120] ([yshift=0.4mm]c210.north);
+\draw[darr,cteal] (c50.north) ++(0,0.4) to[out=50,in=130] ([yshift=0.4mm]c130.north);
+\draw[darr,cteal] (c50.north) ++(0,0.4) to[out=120,in=60] ([yshift=0.4mm]c10.north);
+\draw[darr,cteal] (c50.north) ++(0,0.4) to[out=40,in=140] ([yshift=0.4mm]c70.north);
+\node[cblue,anchor=west] at (-5,-3.6) {in-lane: $d=128,64,32$};
+\node[cteal,anchor=west] at (-5,-6.6) {cross-lane: $d=16,8,4,2$};
+% ---------------------------------------------------------------- (b) Keccak
+\begin{scope}[shift={(49,0)}]
+\node[anchor=west,font=\scriptsize\bfseries] at (-2,28.5) {(b) Keccak: 25 of 32 lanes};
+\foreach \x in {0,...,4} {
+  \foreach \y in {0,...,4} {
+    \pgfmathtruncatemacro{\l}{\x+5*\y}
+    \node[kc] (k\l) at (4.2*\x,20-4.2*\y) {};
+  }
+}
+% padding lanes 25..31
+\foreach \i in {0,...,6} {
+  \node[kc,minimum width=1.5mm,minimum height=4.2mm,fill=white,draw=black!20,dashed] at (22.2+1.4*\i,20-4.2*4) {};
+}
+\node[anchor=west,black!50,font=\tiny] at (21.5,20-4.2*4-3.4) {25--31: zero};
+% theta column
+\foreach \y in {0,...,4} { \pgfmathtruncatemacro{\l}{1+5*\y} \node[kc,fill=cblue!35,draw=cblue] at (k\l) {}; }
+\draw[arr,cblue] (k1.north) ++(0,0.5) -- ++(0,2.2);
+% rho-pi gather: lane 7 (x=2,y=1) -> lane 11 (x=1,y=2) : dest (x_d,y_d)=(1,2) source x_s=(1+6)%5=2,y_s=1 -> lane 7
+\node[kc,fill=corange!40,draw=corange] at (k7) {};
+\draw[arr,corange,line width=.8pt] (k7.center) -- (k11.center);
+% chi row y=4 lanes 20,21,22
+\node[kc,fill=cteal!35,draw=cteal] at (k22) {};
+\node[kc,fill=cteal!35,draw=cteal] at (k23) {};
+\node[kc,fill=cteal!35,draw=cteal] at (k24) {};
+\node[cblue,anchor=west] at (-2,-3.6) {$\theta$ column};
+\node[corange,anchor=west] at (10,-3.6) {$\rho\pi$ gather};
+\node[cteal,anchor=west] at (23,-3.6) {$\chi$ row};
+\end{scope}
+\end{tikzpicture}
