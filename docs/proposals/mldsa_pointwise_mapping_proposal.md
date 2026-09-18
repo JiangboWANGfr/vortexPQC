@@ -79,3 +79,76 @@ ceiling. Keep the W32 software mapping and existing shared multiplier bank;
 do not add a separate dot-product engine. No new synthesis is needed because
 the RTL is unchanged. This pointwise gain is separate from the previously
 reported NTT-only hardware gain.
+
+## Eight-request XRT follow-up
+
+The matched follow-up fixes RV32IM with F/D disabled, one core, W8T32,
+Pointer Keccak, the shared 16-lane K/D NTT bank, and full-RAM ML-DSA-65.
+Both arms execute input IDs 1 through 8 concurrently (`-b 8 -s 1`). The
+control uses C for both pointwise hooks; the mapped arm uses `NTTMUL.D`
+and the W32 L5 sum. No phase-detail probes are enabled. The existing
+per-hook counters and timestamps are retained in both arms.
+
+After reconfiguring `build32_im`, rebuild from the generated
+`tests/pqc/mldsa_profile/Makefile` in separate sibling directories
+`tests/pqc/mldsa_m8_c` and `tests/pqc/mldsa_m8_both`. Use
+`LIBC_PATH=/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libc32`,
+`LIBCRT_PATH=/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libcrt32`,
+`KECCAK=pe MLDSA_RAM=full NTT=reg32 NTTMUL=ise NTTBF=ise`, and add
+`POINTWISE=ise POINTWISE_L5=w32` only for the mapped arm. Both application
+builds match the archived runtime's configuration:
+
+```text
+-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE
+-DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE
+-DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE
+-DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32
+```
+
+Run each application directory with the same archived runtime pair:
+
+```sh
+env LD_LIBRARY_PATH=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_im/mldsa_ntt_shared/runtime \
+    VORTEX_DRIVER=xrt XRT_DEVICE=xrtsim VORTEX_PROFILING=0 \
+    ./mldsa_profile -b 8 -s 1 > m8_xrt.log 2>&1
+env LD_LIBRARY_PATH=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_im/mldsa_ntt_shared/runtime \
+    VORTEX_DRIVER=simx XRT_DEVICE=xrtsim VORTEX_PROFILING=0 \
+    ./mldsa_profile -b 8 -s 1 > m8_simx.log 2>&1
+```
+
+The mapped kernel is byte-identical to the earlier mapped arm
+(`ce5ee86e8218b1303c12f13c380243788c37732765e7056f24604a9eba76c622`).
+The freshly compiled control has hash
+`3502b82c5e3221bca4be57c148cd3562d0b41f4d711292738d472b8b826fb6f0`;
+therefore both models rerun it instead of reusing the earlier control's
+cycles. The prior `mldsa_pointwise.csv` snapshot is preserved.
+
+The collector `pqc/results/collect_mldsa_pointwise_m8.py` requires 32
+byte-exact request checks across two arms and two models, identical
+primitive-call counts for each input, identical retired instructions across
+models, and at most 5% model disagreement for both launch cycles and batch
+makespan. Per-request intervals overlap; their sum is not batch latency.
+The eight inputs exercise signing variability but do not establish a
+population tail-latency bound or isolated per-input signing latency.
+
+| Model | C/C makespan | Mapped makespan | Reduction |
+| --- | ---: | ---: | ---: |
+| simx | 77,528,313 | 68,096,270 | 12.166% |
+| xrt | 77,071,268 | 68,063,840 | 11.687% |
+
+Both models retire exactly 33,555,891 instructions for C/C and 26,293,053
+for the mapped arm. The C/C model gaps are 0.593% for both device cycles
+and makespan; the mapped gaps are 0.056% and 0.048%, respectively. All
+pass the existing 5% threshold.
+
+All 32 request checks pass. Input IDs 1--8 exercise 8, 7, 2, 9, 3, 2, 11,
+and 8 signing attempts, respectively, derived from full-RAM L5 counts:
+keypair and verification each make six calls, and each signing attempt
+makes six more. The primitive counts match across arms and models, and
+all allocator checks pass. These are concurrent request intervals, not
+isolated signing latencies.
+
+Structured results are in `pqc/results/mldsa_pointwise_m8.csv`; the raw
+logs, build commands, launch manifest, and measured binaries are archived
+in `pqc/results/mldsa_pointwise_m8_sources.zip`. Regenerate the CSV from
+`build32_im` with `python3 ../pqc/results/collect_mldsa_pointwise_m8.py`.
