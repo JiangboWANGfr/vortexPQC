@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
         { nullptr, MLDSA_CY_COUNT * sizeof(uint64_t),  1 },
         { nullptr, 4 * sizeof(uint32_t),               1 },  // arena peak/fail, stack peak/span
         { nullptr, MLD_PROF_COUNT * sizeof(uint32_t),  1 },  // call counts
-        { nullptr, MLDSA_POINTWISE_CY_COUNT * sizeof(uint64_t), 1 },
+        { nullptr, MLDSA_PROFILE_CY_COUNT * sizeof(uint64_t), 1 },
     };
     for (auto& b : bufs) {
         b.bytes *= requests;
@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     std::vector<uint64_t> h_cy(requests * MLDSA_CY_COUNT, 0);
     std::vector<uint32_t> h_ar(requests * 4, 0);
     std::vector<uint32_t> h_cnt(requests * MLD_PROF_COUNT, 0);
-    std::vector<uint64_t> h_pw(requests * MLDSA_POINTWISE_CY_COUNT, 0);
+    std::vector<uint64_t> h_pw(requests * MLDSA_PROFILE_CY_COUNT, 0);
     vx_event_h e1=nullptr, e2=nullptr, e3=nullptr, e4=nullptr, e5=nullptr;
     CHECK(vx_enqueue_read(q, h_st.data(), bufs[6].h, 0, h_st.size()*sizeof(int32_t), 1, &lev, &e1));
     CHECK(vx_enqueue_read(q, h_cy.data(), bufs[7].h, 0, h_cy.size()*sizeof(uint64_t), 1, &lev, &e2));
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
         auto cy = h_cy.data() + req * MLDSA_CY_COUNT;
         auto ar = h_ar.data() + req * 4;
         auto cnt = h_cnt.data() + req * MLD_PROF_COUNT;
-        auto pw = h_pw.data() + req * MLDSA_POINTWISE_CY_COUNT;
+        auto pw = h_pw.data() + req * MLDSA_PROFILE_CY_COUNT;
         std::printf("REQUEST: id=%u input=%u\n", req, input_id + req);
         static const char* step_name[MLDSA_ST_COUNT] = { "keypair_internal", "signature_internal", "verify_internal" };
 #if defined(PQC_ABLATE_KECCAK) || defined(PQC_ABLATE_NTT)
@@ -313,6 +313,23 @@ int main(int argc, char** argv) {
                         phase_name[phase], (unsigned long long)simple,
                         (unsigned long long)l5,
                         cy[phase] ? 100.0 * (simple + l5) / cy[phase] : 0.0);
+#if defined(PQC_PROFILE_PHASES)
+            const auto detail = pw + MLDSA_POINTWISE_CY_COUNT + phase * MLD_PHASE_COUNT;
+            const uint64_t named = detail[MLD_PHASE_PERMUTE] + detail[MLD_PHASE_NTT]
+                                 + detail[MLD_PHASE_INTT] + simple + l5;
+            if (named > cy[phase]) {
+                std::printf("*** phase detail exceeds %s interval\n", phase_name[phase]);
+                ++errors;
+            }
+            std::printf("DETAIL: phase=%s permute=%llu ntt=%llu intt=%llu pointwise=%llu residual=%llu total=%llu\n",
+                        phase_name[phase],
+                        (unsigned long long)detail[MLD_PHASE_PERMUTE],
+                        (unsigned long long)detail[MLD_PHASE_NTT],
+                        (unsigned long long)detail[MLD_PHASE_INTT],
+                        (unsigned long long)(simple + l5),
+                        (unsigned long long)(named <= cy[phase] ? cy[phase] - named : 0),
+                        (unsigned long long)cy[phase]);
+#endif
         }
 
         first_start = std::min(first_start, cy[MLDSA_CY_START]);

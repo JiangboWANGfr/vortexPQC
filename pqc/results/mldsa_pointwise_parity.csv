@@ -1,0 +1,2 @@
+test_id,xlen,warps,threads,f_enabled,d_enabled,simx_instrs,rtlsim_instrs,simx_cycles,rtlsim_cycles,gap_pct,tolerance_pct,status
+pqc:model_parity-mldsa_pointwise_d:rtlsim,32,8,32,0,0,2287289,2287289,26082770,25836199,0.954363,5,PASS

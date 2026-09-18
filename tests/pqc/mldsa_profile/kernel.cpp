@@ -55,6 +55,11 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
   for (unsigned phase = 0; phase < MLDSA_ST_COUNT; ++phase)
     for (unsigned kind = 0; kind < 2; ++kind)
       mld_prof_pointwise_cycles[slot][phase][kind] = 0;
+#if defined(PQC_PROFILE_PHASES)
+  for (unsigned phase = 0; phase < MLDSA_ST_COUNT; ++phase)
+    for (unsigned kind = 0; kind < MLD_PHASE_COUNT; ++kind)
+      mld_prof_detail_cycles[slot][phase][kind] = 0;
+#endif
 
   // Setup and diagnostics must not overlap another resident request's timing.
   vx_barrier(1u << 8, arg->requests);
@@ -111,6 +116,12 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
     for (unsigned kind = 0; kind < 2; ++kind)
       pointwise_cycles[phase * 2 + kind] =
           mld_prof_pointwise_cycles[slot][phase][kind];
+#if defined(PQC_PROFILE_PHASES)
+  for (unsigned phase = 0; phase < MLDSA_ST_COUNT; ++phase)
+    for (unsigned kind = 0; kind < MLD_PHASE_COUNT; ++kind)
+      pointwise_cycles[MLDSA_POINTWISE_CY_COUNT + phase * MLD_PHASE_COUNT + kind] =
+          mld_prof_detail_cycles[slot][phase][kind];
+#endif
 }
 
 __kernel __attribute__((naked)) void kernel_main(kernel_arg_t*) {

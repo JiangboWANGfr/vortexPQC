@@ -64,10 +64,12 @@ Both C/C and the combined mapping pass the byte-exact ML-DSA-65 KAT on the
 same XRT RTL build. The matched M1 request interval falls from 29,268,362 to
 25,598,724 cycles, a 12.538% reduction. The same binaries' SimX intervals
 differ from XRT by 0.845% and 0.902%, respectively. The archive script
-verifies binary hashes and all KAT markers; the full CI model-parity case
-also requires exact retired-instruction agreement when run. The present
-direct logs did not enable instruction-counter dumping, so their cycle
-comparison alone is not an exact-instruction parity claim.
+verifies binary hashes and all KAT markers. The full
+`model_parity-mldsa_pointwise_d` CI case passes on the same RV32IM W8T32
+application: SimX and RTL each retire 2,287,289 instructions; device cycles
+are 26,082,770 and 25,836,199, respectively, a 0.95% gap under the 5%
+gate. These device totals include launch and profiling overhead, so they
+are not substituted for the request intervals above.
 
 In the mapped XRT request, both pointwise hooks together account for
 620,545 measured cycles, or 2.424% of the request interval. Even eliminating

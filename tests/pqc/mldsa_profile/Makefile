@@ -142,6 +142,19 @@ else ifneq ($(filter-out low,$(MLDSA_RAM)),)
 $(error MLDSA_RAM must be low or full -- got '$(MLDSA_RAM)')
 endif
 
+ifeq ($(PROFILE_PHASES),1)
+ifneq ($(KECCAK),pe)
+$(error PROFILE_PHASES=1 requires KECCAK=pe)
+endif
+ifneq ($(NTT),reg32)
+$(error PROFILE_PHASES=1 requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_PROFILE_PHASES
+	CXXFLAGS += -DPQC_PROFILE_PHASES
+else ifneq ($(PROFILE_PHASES),)
+$(error PROFILE_PHASES must be 1 or unset)
+endif
+
 VX_HDRS := $(HDRS) $(SRC_DIR)/mld_prof_fips202.h \
            $(SRC_DIR)/mld_prof_arith.h $(SRC_DIR)/vortex_mldsa_prof_config.h \
            $(VORTEX_HOME)/tests/pqc/mldsa/vortex_mldsa_config.h \

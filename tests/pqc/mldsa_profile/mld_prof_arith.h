@@ -38,7 +38,15 @@ static MLD_INLINE int mld_ntt_native(int32_t p[MLDSA_N])
   (void)p;
   mld_prof_counts[mld_prof_slot()][MLD_PROF_NTT]++;
 #if defined(PQC_NTT_REG32)
+#if defined(PQC_PROFILE_PHASES)
+  const unsigned slot = mld_prof_slot();
+  const uint64_t start = vx_rdcycle();
+#endif
   mld_profile_ntt(p, 0);
+#if defined(PQC_PROFILE_PHASES)
+  mld_prof_detail_cycles[slot][mld_prof_phase[slot]][MLD_PHASE_NTT] +=
+      vx_rdcycle() - start;
+#endif
   return MLD_NATIVE_FUNC_SUCCESS;
 #elif defined(PQC_ABLATE_NTT)
   return MLD_NATIVE_FUNC_SUCCESS;
@@ -53,7 +61,15 @@ static MLD_INLINE int mld_intt_native(int32_t p[MLDSA_N])
   (void)p;
   mld_prof_counts[mld_prof_slot()][MLD_PROF_INTT]++;
 #if defined(PQC_NTT_REG32)
+#if defined(PQC_PROFILE_PHASES)
+  const unsigned slot = mld_prof_slot();
+  const uint64_t start = vx_rdcycle();
+#endif
   mld_profile_ntt(p, 1);
+#if defined(PQC_PROFILE_PHASES)
+  mld_prof_detail_cycles[slot][mld_prof_phase[slot]][MLD_PHASE_INTT] +=
+      vx_rdcycle() - start;
+#endif
   return MLD_NATIVE_FUNC_SUCCESS;
 #elif defined(PQC_ABLATE_NTT)
   return MLD_NATIVE_FUNC_SUCCESS;

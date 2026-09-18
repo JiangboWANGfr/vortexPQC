@@ -23,6 +23,12 @@
 #define MLDSA_CY_COUNT   5
 
 #define MLDSA_POINTWISE_CY_COUNT (MLDSA_ST_COUNT * 2)
+#if defined(PQC_PROFILE_PHASES)
+#define MLDSA_DETAIL_CY_COUNT (MLDSA_ST_COUNT * MLD_PHASE_COUNT)
+#else
+#define MLDSA_DETAIL_CY_COUNT 0
+#endif
+#define MLDSA_PROFILE_CY_COUNT (MLDSA_POINTWISE_CY_COUNT + MLDSA_DETAIL_CY_COUNT)
 
 typedef struct {
   // Buffer dimensions below are per request.
@@ -36,7 +42,7 @@ typedef struct {
   uint64_t cycles_addr;   // out : MLDSA_CY_COUNT * uint64_t
   uint64_t arena_addr;    // out : 4 * uint32_t -- arena peak/fail, stack peak/span
   uint64_t counts_addr;   // out : MLD_PROF_COUNT * uint32_t per request
-  uint64_t pointwise_cycles_addr; // out : MLDSA_POINTWISE_CY_COUNT * uint64_t
+  uint64_t pointwise_cycles_addr; // out : MLDSA_PROFILE_CY_COUNT * uint64_t
   uint32_t requests;
 } kernel_arg_t;
 

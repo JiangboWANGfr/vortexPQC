@@ -32,6 +32,15 @@ enum {
   MLD_PROF_COUNT
 };
 
+#if defined(PQC_PROFILE_PHASES)
+enum {
+  MLD_PHASE_PERMUTE,
+  MLD_PHASE_NTT,
+  MLD_PHASE_INTT,
+  MLD_PHASE_COUNT
+};
+#endif
+
 enum {
   MLD_ARM_KECCAK_PE = 1,
   MLD_ARM_ABLATE_KECCAK = 2,
@@ -45,6 +54,7 @@ enum {
   MLD_ARM_NTTBF_D = 512,
   MLD_ARM_POINTWISE_ISE = 1024,
   MLD_ARM_POINTWISE_L5_W32 = 2048,
+  MLD_ARM_PROFILE_PHASES = 4096,
   MLD_ARM_EXPECTED =
 #if defined(PQC_KECCAK_PE)
       MLD_ARM_KECCAK_PE |
@@ -82,6 +92,9 @@ enum {
 #if defined(PQC_POINTWISE_L5_W32)
       MLD_ARM_POINTWISE_L5_W32 |
 #endif
+#if defined(PQC_PROFILE_PHASES)
+      MLD_ARM_PROFILE_PHASES |
+#endif
       0
 };
 
@@ -92,6 +105,9 @@ enum {
 static uint32_t mld_prof_counts[MLD_PROF_SLOTS][MLD_PROF_COUNT];
 static uint64_t mld_prof_pointwise_cycles[MLD_PROF_SLOTS][3][2];
 static unsigned mld_prof_phase[MLD_PROF_SLOTS];
+#if defined(PQC_PROFILE_PHASES)
+static uint64_t mld_prof_detail_cycles[MLD_PROF_SLOTS][3][MLD_PHASE_COUNT];
+#endif
 static inline unsigned mld_prof_slot(void) {
   return (unsigned)vx_hart_id() / VX_CFG_NUM_THREADS;
 }
