@@ -72,14 +72,60 @@ for arm in ("c", "both"):
     rtl = one(pointwise, arm=arm, driver="xrt", requests=1, request_id=0)
     assert model["kernel_sha256"] == rtl["kernel_sha256"]
     assert abs(int(model["total_cycles"]) - int(rtl["total_cycles"])) / int(rtl["total_cycles"]) < 0.05
-pointwise_control_m8 = one(pointwise, arm="c", driver="simx", requests=8, request_id=0)
-pointwise_mapped_m8 = one(pointwise, arm="both", driver="simx", requests=8, request_id=0)
+pointwise_m8 = rows("mldsa_pointwise_m8.csv")
+assert len(pointwise_m8) == 32 and all(r["result"] == "PASS" for r in pointwise_m8)
+pointwise_m8_gaps = []
+for arm in ("c", "both"):
+    for req in range(8):
+        model = one(pointwise_m8, arm=arm, driver="simx", requests=8, request_id=req)
+        rtl = one(pointwise_m8, arm=arm, driver="xrt", requests=8, request_id=req)
+        assert model["input_id"] == rtl["input_id"] == str(req + 1)
+        assert model["kernel_sha256"] == rtl["kernel_sha256"]
+        assert model["instructions"] == rtl["instructions"]
+        for key in ("device_cycles", "makespan_cycles"):
+            pointwise_m8_gaps.append(100 * abs(int(model[key]) / int(rtl[key]) - 1))
+assert max(pointwise_m8_gaps) < 5
+assert len({r["runtime_sha256"] for r in pointwise_m8 if r["driver"] == "xrt"}) == 1
+assert one(pointwise_m8, arm="both", driver="xrt", request_id=0)["kernel_sha256"] == pointwise_mapped["kernel_sha256"]
+pointwise_control_m8 = one(pointwise_m8, arm="c", driver="xrt", requests=8, request_id=0)
+pointwise_mapped_m8 = one(pointwise_m8, arm="both", driver="xrt", requests=8, request_id=0)
 pointwise_numbers = {
     "DsaPointwiseXrtSaved": 100 * (1 - int(pointwise_mapped["total_cycles"]) /
                                       int(pointwise_control["total_cycles"])),
     "DsaPointwiseEightSaved": 100 * (1 - int(pointwise_mapped_m8["makespan_cycles"]) /
                                         int(pointwise_control_m8["makespan_cycles"])),
+    "DsaPointwiseEightParity": max(pointwise_m8_gaps),
 }
+table("pointwise.dat", ["index", "reduction"],
+      [(9, pointwise_numbers["DsaPointwiseXrtSaved"]),
+       (10, pointwise_numbers["DsaPointwiseEightSaved"])])
+
+final_profile = rows("final_phase_profile.csv")
+final_phase_numbers = {}
+phase_lines = []
+for scheme, label in (("mlkem", "KEM"), ("mldsa", "DSA")):
+    parts = [r for r in final_profile if r["scheme"] == scheme and r["driver"] == "xrt"]
+    total = int(parts[0]["request_total"])
+    keys = ("permute", "absorb", "squeeze", "ntt", "intt", "pointwise",
+            "mulcache", "basemul", "reduce", "residual")
+    sums = {key: sum(int(r[key]) for r in parts) for key in keys}
+    assert sum(sums.values()) == sum(int(r["phase_total"]) for r in parts) == total
+    for rtl in parts:
+        model = one(final_profile, scheme=scheme, driver="simx", phase=rtl["phase"])
+        assert model["binary_sha256"] == rtl["binary_sha256"]
+        assert model["instrs"] == rtl["instrs"]
+        assert abs(int(model["request_total"]) / total - 1) < 0.05
+    permute = 100 * sums["permute"] / total
+    ntt = 100 * (sums["ntt"] + sums["intt"]) / total
+    products = 100 * (sums["pointwise"] + sums["mulcache"] + sums["basemul"]) / total
+    sponge = 100 * (sums["absorb"] + sums["squeeze"]) / total
+    rest = 100 * (sums["residual"] + sums["reduce"]) / total
+    sponge_text = f"{sponge:.3f}" if scheme == "mlkem" else "--"
+    phase_lines.append(f"{label} & {permute:.3f} & {ntt:.3f} & {products:.3f} & {sponge_text} & {rest:.3f} " + r"\\")
+    overhead = 100 * (total / int(parts[0]["headline_total"]) - 1)
+    assert abs(overhead - float(parts[0]["instrumentation_overhead_pct"])) < 0.001
+    final_phase_numbers[label.title() + "FinalProbePct"] = overhead
+(OUT / "final_phase_rows.tex").write_text("\n".join(phase_lines) + "\n")
 
 controls = rows("keccak_w32_controls.csv")
 fusion = {}
@@ -168,6 +214,7 @@ numbers = {
 }
 numbers.update(phase_pct)
 numbers.update(pointwise_numbers)
+numbers.update(final_phase_numbers)
 numbers.update({
     "KemNttSaved": shared_reduction[3],
     "DsaNttSaved": shared_reduction[7],

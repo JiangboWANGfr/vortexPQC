@@ -4,7 +4,7 @@
 
 本稿参考 `../paper/` 的技术内容与实验依据，并参考本地 DAC 论文的论证结构和图形表达。原 `../paper/` 的源文件、PDF、数据生成器和源码包保持不变。
 
-采用标准 IEEEtran conference、Letter、10 pt 双栏：**6 页正文 + 1 页参考文献，8 幅图、2 张表、15 条引用**。作者暂为匿名。全部图在 LaTeX 内使用 **TikZ / PGFPlots** 绘制，没有嵌入旧版 Matplotlib 图。
+采用标准 IEEEtran conference、Letter、10 pt 双栏：**6 页正文 + 1 页参考文献，8 幅图、3 张表、15 条引用**。作者暂为匿名。全部图在 LaTeX 内使用 **TikZ / PGFPlots** 绘制，没有嵌入旧版 Matplotlib 图。
 
 ## 主线
 
@@ -27,7 +27,7 @@ Keccak Stage 是主要设计对象，Round 和 Pointer 验证不同执行边界�
 | I. Introduction | 问题、已有工作的基础、接口约束与三项贡献 |
 | II. Background and Motivation | 两种算法的 NTT 与 Keccak 通信结构、强软件分母 |
 | III. Design | 核心接入、Stage 数据通路、RV32 依赖、Round/Pointer、共享 NTT 与应用映射 |
-| IV. Implementation and Evaluation | 方法、完整 KEM、八组合消融、融合控制、两算法 NTT 收益、K-only 与共享 K/D 整核 PPA、RV64 |
+| IV. Implementation and Evaluation | 方法、完整 KEM、八组合消融、融合控制、两算法 NTT 与 DSA pointwise 收益、最终阶段占比、整核 PPA、RV64 |
 | V. Conclusion | 状态位置、指令粒度与并发必须共同决定设计点 |
 
 图中只保留模块名、短标签和数学符号；约束和计时口径进入正文或图注。
@@ -41,14 +41,18 @@ Keccak Stage 是主要设计对象，Round 和 Pointer 验证不同执行边界�
 | 5 | `figures/kem_results.tex` | 同一 XRT 构建的六后端、M1/M8 完整请求 |
 | 6 | `figures/stage_ablation.tex` | θ、ρπ、χι 的八种软件/指令组合 |
 | 7 | `figures/fusion_results.tex` | loop/expanded/Round，以及原语和应用收益的差别 |
-| 8 | `figures/shared_ntt_results.tex` | 共用 NTT 硬件相对 W32 软件映射的两算法收益 |
+| 8 | `figures/shared_ntt_results.tex` | 两算法 NTT 收益，以及独立对照的 DSA pointwise M1/M8 XRT 收益 |
 
-历史 K-only 主结果：Stage 相对同布局 Shuffle 的完整 KEM 加速为 **1.462× / 1.552×**；同展开 Round 的置换收益为 **3.168× / 3.291×**，独立 SimX 完整 KEM 控制只有 **1.028× / 1.033×**。这些不同层次的结果在图 7 并列展示，并明确各自测量路径。图 8 使用新的共享 K/D 单元和匹配 XRT 构建。表 II 将旧 K-only 与新共享 K/D 的独立整核 PPA 分行列出。
+历史 K-only 主结果：Stage 相对同布局 Shuffle 的完整 KEM 加速为 **1.462× / 1.552×**；同展开 Round 的置换收益为 **3.168× / 3.291×**，独立 SimX 完整 KEM 控制只有 **1.028× / 1.033×**。这些不同层次的结果在图 7 并列展示，并明确各自测量路径。图 8 使用共享 K/D 单元：NTT 条形和 pointwise 条形采用各自匹配的软件分母，收益不能相加。
+
+DSA pointwise 的 M1/M8 XRT 周期分别减少 **12.538% / 11.687%**。M8 使用 8 个不同输入，各输入经历 2–11 次签名尝试；基线、映射版各自在 SimX/XRT 上逐字节校验，共 32 次完整请求通过，模型周期差不超过 **0.593%**。M8 使用本次重编译的匹配基线，保留此前 M1 数据快照，不将两个批次拼成相同输入的缩放曲线。
+
+表 II 展示最终共享核心的 M1 阶段占比与剩余开销；DSA 的 absorb/squeeze 未单独隔离，归入 Rest。KEM 的 Rest 还包含 reduction。百分比由原始周期求和后统一舍入。探针相对未插桩请求增加 **6.398% / 0.666%** 的 KEM/DSA 周期。表 III 将旧 K-only 与新共享 K/D 的独立整核 PPA 分行列出。
 
 ## 数据与复现
 
 - `main.tex`、`references.bib`：英文正文和文献。
-- `data/`：仓库 `pqc/results/` CSV 的字节一致快照，包括共享 K/D NTT 和 ML-DSA pointwise 测量。
+- `data/`：仓库 `pqc/results/` CSV 的字节一致快照，包括共享 K/D NTT、ML-DSA pointwise M1/M8 和最终阶段测量。
 - `generate_results.py`：仅使用 Python 标准库，从 CSV 生成数字宏、绘图数据和 PPA 表行。
 - `assets/`：PGFPlots 数据、数字宏、表行、SHA-256 来源清单。
 - `evidence_map.md`：每个论断/图表对应的数据、字段和比较边界。

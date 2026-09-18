@@ -47,10 +47,10 @@ same shuffle mapping at one and eight requests in the K-only reference build.
 With equal loop expansion, round fusion provides \FusionEight{}$\times$
 permutation throughput but only \FusionKemEight{}$\times$ complete-request
 speedup in a separate timing-model control.
-The cross-scheme path tests whether the same lane routing and multiplier
-bank can also serve ML-DSA without a second NTT engine, reducing complete
-KEM and DSA requests by \KemNttSaved{}\% and \DsaNttSaved{}\% against
-matched register-shuffle software NTTs.
+The shared NTT unit reduces complete KEM and DSA cycles by
+\KemNttSaved{}\% and \DsaNttSaved{}\% against matched register-shuffle
+software NTTs. Separately, mapping DSA pointwise work onto the same core
+reduces eight-request XRT makespan by \DsaPointwiseEightSaved{}\% with no new RTL.
 \end{abstract}
 \begin{IEEEkeywords}
 ML-KEM, ML-DSA, Keccak, NTT, SIMT, RISC-V
@@ -362,16 +362,13 @@ per coefficient in software.
 
 \section{Implementation and Evaluation}
 \subsection{Experimental setup}
-Table~\ref{tab:setup} summarizes the primary configuration. We implement
-functional/timing models and synthesizable RTL in Vortex. XRT integration
-simulation executes the processor through the accelerator interface;
-SimX supplies additional controlled timing experiments. The ML-KEM
-six-backend comparison uses one all-enabled K-only RTL build and the same
-application structure. Every request uses fixed FIPS-203 inputs and checks
-public key, secret key, ciphertext, and both shared secrets against the
-reference. All reported arms pass. Across these six backends, SimX and XRT
-agree exactly on retired instructions and differ by at most 2.71\% in
-whole-launch cycles.
+Table~\ref{tab:setup} summarizes the Vortex configuration. XRT integration
+simulation exercises the accelerator interface; SimX supplies controlled
+timing experiments. The six-backend ML-KEM comparison fixes one all-enabled
+K-only RTL build and application structure. Every arm passes byte-exact
+checks of public/secret keys, ciphertext, and both shared secrets against
+the reference. SimX/XRT retire identical instructions and differ by at most
+2.71\% in whole-launch cycles across these six backends.
 
 \begin{table}[t]
 \caption{Primary experimental configuration.}
@@ -383,26 +380,23 @@ Processor & RV32IM, 1 core, F/D disabled \\
 Warp / execution width & 8 resident warps, 32 lanes \\
 Memory & 16 KiB each: I-cache, D-cache, local \\
 Outer caches & L2 and L3 disabled \\
-Workloads & KEM-768 / DSA-65, $M=1,8$ / $M=1$ \\
+Workloads & KEM-768 / DSA-65, each $M=1,8$ \\
 Integration timing & XRT RTL simulation \\
 Routed cores & K-only / shared K/D; V80, 250 MHz \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:kem} cycles cover the complete device launch, including entry and exit
-but excluding host transfers. Permutation microbenchmarks isolate the
-measured interval with barriers so that another warp's initialization or
-output traffic cannot overlap it. Physical results are independent
-Vivado 2025.1 OPT3 out-of-context core implementations, one run per variant;
-they measure post-route cost and timing, not board execution or energy.
+Figure~\ref{fig:kem} covers the complete device launch, excluding host
+transfers. Barriers isolate permutation measurements from other warps'
+setup and output traffic. Physical results are independent Vivado 2025.1
+OPT3 out-of-context core implementations, one run per variant. They measure
+post-route cost and timing, not board execution or energy.
 
 \subsection{Complete-request acceleration}
-Figure~\ref{fig:kem} compares six Keccak backends with the final NTT and
-polynomial path fixed. Scalar C assigns one permutation to one lane;
-PQRV supplies an optimized RV32 assembly baseline. Shuffle uses the same
-25-lane state placement as Stage and Round, making it the direct baseline
-for the collective instructions.
+Figure~\ref{fig:kem} fixes the NTT and polynomial path while varying Keccak.
+C and PQRV are scalar C and optimized RV32 assembly; Shuffle shares
+Stage/Round's 25-lane placement and is their direct software baseline.
 
 \begin{figure*}[t]
 \centering\input{figures/kem_results.tex}
@@ -414,29 +408,22 @@ Fig.~\ref{fig:fusion} isolates round fusion.}
 \label{fig:kem}
 \end{figure*}
 
-At one request, Stage reduces cycles from 7.91 to 5.41 million,
-providing \StageVsShuffleOne{}$\times$ speedup over Shuffle. At eight
-requests, the gain is \StageVsShuffleEight{}$\times$.
-Round reaches 5.20 and 12.28 million cycles, or
-\RoundVsShuffleOne{}$\times$/\RoundVsShuffleEight{}$\times$ over Shuffle.
-The larger \RoundVsPqrvOne{}$\times$/\RoundVsPqrvEight{}$\times$ gains over
-PQRV include the software state-distribution benefit. This separation
-shows that the extension improves an already cooperative implementation.
+Stage provides \StageVsShuffleOne{}$\times$/\StageVsShuffleEight{}$\times$
+speedup over Shuffle at one/eight requests. Round reaches 5.20/12.28 million
+cycles, or \RoundVsShuffleOne{}$\times$/\RoundVsShuffleEight{}$\times$ over
+Shuffle. Its larger \RoundVsPqrvOne{}$\times$/\RoundVsPqrvEight{}$\times$
+gains over PQRV also include software state distribution.
 
 The preferred backend changes with concurrency. Round is
 \RoundVsPointerOne{}$\times$ faster than Pointer at one request, whereas
 Pointer is \PointerVsRoundEight{}$\times$ faster than Round at eight.
-GPR residence thus provides a useful low-request design point, while the
-dedicated permutation engine has the better measured batched result.
-The experiment establishes this crossover at the two tested request counts;
-it does not isolate a single arbitration or cache mechanism as its cause.
+This establishes a crossover at the tested request counts, without
+isolating one arbitration or cache mechanism as its cause.
 
 \subsection{Which stage operations matter}
-Figure~\ref{fig:ablation} replaces each software stage independently with
-its collective instruction, yielding all eight combinations. Every arm
-runs on the same Stage-enabled W8T32 processor RTL configuration; this
-separate experiment varies instruction use rather than synthesized area.
-To remove fixed interval overhead, it uses the marginal cost
+Figure~\ref{fig:ablation} tests all eight software/collective combinations
+on the same Stage-enabled W8T32 processor RTL. This varies instruction use,
+not area. It removes fixed interval overhead using marginal cost
 $[\operatorname{span}(8)-\operatorname{span}(4)]/(4W)$, where $W$ is the
 number of active warps and each warp holds one state.
 
@@ -452,21 +439,16 @@ the same active-warp count and the marginal cost defined in the text.}
 Using all stages improves the dependent one-warp cost by
 \AllStageOne{}$\times$ and eight-warp throughput by
 \AllStageEight{}$\times$. The best individual replacement changes with
-load: $\rho\pi$ gives the largest one-warp improvement, while $\theta$
-gives the largest eight-warp improvement. Thus no single arithmetic
-replacement captures the full communication benefit. The stage interface
-exposes the distinct reductions and gathers, and the combined evaluation
-captures their interaction with the warp scheduler.
+load: $\rho\pi$ wins at one warp and $\theta$ at eight. No single stage
+captures the full benefit.
 
 \subsection{What additional round fusion buys}
-Figure~\ref{fig:fusion} controls both mapping and loop expansion. Each active
-warp holds one state and performs 64 dependent permutations. Expanding
-Stage reduces branch and index overhead, but Round still achieves
-\FusionOne{}$\times$ and \FusionEight{}$\times$ the permutation throughput
-at one and eight active warps. The remaining benefit is therefore not an
-artifact of comparing an expanded round routine with a looped stage routine.
-These results describe the one-state-per-warp mapping; scalar software can
-pack additional independent states and has a different occupancy tradeoff.
+Figure~\ref{fig:fusion} fixes mapping and loop expansion: each active warp
+holds one state and performs 64 dependent permutations. Against expanded
+Stage, Round still provides \FusionOne{}$\times$/\FusionEight{}$\times$
+permutation throughput at one/eight warps. This isolates fusion from loop
+overhead; scalar software with multiple states per warp has a different
+occupancy tradeoff.
 
 \begin{figure}[t]
 \centering\input{figures/fusion_results.tex}
@@ -477,14 +459,11 @@ SimX complete KEM at one/eight active warps or requests.}
 \label{fig:fusion}
 \end{figure}
 
-The same comparison is much smaller at application scope. In a separate
-matched SimX control with both routines expanded, Stage and Round take
-5.342/5.198 million cycles at $M=1$ and 12.336/11.938 million at $M=8$.
-Round improves the complete request by only
-\FusionKemOne{}$\times$/\FusionKemEight{}$\times$.
-Removing primitive instructions is effective, but after Stage acceleration
-those instructions occupy too little of the complete request to deliver a
-proportional gain.
+In the separate matched SimX application control, both routines are
+expanded: Stage/Round take 5.342/5.198 million cycles at $M=1$ and
+12.336/11.938 million at $M=8$. The complete-request gains are only
+\FusionKemOne{}$\times$/\FusionKemEight{}$\times$ because little permutation
+work remains after Stage acceleration.
 
 Independent phase probes explain the saturation: permutation occupies
 \StagePermPct{}\% of the instrumented Stage request and \RoundPermPct{}\%
@@ -504,20 +483,48 @@ mapping gains are excluded. These requests execute 15/9 ML-KEM and
 
 \begin{figure}[t]
 \centering\input{figures/shared_ntt_results.tex}
-\caption{Complete-request XRT cycle reduction from one shared K/D NTT unit
-versus W32 register-shuffle software. Pointer Keccak and other arithmetic
-are fixed within each pair. K: ML-KEM-768; D: ML-DSA-65.}
+\caption{XRT cycle reductions with Pointer Keccak fixed. NTT bars compare
+shared instructions with W32 register-shuffle software. PW bars separately
+compare DSA pointwise mappings with scalar C at $M=1,8$; the latter uses batch
+makespan. K: ML-KEM-768; D: ML-DSA-65. Gains are not additive.}
 \label{fig:sharedntt}
 \end{figure}
 
-Both hardware paths pass byte-exact XRT request KATs; SimX also verifies D NTT
-with Stage Keccak. SimX and XRT retire identical instruction counts, with
-launch-cycle differences below \SharedParityMax{}\%.
-Separately, reusing \texttt{NTTMUL.D} for ML-DSA pointwise products and
-distributing five-term sums over W32 lanes cuts matched byte-exact XRT
-request cycles by \DsaPointwiseXrtSaved{}\%; SimX eight-request makespan
-falls by \DsaPointwiseEightSaved{}\%. This adds no RTL, and its gains are
-separate from Fig.~\ref{fig:sharedntt}.
+Both NTT paths pass byte-exact XRT request checks, with identical SimX/XRT
+instruction counts and launch-cycle gaps below \SharedParityMax{}\%.
+Separately, \texttt{NTTMUL.D} pointwise products and W32 five-term sums
+reduce matched XRT DSA cycles by \DsaPointwiseXrtSaved{}\% at $M=1$ and
+batch makespan from 77.071 to 68.064 million cycles
+(\DsaPointwiseEightSaved{}\%) at $M=8$. No RTL is added.
+Eight distinct inputs exercise 2--11 signing attempts, inferred from L5
+call counts. All 32 runs match portable-C keys and signatures;
+SimX/XRT retire identical instructions and differ by at most
+\DsaPointwiseEightParity{}\% in launch cycles or makespan. Per-request
+intervals overlap and are not summed for throughput. The M1/M8 comparisons
+use separately matched binaries; the pointwise and NTT gains are not additive.
+
+\begin{table}[t]
+\caption{Final shared-core M1 phase shares (\%, XRT).}
+\label{tab:finalphases}
+\centering\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Scheme & Perm. & NTT/I & Products & Sponge & Rest \\
+\midrule
+\tablerows{assets/final_phase_rows.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:finalphases} profiles the final shared core with Pointer
+Keccak. Products denotes KEM mulcache/basemul or DSA ordinary/L5 pointwise;
+Sponge denotes absorb/squeeze. Rest includes KEM reduction and all
+unmeasured work; DSA absorb/squeeze remain in Rest. Probe overhead is
+\KemFinalProbePct{}\%/\DsaFinalProbePct{}\% against matched uninstrumented
+KEM/DSA requests. The small measured NTT/product fractions motivate testing
+further resource sharing, but do not predict its M8 throughput or identify
+the dominant part of DSA's residual.
 
 \subsection{NTT communication and resource selection}
 Holding narrow multiplication fixed, paired butterflies save 2.56\%/8.23\%
@@ -534,19 +541,14 @@ and 16 DSPs at 250~MHz. This half-bank is the starting point for the shared
 32-bit datapath, whose physical cost is measured separately.
 
 \subsection{Routed cost and RV64 sensitivity}
-Table~\ref{tab:ppa} reports five independent RV32IM post-route cores.
-The first three retain the earlier 16-bit K-only NTT. Relative to that
-NTT-equipped core, Stage adds \StageLutPct{}\% LUTs
-and \StageFfPct{}\% flip-flops; Round adds \RoundLutPct{}\% LUTs and
-\RoundFfPct{}\% flip-flops. Both close 250~MHz with zero routing errors.
-Round uses slightly fewer LUTs but more pipeline storage, so neither is
-uniformly smaller across resource types.
-The shared K/D NTT adds \SharedLutPct{}\% LUTs,
-\SharedFfPct{}\% flip-flops, and 64 DSPs over K-only NTT; it does not
-duplicate the multiplier bank. Adding Stage to this shared core costs
-\SharedStageLutPct{}\% LUTs and \SharedStageFfPct{}\% flip-flops without
-more DSPs. Both shared variants close 250~MHz with zero routing errors.
-The all-enabled XRT timing build is separate from these area builds.
+Table~\ref{tab:ppa} reports five independent RV32IM post-route cores, all
+closing 250~MHz without routing errors. Relative to K-only NTT, Stage adds
+\StageLutPct{}\% LUTs/\StageFfPct{}\% flip-flops and Round adds
+\RoundLutPct{}\%/\RoundFfPct{}\%. Sharing K/D adds \SharedLutPct{}\% LUTs,
+\SharedFfPct{}\% flip-flops, and 64 DSPs over K-only NTT. Adding Stage to
+the shared core costs \SharedStageLutPct{}\% LUTs/\SharedStageFfPct{}\%
+flip-flops and no DSPs. The all-enabled XRT timing build is separate from
+these area builds.
 
 \begin{table}[t]
 \caption{Independent 250-MHz RV32IM post-route cores. K rows use the
@@ -576,7 +578,7 @@ byte-exact ML-KEM and ML-DSA requests. Fused rounds improve isolated
 permutations far more than complete requests; the pointer engine wins at
 higher measured concurrency. Reusing the NTT multiplier bank for ML-DSA
 pointwise work and distributing L5 sums across lanes needs no additional
-hardware.
+hardware and improves both single and eight-request XRT execution.
 
 \noindent\textbf{Content generated by AI.} AI tools assisted with drafting,
 literature organization, and figure code. Experimental results come from
