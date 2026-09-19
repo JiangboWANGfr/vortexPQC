@@ -37,8 +37,14 @@ We present register-resident Keccak and NTT collectives for an RV32 GPU.
 Stage collectives implement column reduction, word permutation, and row
 logic across lane registers, while explicit low/high outputs preserve the
 processor's single-destination writeback interface.
-A single NTT unit shares 16 multipliers and XOR lane-pair routing between
-both schemes, selecting modulus-specific reduction for each instruction.
+A serialized NTT unit shares a configurable multiplier bank and XOR lane-pair
+routing between both schemes, selecting modulus-specific reduction per
+instruction. A matched five-point sweep selects two multipliers: relative to
+16, this reduces NTT-hierarchy LUTs, flip-flops, and DSPs by
+\BankTwoNttLutSaved{}\%, \BankTwoNttFfSaved{}\%, and
+\BankTwoNttDspSaved{}\%, while increasing standalone butterfly cycles by
+\BankTwoNttPenalty{}\% and complete-request XRT cycles by at most
+\BankTwoEndToEndMax{}\%.
 We integrate these paths into complete ML-KEM-768 and ML-DSA-65 requests
 and compare against cooperative software.
 On a common XRT RTL simulation build, stages accelerate complete requests
@@ -103,9 +109,9 @@ bottleneck in both schemes. Our contributions are:
 \item A stage-factored Keccak interface with explicit RV32 low/high outputs,
 fixed cross-lane communication, and ordinary register dependency and
 writeback handling.
-\item A half-bank of 16 shared multipliers and lane-pair routing for the
-seven-layer 16-bit ML-KEM NTT and eight-layer 32-bit ML-DSA NTT, integrated
-through both libraries' native hooks.
+\item A serialized multiplier bank and lane-pair routing shared by the
+seven-layer 16-bit ML-KEM NTT and eight-layer 32-bit ML-DSA NTT, with a
+five-point post-route sweep selecting two multipliers.
 \item A controlled evaluation separating software mapping, collective
 instructions, and round fusion, with complete-request checks for both
 schemes and routed costs for K-only and shared K/D cores.
@@ -114,7 +120,9 @@ The central finding is that stages capture most of the application benefit
 available from register collectives. Round fusion substantially improves
 the permutation, but its incremental request-level gain is small; the
 pointer engine becomes preferable at eight concurrent requests. These
-outcomes make granularity a workload-dependent design choice.
+outcomes make granularity a workload-dependent design choice. For NTT,
+two multipliers retain complete-request performance while one exposes the
+serialized throughput limit.
 
 \begin{figure*}[t]
 \centering\input{figures/keccak_dataflow.tex}
@@ -330,17 +338,23 @@ selected reduction uses $q_K=3329$ or $q_D=8380417$.}
 \label{fig:ntt}
 \end{figure}
 
-A bank of 16 signed $32\times32$ variable-product multipliers serves 16 lane
-pairs per issue. An instruction mode bit selects a 16-bit or 32-bit
-Montgomery reduction; pair routing, product pipeline, and writeback are
-shared, while the constant-arithmetic reduction networks differ. ML-KEM inverse
-butterflies use a second beat for sum-times-20159 Barrett reduction, while
-ML-DSA inverse butterflies use one beat. Scalar products use two beats for
-lanes 0--15 and 16--31. The direct latency/initiation interval is 7/1
-for CT butterflies and ML-DSA GS; it is 8/2 for ML-KEM GS and scalar
-products. The extra reduction stage also changes the ML-KEM baseline,
-so application cycles from the previous K-only design cannot be attributed
-to this shared datapath.
+A bank of $M$ signed $32\times32$ variable-product multipliers serializes
+the lane products without changing the ISA. An instruction owns the bank
+until all beats complete; operands are captured on its first handshake,
+partial lane results are assembled in order, and output backpressure freezes
+the serializer and product pipeline. A 16-product CT or ML-DSA GS butterfly
+uses $16/M$ beats; ML-KEM GS and 32-lane scalar products use $32/M$ beats.
+The direct latency is $6+B$ cycles and the initiation interval is $B$, where
+$B$ is the beat count. Thus M16 has latency/interval 7/1 for CT and ML-DSA
+GS and 8/2 for ML-KEM GS and scalar products; the selected M2 point uses
+14/8 and 22/16.
+
+An instruction mode bit selects a 16-bit or 32-bit Montgomery reduction;
+pair routing, product pipeline, and writeback are shared, while the
+constant-arithmetic reduction networks differ. ML-KEM inverse butterflies
+use a second product for sum-times-20159 Barrett reduction. The extra
+reduction stage also changes the ML-KEM baseline, so application cycles from
+the previous K-only design cannot be attributed to this shared datapath.
 Registering pair-selected operands before the multiplier separates lane
 routing from the DSP path without adding interface latency.
 
@@ -526,7 +540,7 @@ KEM/DSA requests. The small measured NTT/product fractions motivate testing
 further resource sharing, but do not predict its M8 throughput or identify
 the dominant part of DSA's residual.
 
-\subsection{NTT communication and resource selection}
+\subsection{NTT communication and multiplier-bank selection}
 Holding narrow multiplication fixed, paired butterflies save 2.56\%/8.23\%
 of matched SimX KEM intervals at one/eight requests over register shuffles.
 A stronger shared-memory baseline groups layers and transposes coefficients.
@@ -540,8 +554,36 @@ intervals by at most 0.041\% while saving 14,767 LUTs, 1,565 flip-flops,
 and 16 DSPs at 250~MHz. This half-bank is the starting point for the shared
 32-bit datapath, whose physical cost is measured separately.
 
+We then sweep the shared K/D bank through M16, M8, M4, M2, and M1 with the
+same ISA, pipeline, software binary, RV32IM W8T32 core, and 250-MHz target.
+All standalone RTL runs retire 59,534 instructions, pass 1,044 butterfly
+vectors, and agree with SimX within \BankParityMax{}\%. Figure~\ref{fig:nttbank}
+shows the resulting knee. M16 is fastest, but M8 and M4 add only
+\BankEightNttPenalty{}\% and \BankFourNttPenalty{}\% cycles. M2 adds
+\BankTwoNttPenalty{}\%, while reducing the NTT hierarchy by
+\BankTwoNttLutSaved{}\% LUTs, \BankTwoNttFfSaved{}\% flip-flops, and
+\BankTwoNttDspSaved{}\% DSPs relative to M16. Across ML-KEM and ML-DSA at
+one and eight requests, its largest XRT makespan increase is only
+\BankTwoEndToEndMax{}\%. M1 saves five more core DSPs than M2 but adds 817 NTT
+flip-flops and raises standalone cycles by \BankOneNttPenalty{}\%; it is a
+low-area endpoint rather than the selected design.
+
+\begin{figure*}[t]
+\centering\input{figures/ntt_bank_tradeoff.tex}
+\caption{Matched multiplier-bank sweep. The left panel relates standalone
+NTTBF.K RTL cycles to NTT-hierarchy DSPs; the right normalizes post-route
+NTT resources to M16. All five cores close 250~MHz with zero routing errors.
+Gold marks the selected M2 point.}
+\label{fig:nttbank}
+\end{figure*}
+
+This sweep isolates the NTT-enabled core and does not combine M2 with
+Stage or Round. Table~\ref{tab:ppa} preserves separately matched
+architecture comparisons whose shared-NTT rows use the earlier M16 point.
+
 \subsection{Routed cost and RV64 sensitivity}
-Table~\ref{tab:ppa} reports five independent RV32IM post-route cores, all
+Table~\ref{tab:ppa} reports five additional RV32IM post-route architecture
+variants, all
 closing 250~MHz without routing errors. Relative to K-only NTT, Stage adds
 \StageLutPct{}\% LUTs/\StageFfPct{}\% flip-flops and Round adds
 \RoundLutPct{}\%/\RoundFfPct{}\%. Sharing K/D adds \SharedLutPct{}\% LUTs,
@@ -578,7 +620,9 @@ byte-exact ML-KEM and ML-DSA requests. Fused rounds improve isolated
 permutations far more than complete requests; the pointer engine wins at
 higher measured concurrency. Reusing the NTT multiplier bank for ML-DSA
 pointwise work and distributing L5 sums across lanes needs no additional
-hardware and improves both single and eight-request XRT execution.
+hardware and improves both single and eight-request XRT execution. A matched
+five-point sweep shows that M16 has the highest standalone NTT throughput,
+but M2 is the area--performance knee and retains complete-request throughput.
 
 \noindent\textbf{Content generated by AI.} AI tools assisted with drafting,
 literature organization, and figure code. Experimental results come from

@@ -174,6 +174,52 @@ for r in shared_ppa:
     assert r["xlen"] == "32" and r["warps"] == "8" and r["threads"] == "32"
     assert r["target_mhz"] == "250" and r["f_enabled"] == r["d_enabled"] == "0"
     assert r["routing_errors"] == "0" and r["status"] == "met"
+
+bank_nttbf = rows("ntt_multiplier_bank_nttbf.csv")
+bank_ppa = rows("ntt_multiplier_bank_ppa.csv")
+bank_perf = rows("ntt_multiplier_bank_performance.csv")
+bank_order = [16, 8, 4, 2, 1]
+assert [int(r["multipliers"]) for r in bank_nttbf] == bank_order
+assert [int(r["multipliers"]) for r in bank_ppa] == bank_order
+assert len(bank_perf) == 40 and all(r["result"] == "PASS" for r in bank_perf)
+assert all(r["instructions"] == "59534" and r["result"] == "PASS"
+           for r in bank_nttbf)
+assert all(r["status"] == "met" and r["routing_errors"] == "0"
+           and r["target_mhz"] == "250" for r in bank_ppa)
+nttbf_base = int(bank_nttbf[0]["rtl_cycles"])
+ppa_base = bank_ppa[0]
+table("ntt_bank.dat",
+      ["bank", "cycles", "nttlut", "nttff", "nttdsp"],
+      [(bank,
+        100 * int(one(bank_nttbf, multipliers=bank)["rtl_cycles"]) / nttbf_base,
+        100 * int(one(bank_ppa, multipliers=bank)["ntt_luts"]) / int(ppa_base["ntt_luts"]),
+        100 * int(one(bank_ppa, multipliers=bank)["ntt_ffs"]) / int(ppa_base["ntt_ffs"]),
+        100 * int(one(bank_ppa, multipliers=bank)["ntt_dsps"]) / int(ppa_base["ntt_dsps"]))
+       for bank in bank_order])
+bank_two_ppa = one(bank_ppa, multipliers=2)
+bank_two_perf = [r for r in bank_perf
+                 if r["multipliers"] == "2" and r["driver"] == "xrt"]
+assert len(bank_two_perf) == 4
+bank_numbers = {
+    "BankEightNttPenalty": float(one(bank_nttbf, multipliers=8)["change_vs16_pct"]),
+    "BankFourNttPenalty": float(one(bank_nttbf, multipliers=4)["change_vs16_pct"]),
+    "BankTwoNttPenalty": float(one(bank_nttbf, multipliers=2)["change_vs16_pct"]),
+    "BankOneNttPenalty": float(one(bank_nttbf, multipliers=1)["change_vs16_pct"]),
+    "BankTwoNttLutSaved": 100 * (1 - int(bank_two_ppa["ntt_luts"]) /
+                                      int(ppa_base["ntt_luts"])),
+    "BankTwoNttFfSaved": 100 * (1 - int(bank_two_ppa["ntt_ffs"]) /
+                                     int(ppa_base["ntt_ffs"])),
+    "BankTwoNttDspSaved": 100 * (1 - int(bank_two_ppa["ntt_dsps"]) /
+                                      int(ppa_base["ntt_dsps"])),
+    "BankTwoCoreLutSaved": 100 * (1 - int(bank_two_ppa["total_luts"]) /
+                                       int(ppa_base["total_luts"])),
+    "BankTwoCoreFfSaved": 100 * (1 - int(bank_two_ppa["ffs"]) /
+                                      int(ppa_base["ffs"])),
+    "BankTwoCoreDspSaved": 100 * (1 - int(bank_two_ppa["dsps"]) /
+                                       int(ppa_base["dsps"])),
+    "BankTwoEndToEndMax": max(float(r["change_vs16_pct"]) for r in bank_two_perf),
+    "BankParityMax": max(float(r["model_gap_pct"]) for r in bank_nttbf),
+}
 ppa_lines = []
 for variant, label in [("ntt_only", "K-only NTT"), ("ntt_stage", "K + Stage"),
                        ("ntt_kround", "K + Round")]:
@@ -215,6 +261,7 @@ numbers = {
 numbers.update(phase_pct)
 numbers.update(pointwise_numbers)
 numbers.update(final_phase_numbers)
+numbers.update(bank_numbers)
 numbers.update({
     "KemNttSaved": shared_reduction[3],
     "DsaNttSaved": shared_reduction[7],

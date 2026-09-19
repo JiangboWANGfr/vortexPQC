@@ -1,6 +1,6 @@
 # 数据与论断对应
 
-当前正文按 Introduction、Background and Motivation、Design、Implementation and Evaluation、Conclusion 组织，共 8 幅图、3 张表，引用 15 条文献。`data/*.csv` 均从仓库 `pqc/results/` 原样复制，校验值见 `assets/source_manifest.json`。`generate_results.py` 从这些快照生成数值、表格和 PGFPlots 数据；图形由 TikZ/PGFPlots 编译。
+当前正文按 Introduction、Background and Motivation、Design、Implementation and Evaluation、Conclusion 组织，共 9 幅图、3 张表，引用 15 条文献。`data/*.csv` 均从仓库 `pqc/results/` 原样复制，校验值见 `assets/source_manifest.json`。`generate_results.py` 从这些快照生成数值、表格和 PGFPlots 数据；图形由 TikZ/PGFPlots 编译。
 
 ## 实验论断与数据
 
@@ -19,6 +19,9 @@
 | IV-F、较强 shared-memory NTT 对照 | `nttbf_sg2_validation.csv` | XRT `smem32+NTTMUL` 与 full-bank SG2；KEM interval 为 7.792/11.049 与 7.711/10.523 Mcycles | 较早的 pointer-enabled、含 FPU 配置；不是最终主图的 whole-launch 数值，也不是单独 NTT 原语周期 |
 | IV-F、half-bank 实现节省 | `ntt_v80_ppa.csv` | reducepipe / halfbank：356447→341680 LUT，272430→270865 FF，192→176 DSP | 历史配置含 FPU；两行配置匹配且均闭合 250 MHz，仅作家族内部比较 |
 | IV-F、half-bank 周期保持 | `ntt_halfbank_validation.csv` | 同 variant、backend、请求数和 ELF，不同 bank；`measured_cycles` | 各匹配检查最大绝对变化约 0.041%；不宣称 half-bank 带来应用性能飞跃 |
+| 摘要、IV-F、图 9(a) `fig:nttbank` 性能 | `ntt_multiplier_bank_nttbf.csv` | M16/8/4/2/1 相同 NTTBF.K、59,534 instructions；RTL cycles 567,302/568,327/571,357/584,110/709,372 | 独立 processor RTL parity case；所有配置通过 1,044 vectors，SimX/RTL 最大差 0.959%。这是独立 NTTBF kernel，不是完整 KEM/DSA 请求 |
+| IV-F、图 9(b) `fig:nttbank` 资源 | `ntt_multiplier_bank_ppa.csv` | 五组 RV32IM、W8T32、F/D off、Vivado 2025.1、250 MHz、OPT3 独立 post-route；正文采用 NTT hierarchy LUT/FF/DSP | 同一 serializer RTL，仅 bank 参数变化；均为 133 BRAM、零 routing error、正 WNS。不是 Stage/Keccak 合并 PPA，也不使用 vectorless power |
+| 摘要、IV-F、M2 完整请求保持 | `ntt_multiplier_bank_performance.csv` | scheme={ML-KEM,ML-DSA} × requests={1,8} × driver={SimX,XRT}；M2 相对 M16 的 XRT `makespan_cycles` 最大增加 0.143% | 所有 40 行 KAT PASS、instructions/calls 对应一致；微小负变化视为调度/模型波动，不宣称更少乘法器加速计算 |
 | IV-G、表 III `tab:ppa` 的 K-only 三行 | `rv32im_rv64im_keccak_ppa.csv` | xlen32、NTT-only/Stage/Round；独立 post-route | 严格 RV32IM、F/D 关闭。无匹配 IM Pointer 行；不能与旧含 F 的 Pointer 混算面积效率 |
 | IV-G、表 III `tab:ppa` 的共享 K/D 两行 | `shared_ntt_ppa.csv` | shared NTT-only 与 shared NTT+Stage；独立 Vivado 2025.1 post-route，W8T32、250 MHz、F/D 关闭 | 两组均为整核实现，133 BRAM tiles、176 DSP、零 routing error、WNS +0.018 ns；同一半宽 32-bit 乘法器组，不是两套 K/D 模乘器。全启用 XRT 性能构建与独立面积构建不能组成板测吞吐/面积比 |
 | IV-G、RV64 指令数和 M1 周期 | `rv32im_rv64im_keccak.csv` | 匹配 backend/request 的 retired instructions；M1 周期采用 XRT 行 | Keccak collective issues 减半不等于完整应用 instructions 减半；两个 XLEN 均为 IM |
@@ -36,7 +39,8 @@
 | 图 1 `fig:keccak` | Keccak 列归约、固定旋转/置换、行邻居；lane=`x+5y` | RHOPI 示例 lane 1→lane 10；图表示连接关系，不是整核时序 |
 | 图 2 `fig:core` | 整核寄存器接口，以及 Stage θ 两级、Round 四级流水 | 寄存器竖线对应流水存储；latency/II 是直接单元属性，不是 warp 所见的完整依赖延迟。固定路由在新单元中实现，未声称物理复用通用 shuffle 网络 |
 | 图 3 `fig:halves` | RV32 Stage 六次与 Round 两次 issue 的源/结果依赖 | 不表示同时发射。THETA/RHOPI 的 L/H 读取同一旧状态；CHII 分别读取对应半字和 uniform round |
-| 图 4 `fig:ntt` | `a[l+32k]` 布局，distance 32 寄存器伙伴、distance 16 的 lane 5/21 伙伴，以及 CT 数据流 | pair-low 提供 twiddle；一个 Montgomery product 同时服务两路结果。图中 16 pairs/16 个 32×32 multipliers 是共享 K/D 硬件结构，GS/NTTMUL 的两相调度在正文说明 |
+| 图 4 `fig:ntt` | `a[l+32k]` 布局，distance 32 寄存器伙伴、distance 16 的 lane 5/21 伙伴，以及 CT 数据流 | pair-low 提供 twiddle；一个 Montgomery product 同时服务两路结果。图中 $M$ 个 32×32 multipliers 是可序列化的共享 K/D bank，beat 数与 latency/II 在正文说明 |
+| 图 9 `fig:nttbank` | M16/8/4/2/1 性能—DSP Pareto，以及 NTT hierarchy LUT/FF/DSP 归一化曲线 | 金色 M2 是已测 knee；M1 的 FF 回升来自更深的 serializer。图不表示完整 Keccak+NTT 核面积或板上吞吐 |
 
 实现依据：
 
