@@ -8,6 +8,7 @@ module VX_pqc_nttmul_tb;
     localparam BURST = 12;
     localparam UNSTALLED = 3 * BURST;
     localparam N = UNSTALLED + 64;
+    localparam STALL_CYCLES = 30 + 4 * (L / M);
     localparam logic [31:0] NTTMUL_K_INSTR = 32'h0a73228b;
     localparam logic [31:0] NTTMUL_D_INSTR = 32'h0a73328b;
 
@@ -481,8 +482,8 @@ module VX_pqc_nttmul_tb;
             if (accepted >= UNSTALLED && backpressure_start < 0)
                 backpressure_start = cycle;
             commit_if[0].ready = (backpressure_start < 0)
-                || !((cycle < backpressure_start + 30)
-                  || (cycle > backpressure_start + 36 && cycle % 11 >= 3));
+                || !((cycle < backpressure_start + STALL_CYCLES)
+                  || (cycle > backpressure_start + STALL_CYCLES + 6 && cycle % 11 >= 3));
         end
     end
 
@@ -588,7 +589,7 @@ module VX_pqc_nttmul_tb;
                 ++received;
             end
 
-            if (cycle > 2000)
+            if (cycle > 2000 + N * (L / M))
                 $fatal(1, "PQC NTT ALU timeout received=%0d", received);
         end
     end

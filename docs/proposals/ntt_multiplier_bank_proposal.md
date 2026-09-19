@@ -130,8 +130,8 @@ This exercises the NTT-only SimX scheduling path; the integer-only complete
 application tests exercise the shared ALU arbitration with all Keccak backends.
 The CI catalog lint and software/simulator boundary check pass.
 
-All 16 complete application runs pass: two schemes, two banks, two batch sizes,
-and SimX/XRT. Together they check 72 requests, including DSA input zero at M1
+All 40 complete application runs pass: two schemes, five banks, two batch sizes,
+and SimX/XRT. Together they check 180 requests, including DSA input zero at M1
 and inputs one through eight at M8. KEM public/secret keys, ciphertexts, and
 shared secrets, and DSA public/secret keys and signatures match their portable
 references byte-for-byte. DSA arena checks pass for every input. Retired
@@ -163,8 +163,9 @@ The M1 differences are already very small, so the result cannot be attributed
 solely to hiding latency with multiple warps. The experiment does not separately
 isolate front-end issue, dependencies, memory stalls, or shared-unit arbitration.
 A slight makespan improvement after reducing resources is not evidence of
-higher peak arithmetic throughput. Do not extrapolate this comparison to one
-multiplier, or use vectorless power to claim energy efficiency.
+higher peak arithmetic throughput. The lower-bank sweep below directly shows
+that complete applications can hide a large pure-NTT penalty. Do not use
+vectorless power to claim energy efficiency.
 
 ## Completed post-route comparison
 
@@ -199,16 +200,85 @@ not measured by this experiment. Vectorless power is not used for an energy
 claim. Raw report paths and hashes are archived in
 [`ntt_multiplier_bank_ppa.csv`](../../pqc/results/ntt_multiplier_bank_ppa.csv).
 
-## Decision and archive
+## Eight-bank PPA baseline
 
 Eight multipliers preserve complete-request performance within 0.047% on the
 measured XRT workloads while reducing area and meeting 250 MHz. Use
-`-DVX_CFG_NTT_MUL_LANES=8` for this measured option. Retain the default 16-bank
-configuration for existing builds; this comparison does not establish the best
-bank size for other workloads, nor test four, two, or one multiplier.
+`-DVX_CFG_NTT_MUL_LANES=8` for this post-route option. Retain the default
+16-bank configuration for existing builds until a lower-bank candidate has
+completed PPA validation.
 
-[`ntt_multiplier_bank_sources.zip`](../../pqc/results/ntt_multiplier_bank_sources.zip)
+## Completed four/two/one-multiplier RTL sweep
+
+Evaluate `VX_CFG_NTT_MUL_LANES=4`, `2`, and `1` with the same RTL, SimX timing model,
+instruction set, and application settings. At W32, CT K/D and GS D require
+four beats; scalar MUL K/D and GS K require eight. Their unstalled ALU
+latencies are therefore ten and fourteen cycles, with initiation intervals of
+four and eight cycles. Peak product throughput halves again relative to eight
+multipliers; warp scheduling cannot remove this throughput limit. Two
+multipliers need eight/sixteen beats (latency fourteen/twenty-two cycles), and
+one needs sixteen/thirty-two beats (latency twenty-two/thirty-eight cycles).
+
+Use isolated `build{32,64}_ntt_bank{4,2,1}` and
+`build32_ntt_bank{4,2,1}_ci` trees. First verify RV32/RV64 mixed arithmetic,
+backpressure, and standalone model parity. Then run the same KEM/DSA M1/M8
+applications through SimX and XRT, with identical binary hashes and KATs.
+Select PPA candidates only after comparing RTL function and performance.
+The four-bank Vivado run was stopped during synthesis at the user's request;
+its incomplete reports are not PPA results. Reuse the archived eight- and
+16-bank measurements only after checking that their RTL/model hashes match.
+Keep the default configuration and both papers unchanged during evaluation.
+
+RV32/RV64 four-bank unit tests pass all 376 requests, including mixed K/D
+traffic and output stalls. The two standalone parity cases pass with identical
+instructions: NTTMUL.K is 484,112 / 489,160 cycles (SimX / RTL, 1.032% gap),
+and NTTBF.K is 576,596 / 571,357 cycles (0.917% gap). The RTL, SimX model,
+and configuration-source hashes match the archived 16/eight-bank runs, and
+every new application binary matches its eight-bank counterpart byte-for-byte.
+
+The same RV32/RV64 unit suite also passes for two and one multiplier. The
+one-bank run initially missed the pending-beat/output-stall coverage point:
+with 32 serialized beats, the fixed 30-cycle stall ended before the output
+buffer filled. Scaling the stall window with `L/M` exercises the condition;
+all arithmetic and header checks pass, and reruns at 16/eight/four/two banks
+also pass. This was a test-stimulus gap, not an RTL arithmetic failure.
+
+Standalone NTTBF.K RTL performance shows the resource knee more clearly than
+complete applications, where Keccak and other work dilute NTT latency:
+
+| Multipliers | RTL cycles | Change vs. eight | SimX/RTL gap |
+| ---: | ---: | ---: | ---: |
+| 8 | 568,327 | — | 0.956% |
+| 4 | 571,357 | +0.533% | 0.917% |
+| 2 | 584,110 | +2.777% | 0.532% |
+| 1 | 709,372 | +24.818% | 0.295% |
+
+All four cases retire 59,534 instructions. Complete-application XRT results are:
+
+| Workload | Eight cycles | Four cycles (change) | Two cycles (change) | One cycle (change) |
+| --- | ---: | ---: | ---: | ---: |
+| ML-KEM M1 | 5,875,982 | 5,875,994 (+0.000%) | 5,876,048 (+0.001%) | 5,877,410 (+0.024%) |
+| ML-KEM M8 | 8,939,512 | 8,918,618 (-0.234%) | 8,950,710 (+0.125%) | 8,970,213 (+0.343%) |
+| ML-DSA M1 | 25,598,877 | 25,599,268 (+0.002%) | 25,603,415 (+0.018%) | 25,622,233 (+0.091%) |
+| ML-DSA M8 | 68,095,391 | 68,056,130 (-0.058%) | 68,161,176 (+0.097%) | 68,413,954 (+0.468%) |
+
+Every run passes byte-exact KATs with matching retired instructions and
+primitive call counts. The maximum SimX/XRT device-cycle gap across all five
+banks remains 0.941358%. Apparent speedups at four banks are scheduling/model
+variation, not higher multiplier throughput.
+
+One multiplier is not a throughput-preserving NTT design: its pure-butterfly
+penalty is 24.818%, although complete applications dilute it below 0.5%.
+Four multipliers are the latency-oriented candidate (+0.533% pure NTTBF), while
+two are the area-oriented candidate (+2.777% pure NTTBF and at most +0.126%
+across the measured complete XRT workloads). If only one new configuration is
+synthesized, select two multipliers. For a defensible Pareto curve, synthesize
+both four and two; do not synthesize one. No PPA result is claimed for these
+three configurations yet.
+
+[`ntt_multiplier_bank_performance.csv`](../../pqc/results/ntt_multiplier_bank_performance.csv)
+contains all 40 application runs. [`ntt_multiplier_bank_sources.zip`](../../pqc/results/ntt_multiplier_bank_sources.zip)
 preserves the collector, result tables, relevant source files, build/run
 scripts, raw test logs, application binaries, runtime hashes/configurations,
-and post-route reports for both bank sizes and the earlier specialized
-16-bank reference. Both papers remain unchanged.
+the stopped four-bank synthesis record, and the completed 16/eight-bank
+post-route reports. Both papers remain unchanged.

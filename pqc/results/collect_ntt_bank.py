@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and archive the matched 16/eight-multiplier experiments."""
+"""Validate and archive the matched NTT multiplier-bank experiments."""
 
 import argparse
 import csv
@@ -12,6 +12,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "build32_ntt_bank"
 OUT = Path(__file__).resolve().parent
+BANKS = (16, 8, 4, 2, 1)
+PPA_BANKS = (16, 8)
+
+
+def build_dir(bank, xlen=32):
+    return ROOT / f"build{xlen}_ntt_bank{bank if bank < 8 else ''}"
 
 
 def digest(path):
@@ -32,27 +38,29 @@ def write_csv(name, rows):
 
 
 def performance():
-    manifest = json.loads((BUILD / "run_manifest.json").read_text())
-    for name, expected in manifest["files"].items():
-        assert digest(ROOT / name) == expected, name
+    manifests = {bank: json.loads((build_dir(bank) / "run_manifest.json").read_text())
+                 for bank in BANKS}
+    for manifest in manifests.values():
+        for name, expected in manifest["files"].items():
+            assert digest(ROOT / name) == expected, name
     for xlen in (32, 64):
-        for bank in (8, 16):
+        for bank in BANKS:
             for kind in ("kd", "d"):
-                path = ROOT / f"build{xlen}_ntt_bank/unit_{kind}_{bank}.log"
+                path = build_dir(bank, xlen) / f"unit_{kind}_{bank}.log"
                 content = path.read_text()
                 assert "PASSED" in content and "%Error" not in content, path
-    for bank in (8, 16):
+    for bank in BANKS:
         for name in ("simx_config.stamp", "xrtsim_config.stamp"):
-            content = (BUILD / f"bank{bank}/runtime" / name).read_text()
+            content = (build_dir(bank) / f"bank{bank}/runtime" / name).read_text()
             for flag in ("EXT_F_DISABLE", "EXT_D_DISABLE", "EXT_PQC_ENABLE", "EXT_NTT_ENABLE",
                          "EXT_KSG25_ENABLE", "EXT_KROUND25_ENABLE", "NUM_WARPS=8",
                          "NUM_THREADS=32", f"NTT_MUL_LANES={bank}"):
                 assert f"-DVX_CFG_{flag} " in content, (bank, name, flag)
     rows = []
     for scheme in ("mlkem", "mldsa"):
-        for bank in (16, 8):
-            directory = BUILD / f"bank{bank}"
-            app = BUILD / f"tests/pqc/{scheme}_bank{bank}"
+        for bank in BANKS:
+            directory = build_dir(bank) / f"bank{bank}"
+            app = build_dir(bank) / f"tests/pqc/{scheme}_bank{bank}"
             for batch in (1, 8):
                 for driver in ("simx", "xrt"):
                     stem = f"{scheme}_m{batch}_{driver}"
@@ -91,26 +99,29 @@ def performance():
                     rows.append(dict(
                         scheme=scheme, multipliers=bank, requests=batch, driver=driver,
                         makespan_cycles=makespan, instructions=instructions, device_cycles=cycles,
-                        model_gap_pct="", bank8_change_pct="", result="PASS",
+                        model_gap_pct="", change_vs16_pct="", change_vs8_pct="", result="PASS",
                         calls_sha256=hashlib.sha256(repr(calls).encode()).hexdigest(),
                         kernel_sha256=digest(app / "kernel.vxbin"),
                         host_sha256=digest(app / f"{scheme}_profile"),
                         runtime_sha256=digest(runtime), log_sha256=digest(log),
-                        rtl_sha256=manifest["files"]["hw/rtl/pqc/VX_pqc_nttmul.sv"],
+                        rtl_sha256=manifests[bank]["files"]["hw/rtl/pqc/VX_pqc_nttmul.sv"],
                         raw_log=str(log.relative_to(ROOT))))
     index = {(r["scheme"], r["multipliers"], r["requests"], r["driver"]): r for r in rows}
     for row in rows:
         rtl = index[row["scheme"], row["multipliers"], row["requests"], "xrt"]
         baseline = index[row["scheme"], 16, row["requests"], row["driver"]]
+        bank8 = index[row["scheme"], 8, row["requests"], row["driver"]]
         for field in ("instructions", "calls_sha256", "kernel_sha256", "host_sha256"):
             assert row[field] == rtl[field] == baseline[field], (row, field)
         for field in ("makespan_cycles", "device_cycles"):
             gap = abs(row[field] / rtl[field] - 1) * 100
             assert gap <= 5, (row, field, gap)
         row["model_gap_pct"] = f'{abs(row["device_cycles"] / rtl["device_cycles"] - 1) * 100:.6f}'
-        row["bank8_change_pct"] = f'{(row["makespan_cycles"] / baseline["makespan_cycles"] - 1) * 100:.6f}'
+        row["change_vs16_pct"] = f'{(row["makespan_cycles"] / baseline["makespan_cycles"] - 1) * 100:.6f}'
+        row["change_vs8_pct"] = f'{(row["makespan_cycles"] / bank8["makespan_cycles"] - 1) * 100:.6f}'
         print(row["scheme"], row["multipliers"], row["requests"], row["driver"],
-              row["makespan_cycles"], "change", row["bank8_change_pct"], "%")
+              row["makespan_cycles"], "change vs16", row["change_vs16_pct"],
+              "% vs8", row["change_vs8_pct"], "%")
     write_csv("ntt_multiplier_bank_performance.csv", rows)
 
 
@@ -125,8 +136,8 @@ def hierarchy(report, instance):
 def ppa():
     rows = []
     generated = []
-    for bank in (16, 8):
-        directory = BUILD / f"hw/syn/xilinx/dut/v80_rv32im_ntt_bank{bank}_core"
+    for bank in PPA_BANKS:
+        directory = build_dir(bank) / f"hw/syn/xilinx/dut/v80_rv32im_ntt_bank{bank}_core"
         paths = {name: directory / name for name in
                  ("synth_summary.csv", "post_impl_util.rpt", "timing.rpt", "route.rpt")}
         with paths["synth_summary.csv"].open() as stream:
@@ -161,7 +172,7 @@ def ppa():
                for name, path in paths.items()},
             report_dir=str(directory.relative_to(ROOT))))
         print(bank, "multipliers:", core, "NTT:", ntt, "WNS:", timing[2])
-    assert generated[0] == generated[1], "PPA sources differ beyond bank size"
+    assert all(source == generated[0] for source in generated), "PPA sources differ beyond bank size"
     write_csv("ntt_multiplier_bank_ppa.csv", rows)
 
 
@@ -173,24 +184,36 @@ def archive_sources():
         "VX_config.toml", "hw/rtl/pqc/VX_pqc_nttmul.sv", "sim/simx/alu_unit.cpp",
         "sim/simx/alu_unit.h", "hw/unittest/pqc_unit/sim/VX_pqc_nttmul_tb.sv",
         "hw/unittest/pqc_unit/sim/VX_pqc_nttmul_d_tb.sv", "ci/testcases/pqc.yaml"))
-    paths.extend(BUILD / name for name in (
-        "build_banks.py", "build_apps.py", "run_performance.py", "run_ppa.py",
-        "run_manifest.json", "run_performance.log", "run_ppa.log", "configure.log",
-        "build_kernel.log", "sw_sim_boundary.log", "catalog_lint.log"))
+    for build in (BUILD, build_dir(4), build_dir(2), build_dir(1)):
+        paths.extend(build / name for name in (
+            "build_banks.py", "build_apps.py", "run_performance.py",
+            "run_manifest.json", "run_performance.log", "configure.log",
+            "build_kernel.log", "sw_sim_boundary.log", "catalog_lint.log"))
+        paths.append(ROOT / f"{build.name}_ci/parity.log")
+    paths.extend(BUILD / name for name in ("run_ppa.py", "run_ppa.log"))
+    paths.extend(build_dir(4) / name for name in ("run_ppa.py", "run_ppa.log", "ppa_deferred.json"))
+    for bank in (4, 2, 1):
+        paths.extend(build_dir(bank) / name for name in ("run_units.py", "run_units.log"))
+    for bank in (2, 1):
+        paths.extend(build_dir(bank) / name for name in ("run_pipeline.py", "run_pipeline.log"))
+    paths.extend(build_dir(1) / name for name in
+                 ("run_mixed_regression.py", "run_mixed_regression.log"))
     for xlen in (32, 64):
-        paths.extend((ROOT / f"build{xlen}_ntt_bank").glob("unit_*.log"))
-    paths.append(ROOT / "build32_ntt_bank_ci/parity.log")
-    for bank in (8, 16):
-        directory = BUILD / f"bank{bank}"
+        paths.append(build_dir(1, xlen) / "unit_kd_1_initial_coverage.log")
+    for bank in BANKS:
+        for xlen in (32, 64):
+            paths.append(build_dir(bank, xlen) / f"unit_kd_{bank}.log")
+            paths.append(build_dir(bank, xlen) / f"unit_d_{bank}.log")
+        directory = build_dir(bank) / f"bank{bank}"
         paths.extend(directory.glob("*.log"))
         paths.extend(directory.glob("*.json"))
         paths.extend(directory / "runtime" / name for name in
                      ("simx_config.stamp", "xrtsim_config.stamp"))
         for scheme in ("mlkem", "mldsa"):
-            app = BUILD / f"tests/pqc/{scheme}_bank{bank}"
+            app = build_dir(bank) / f"tests/pqc/{scheme}_bank{bank}"
             paths.extend(app / name for name in ("Makefile", "kernel.vxbin", f"{scheme}_profile"))
-    report_dirs = [BUILD / f"hw/syn/xilinx/dut/v80_rv32im_ntt_bank{bank}_core"
-                   for bank in (8, 16)]
+    report_dirs = [build_dir(bank) / f"hw/syn/xilinx/dut/v80_rv32im_ntt_bank{bank}_core"
+                   for bank in PPA_BANKS]
     report_dirs.append(ROOT / "build32_im/hw/syn/xilinx/dut/v80_rv32im_ntt_shared_inputpipe_core")
     for directory in report_dirs:
         paths.extend(directory / name for name in (

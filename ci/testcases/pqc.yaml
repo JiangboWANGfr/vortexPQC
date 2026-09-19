@@ -681,6 +681,111 @@ tests:
   configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=8
   env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise, POINTWISE: ise, POINTWISE_L5: w32}
   args: -b 1 -s 0
+- id: nttmul-unit-w32-bank4
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul ALU_LANES=32 THREADS=4 CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=4" OBJ_DIR=obj_ntt_bank4
+- id: nttmul-d-unit-w32-bank4
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul-d ALU_LANES=32 THREADS=4 CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=4" OBJ_DIR=obj_ntt_d_bank4
+- id: model_parity-nttmul_k_bank4
+  check: model_parity
+  via: blackbox
+  app: pqc/nttmul_k
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=4
+  args: -n 4093 -t 13 -r 17
+- id: model_parity-nttbf_k_bank4
+  check: model_parity
+  via: blackbox
+  app: pqc/nttbf_k
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=4
+- id: model_parity-mlkem_profile_bank4
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=4
+  env: {KECCAK: pe, SERIAL: "1", NTT: reg32, NTTMUL: ise, NTTBF: ise, ARITH: all, ARITH_MUL: ise}
+  args: -b 1 -t 32
+- id: model_parity-mldsa_profile_bank4
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=4
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise, POINTWISE: ise, POINTWISE_L5: w32}
+  args: -b 1 -s 0
+- id: nttmul-unit-w32-bank2
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul ALU_LANES=32 THREADS=4 CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=2" OBJ_DIR=obj_ntt_bank2
+- id: nttmul-d-unit-w32-bank2
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul-d ALU_LANES=32 THREADS=4 CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=2" OBJ_DIR=obj_ntt_d_bank2
+- id: model_parity-nttmul_k_bank2
+  check: model_parity
+  via: blackbox
+  app: pqc/nttmul_k
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2
+  args: -n 4093 -t 13 -r 17
+- id: model_parity-nttbf_k_bank2
+  check: model_parity
+  via: blackbox
+  app: pqc/nttbf_k
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2
+- id: model_parity-mlkem_profile_bank2
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2
+  env: {KECCAK: pe, SERIAL: "1", NTT: reg32, NTTMUL: ise, NTTBF: ise, ARITH: all, ARITH_MUL: ise}
+  args: -b 1 -t 32
+- id: model_parity-mldsa_profile_bank2
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise, POINTWISE: ise, POINTWISE_L5: w32}
+  args: -b 1 -s 0
+- id: nttmul-unit-w32-bank1
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul ALU_LANES=32 THREADS=4 CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=1" OBJ_DIR=obj_ntt_bank1
+- id: nttmul-d-unit-w32-bank1
+  via: script
+  xlen: [32, 64]
+  run: make -C hw/unittest/pqc_unit run-nttmul-d ALU_LANES=32 THREADS=4 CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=1" OBJ_DIR=obj_ntt_d_bank1
+- id: model_parity-nttmul_k_bank1
+  check: model_parity
+  via: blackbox
+  app: pqc/nttmul_k
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=1
+  args: -n 4093 -t 13 -r 17
+- id: model_parity-nttbf_k_bank1
+  check: model_parity
+  via: blackbox
+  app: pqc/nttbf_k
+  configs: -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=1
+- id: model_parity-mlkem_profile_bank1
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mlkem_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=1
+  env: {KECCAK: pe, SERIAL: "1", NTT: reg32, NTTMUL: ise, NTTBF: ise, ARITH: all, ARITH_MUL: ise}
+  args: -b 1 -t 32
+- id: model_parity-mldsa_profile_bank1
+  check: model_parity
+  via: blackbox
+  tier: full
+  app: pqc/mldsa_profile
+  configs: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=1
+  env: {KECCAK: pe, MLDSA_RAM: full, NTT: reg32, NTTMUL: ise, NTTBF: ise, POINTWISE: ise, POINTWISE_L5: w32}
+  args: -b 1 -s 0
 - id: agu-unit-4lane
   via: script
   run: make -C hw/unittest/pqc_unit run-agu MEM_LANES=4
