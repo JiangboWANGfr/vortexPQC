@@ -1,7 +1,0 @@
-backend m1 m8
-{Scalar C} 28.446 45.674
-{PQRV asm} 24.672 37.753
-{Shuffle} 7.909 19.440
-{Stage} 5.410 12.527
-{Round} 5.203 12.280
-{Pointer} 5.878 8.939

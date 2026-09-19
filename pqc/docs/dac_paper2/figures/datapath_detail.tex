@@ -1,0 +1,46 @@
+\begin{tikzpicture}[x=1cm,y=1cm,
+  b/.style={draw=black!45,rounded corners=1pt,font=\scriptsize,align=center,minimum height=.45cm},
+  a/.style={-{Latex[length=1.4mm]},semithick,draw=black!65}]
+\draw[black!15] (5.55,-.05)--(5.55,3.62);
+\draw[black!15] (11.52,-.05)--(11.52,3.62);
+\node[font=\footnotesize\bfseries,anchor=west] at (0,3.42) {(a) One paired butterfly};
+\node[b,fill=cBlue!9,minimum width=1.15cm] (a0) at (.76,2.50) {lane $p$\\$a,\zeta$};
+\node[b,fill=cBlue!9,minimum width=1.15cm] (b0) at (.76,1.24) {lane $h$\\$b$};
+\node[b,fill=cTeal!11,minimum width=1.18cm] (m) at (2.42,1.56) {$\Mont_q$};
+\node[circle,draw=black!45,fill=cOrange!12,inner sep=1.5pt,font=\scriptsize] (plus) at (3.76,2.48) {$+$};
+\node[circle,draw=black!45,fill=cOrange!12,inner sep=1.5pt,font=\scriptsize] (minus) at (3.76,1.18) {$-$};
+\node[b,fill=black!3,minimum width=.88cm] (rp) at (4.78,2.48) {$r_p$};
+\node[b,fill=black!3,minimum width=.88cm] (rh) at (4.78,1.18) {$r_h$};
+\draw[a] (b0)--(m); \draw[a] (a0)--(plus); \draw[a] (a0) |- (minus);
+\draw[a] (m)--(plus); \draw[a] (m)--(minus); \draw[a] (plus)--(rp); \draw[a] (minus)--(rh);
+\node[font=\scriptsize,text=black!60] at (2.75,.36) {one product, two ordinary lane results};
+
+\node[font=\footnotesize\bfseries,anchor=west] at (5.82,3.42) {(b) M2 serialization};
+\node[font=\scriptsize,anchor=east] at (6.75,2.76) {pair};
+\foreach \i in {0,...,7}{
+  \draw[fill=cBlue!12,draw=white] (6.94+.52*\i,2.50) rectangle ++(.48,.43);
+  \node[font=\tiny] at (7.18+.52*\i,2.715) {\the\numexpr2*\i\relax--\the\numexpr2*\i+1\relax};
+}
+\node[font=\scriptsize,anchor=east] at (6.75,1.86) {DSP 0};
+\node[font=\scriptsize,anchor=east] at (6.75,1.26) {DSP 1};
+\foreach \i in {0,...,7}{
+  \draw[fill=cTeal!20,draw=white] (6.94+.52*\i,1.65) rectangle ++(.48,.43);
+  \draw[fill=cOrange!18,draw=white] (6.94+.52*\i,1.05) rectangle ++(.48,.43);
+  \node[font=\tiny] at (7.18+.52*\i,1.865) {$\i$};
+  \node[font=\tiny] at (7.18+.52*\i,1.265) {$\i$};
+}
+\draw[a] (6.95,.62)--(11.08,.62);
+\foreach \i in {0,...,8}{\draw (6.95+.516*\i,.55)--++(0,.14);}
+\node[font=\scriptsize] at (9.02,.25) {8 CT beats; capture once, emit after assembly};
+
+\node[font=\footnotesize\bfseries,anchor=west] at (11.80,3.42) {(c) RV32 Keccak state};
+\node[b,fill=cBlue!9,minimum width=1.40cm] (lo) at (12.72,2.55) {$A_L$};
+\node[b,fill=cBlue!9,minimum width=1.40cm] (hi) at (12.72,1.70) {$A_H$};
+\node[b,fill=cOrange!11,minimum width=1.45cm] (oplo) at (14.62,2.55) {Stage.L\\or Round.L};
+\node[b,fill=cOrange!11,minimum width=1.45cm] (ophi) at (14.62,1.70) {Stage.H\\or Round.H};
+\node[b,fill=cTeal!9,minimum width=1.05cm] (lout) at (16.42,2.55) {$A'_L$};
+\node[b,fill=cTeal!9,minimum width=1.05cm] (hout) at (16.42,1.70) {$A'_H$};
+\draw[a] (lo)--(oplo); \draw[a] (hi)--(ophi); \draw[a] (lo) |- (ophi); \draw[a] (hi) |- (oplo);
+\draw[a] (oplo)--(lout); \draw[a] (ophi)--(hout);
+\node[font=\scriptsize,text=black!60,align=center] at (14.62,.73) {both issues read the old pair;\\the first result uses a temporary};
+\end{tikzpicture}

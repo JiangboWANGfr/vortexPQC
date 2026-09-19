@@ -1,0 +1,45 @@
+\begin{tikzpicture}[x=1cm,y=1cm,
+  box/.style={draw=black!45,rounded corners=1pt,fill=black!2},
+  flow/.style={-{Latex[length=1.5mm]},semithick,draw=black!65},
+  note/.style={font=\scriptsize,align=center}]
+\draw[black!15] (5.72,-.1)--(5.72,3.25);
+\draw[black!15] (11.55,-.1)--(11.55,3.25);
+
+\node[font=\footnotesize\bfseries,anchor=west] at (0,3.02) {(a) Polynomial: XOR partners};
+\node[note,anchor=west] at (.08,2.60) {lane $l$};
+\node[note,anchor=west] at (3.55,2.60) {lane $l\oplus d$};
+\foreach \i in {0,...,7}{
+  \draw[box,fill=cBlue!7] (.20,2.30-.27*\i) rectangle (1.18,2.51-.27*\i);
+  \draw[box,fill=cBlue!7] (3.70,2.30-.27*\i) rectangle (4.68,2.51-.27*\i);
+}
+\node[note] at (.69,1.46) {$a_{l+32k}$};
+\node[note] at (4.19,1.46) {$a_{l\oplus d+32k}$};
+\draw[flow,cBlue,bend left=12] (1.18,2.405) to node[note,above] {register-local} (3.70,2.405);
+\draw[flow,cTeal,bend right=12] (3.70,.515) to node[note,below] {pair collective} (1.18,.515);
+\node[note,anchor=west] at (.18,.03) {KEM: 7 layers, 16-bit \quad DSA: 8 layers, 32-bit};
+
+\node[font=\footnotesize\bfseries,anchor=west] at (5.92,3.02) {(b) Keccak: fixed neighborhoods};
+\begin{scope}[shift={(6.12,.36)}]
+\foreach \x in {0,...,4}{\foreach \y in {0,...,4}{
+  \pgfmathtruncatemacro{\lane}{\x+5*\y}
+  \filldraw[fill=black!2,draw=black!35] (.50*\x,.50*\y) rectangle ++(.43,.43);
+  \node[font=\tiny] at (.50*\x+.215,.50*\y+.215) {\lane};
+}}
+\foreach \y in {0,...,4}{\fill[cBlue!24] (1.0,.50*\y) rectangle ++(.43,.43);}
+\foreach \x in {0,...,4}{\fill[cTeal!22] (.50*\x,1.0) rectangle ++(.43,.43);}
+\draw[cOrange,very thick,-{Latex[length=1.5mm]}] (.72,2.22) .. controls (2.9,2.65) and (3.15,.45) .. (2.45,.22);
+\node[note,text=cBlue!80!black,anchor=west] at (2.75,2.06) {$\theta$: column};
+\node[note,text=cOrange!90!black,anchor=west] at (2.75,1.48) {$\rho\pi$: permute};
+\node[note,text=cTeal!80!black,anchor=west] at (2.75,.90) {$\chi$: row};
+\node[note,anchor=west] at (2.75,.28) {25 words};
+\end{scope}
+
+\node[font=\footnotesize\bfseries,anchor=west] at (11.77,3.02) {(c) Register-resident contract};
+\node[box,minimum width=1.65cm,minimum height=.55cm,note,fill=cBlue!10] (src) at (12.72,2.12) {source\\vectors};
+\node[box,minimum width=1.90cm,minimum height=.72cm,note,fill=cOrange!12] (route) at (14.85,2.12) {fixed routing\\+ arithmetic};
+\node[box,minimum width=1.65cm,minimum height=.55cm,note,fill=cTeal!10] (dst) at (17.00,2.12) {destination\\vector};
+\draw[flow] (src)--(route); \draw[flow] (route)--(dst);
+\node[box,minimum width=5.90cm,minimum height=.58cm,note,fill=black!3] at (14.86,.93) {ordinary scoreboard, backpressure, and writeback};
+\node[note,text=cPurple,anchor=west] at (12.0,.25) {stateless between instructions};
+\node[note,text=black!60,anchor=east] at (17.70,.25) {no pointer or private context};
+\end{tikzpicture}

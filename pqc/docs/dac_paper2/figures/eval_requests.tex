@@ -1,0 +1,33 @@
+\begin{tikzpicture}
+\begin{groupplot}[
+ group style={group size=3 by 1,horizontal sep=10mm},
+ width=.31\textwidth,height=43mm,
+ axis lines*=left,
+ tick label style={font=\scriptsize},
+ label style={font=\scriptsize},
+ title style={font=\footnotesize\bfseries,yshift=-1mm},
+ grid=major,grid style={black!8}]
+\nextgroupplot[
+ title={(a) One KEM request},
+ ymin=0,ymax=32,ytick={0,10,20,30},ylabel={XRT cycles ($10^6$)},
+ xtick={0,...,5},xticklabels={C,PQ,Sh,St,Rd,Ptr},
+ x tick label style={rotate=35,anchor=east},bar width=5.2pt]
+\addplot[ybar,draw=cBlue!75!black,fill=cBlue!22]
+ table[x=index,y=mone]{assets/kem.dat};
+\nextgroupplot[
+ title={(b) Eight KEM requests},
+ ymin=0,ymax=50,ytick={0,15,30,45},
+ xtick={0,...,5},xticklabels={C,PQ,Sh,St,Rd,Ptr},
+ x tick label style={rotate=35,anchor=east},bar width=5.2pt]
+\addplot[ybar,draw=cTeal!80!black,fill=cTeal!24]
+ table[x=index,y=meight]{assets/kem.dat};
+\nextgroupplot[
+ title={(c) Shared arithmetic},
+ xbar,xmin=0,xmax=14,xtick={0,4,8,12},xlabel={Request cycles saved (\%)},
+ ytick={0,1,2,3},yticklabels={K NTT,D NTT,D PW1,D PW8},
+ y dir=reverse,bar width=5pt]
+\addplot[draw=cPurple!80!black,fill=cPurple!25]
+ coordinates {(\KemNttSaved,0) (\DsaNttSaved,1)
+              (\DsaPointwiseXrtSaved,2) (\DsaPointwiseEightSaved,3)};
+\end{groupplot}
+\end{tikzpicture}

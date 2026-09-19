@@ -1,0 +1,45 @@
+\begin{tikzpicture}
+\begin{groupplot}[
+ group style={group size=3 by 1,horizontal sep=10mm},
+ width=.31\textwidth,height=43mm,
+ axis lines*=left,
+ tick label style={font=\scriptsize},
+ label style={font=\scriptsize},
+ title style={font=\footnotesize\bfseries,yshift=-1mm},
+ grid=major,grid style={black!8}]
+\nextgroupplot[
+ title={(a) Round over Stage},
+ ymin=0,ymax=3.7,ytick={0,1,2,3},ylabel={Speedup},
+ xtick={0,1},xticklabels={$N{=}1$,$N{=}8$},
+ legend style={font=\scriptsize,draw=none,fill=none,at={(.5,.98)},anchor=north,legend columns=1},
+ ybar,bar width=6pt]
+\addplot[draw=cPurple!85!black,fill=cPurple!28] table[x=index,y=perm]{assets/fusion_gain.dat};
+\addlegendentry{Permutation}
+\addplot[draw=cTeal!85!black,fill=cTeal!25] table[x=index,y=kem]{assets/fusion_gain.dat};
+\addlegendentry{Complete KEM}
+\nextgroupplot[
+ title={(b) Performance--DSP},
+ xmin=0,xmax=105,ymin=99,ymax=127,
+ xtick={0,25,50,75,100},ytick={100,110,120},
+ xlabel={NTT DSPs (\% M16)},ylabel={RTL cycles (\% M16)}]
+\addplot[cBlue,semithick,mark=*,mark size=1.6pt]
+ table[x=nttdsp,y=cycles]{assets/ntt_bank.dat};
+\addplot[only marks,mark=*,mark size=3pt,cGold] coordinates {(12.5,102.962796)};
+\node[font=\scriptsize,anchor=north west] at (axis cs:6.25,125.043099) {M1};
+\node[font=\scriptsize,text=cGold!85!black,anchor=north west] at (axis cs:12.5,102.962796) {M2};
+\node[font=\scriptsize,anchor=south east] at (axis cs:100,100) {M16};
+\nextgroupplot[
+ title={(c) NTT hierarchy},
+ xmin=-.15,xmax=4.15,ymin=0,ymax=105,
+ xtick={0,1,2,3,4},xticklabels={16,8,4,2,1},
+ ytick={0,25,50,75,100},xlabel={Multipliers},ylabel={Resource (\% M16)},
+ legend style={font=\scriptsize,draw=none,fill=none,at={(.5,.98)},anchor=north,legend columns=3,column sep=1mm}]
+\addplot[cBlue,semithick,mark=*] table[x expr=\coordindex,y=nttlut]{assets/ntt_bank.dat};
+\addlegendentry{LUT}
+\addplot[cTeal,semithick,mark=square*] table[x expr=\coordindex,y=nttff]{assets/ntt_bank.dat};
+\addlegendentry{FF}
+\addplot[cPurple,semithick,mark=triangle*] table[x expr=\coordindex,y=nttdsp]{assets/ntt_bank.dat};
+\addlegendentry{DSP}
+\draw[cGold,semithick,dashed] (axis cs:3,0)--(axis cs:3,105);
+\end{groupplot}
+\end{tikzpicture}
