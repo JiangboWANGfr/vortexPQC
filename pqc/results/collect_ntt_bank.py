@@ -14,6 +14,13 @@ BUILD = ROOT / "build32_ntt_bank"
 OUT = Path(__file__).resolve().parent
 BANKS = (16, 8, 4, 2, 1)
 PPA_BANKS = (16, 8, 4, 2, 1)
+NTTBF_BUILDS = {
+    16: ROOT / "build32_ntt_bank16_ci",
+    8: ROOT / "build32_ntt_bank_ci",
+    4: ROOT / "build32_ntt_bank4_ci",
+    2: ROOT / "build32_ntt_bank2_ci",
+    1: ROOT / "build32_ntt_bank1_ci",
+}
 
 
 def build_dir(bank, xlen=32):
@@ -133,6 +140,34 @@ def hierarchy(report, instance):
     raise AssertionError(instance)
 
 
+def nttbf():
+    rows = []
+    for bank in BANKS:
+        log = NTTBF_BUILDS[bank] / "parity.log"
+        content = log.read_text()
+        case = "model_parity-nttbf_k" + ("" if bank == 16 else f"_bank{bank}")
+        result = match(
+            rf"^PARITY: pqc:{case}:rtlsim: instrs simx=(\d+) rtlsim=(\d+), "
+            rf"cycles simx=(\d+) rtlsim=(\d+), gap=([\d.]+)% \(tolerance 5%\)$",
+            content)
+        simx_instrs, rtl_instrs, simx_cycles, rtl_cycles = map(int, result.groups()[:4])
+        assert simx_instrs == rtl_instrs == 59534
+        assert content.count("NTTBF.K: vectors=1044 outputs=334080 mismatches=0") == 2
+        assert f"VX_CFG_NTT_MUL_LANES={bank}" in content
+        gap = abs(simx_cycles / rtl_cycles - 1) * 100
+        assert gap <= 5 and abs(gap - float(result[5])) < 0.01
+        rows.append(dict(
+            multipliers=bank, instructions=rtl_instrs, simx_cycles=simx_cycles,
+            rtl_cycles=rtl_cycles, change_vs16_pct="", model_gap_pct=f"{gap:.6f}",
+            result="PASS", log_sha256=digest(log), raw_log=str(log.relative_to(ROOT))))
+    baseline = rows[0]["rtl_cycles"]
+    for row in rows:
+        row["change_vs16_pct"] = f'{(row["rtl_cycles"] / baseline - 1) * 100:.6f}'
+        print(row["multipliers"], "multipliers NTTBF.K:", row["rtl_cycles"],
+              "cycles, change vs16", row["change_vs16_pct"], "%")
+    write_csv("ntt_multiplier_bank_nttbf.csv", rows)
+
+
 def ppa():
     rows = []
     generated = []
@@ -178,6 +213,7 @@ def ppa():
 
 def archive_sources():
     paths = [Path(__file__), OUT / "ntt_multiplier_bank_performance.csv",
+             OUT / "ntt_multiplier_bank_nttbf.csv",
              OUT / "ntt_multiplier_bank_ppa.csv",
              ROOT / "docs/proposals/ntt_multiplier_bank_proposal.md"]
     paths.extend(ROOT / name for name in (
@@ -193,6 +229,8 @@ def archive_sources():
     paths.extend(BUILD / name for name in ("run_ppa.py", "run_ppa.log"))
     paths.extend(BUILD / name for name in
                  ("catalog_lint_ppa.log", "sw_sim_boundary_ppa.log"))
+    paths.extend(NTTBF_BUILDS[16] / name for name in
+                 ("parity.log", "configure.log", ".config.stamp"))
     paths.extend(build_dir(4) / name for name in (
         "run_ppa.py", "run_ppa.log", "ppa_deferred.json",
         "run_ppa_sweep.py", "run_ppa_sweep.log"))
@@ -241,10 +279,12 @@ def archive_sources():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("part", choices=("performance", "ppa", "all"))
+    parser.add_argument("part", choices=("performance", "nttbf", "ppa", "all"))
     args = parser.parse_args()
     if args.part in ("performance", "all"):
         performance()
+    if args.part in ("nttbf", "all"):
+        nttbf()
     if args.part in ("ppa", "all"):
         ppa()
     if args.part == "all":

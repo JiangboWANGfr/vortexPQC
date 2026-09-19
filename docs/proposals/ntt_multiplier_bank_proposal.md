@@ -118,16 +118,18 @@ instructions, and model cycle errors exceeding 5%.
 ## Completed verification
 
 RV32/RV64, each with 16 and eight multipliers, pass the mixed 100-request ALU
-test and the 88-vector D test: 752 requests total. The standalone eight-bank
-CI parity cases also pass with exact retired-instruction counts:
+test and the 88-vector D test: 752 requests total. Standalone 16- and eight-bank
+NTTBF.K parity cases also pass with exact retired-instruction counts:
 
-| Case | SimX cycles | RTL cycles | Gap |
-| --- | ---: | ---: | ---: |
-| NTTMUL.K | 484,112 | 489,160 | 1.032% |
-| NTTBF.K | 573,759 | 568,327 | 0.956% |
+| Multipliers | SimX cycles | RTL cycles | Gap |
+| ---: | ---: | ---: | ---: |
+| 16 | 572,742 | 567,302 | 0.959% |
+| 8 | 573,759 | 568,327 | 0.956% |
 
-Command from the isolated default-F build `build32_ntt_bank_ci`:
-`python3 -m pytest ci -k 'model_parity-nttmul_k_bank8 or model_parity-nttbf_k_bank8' -s`.
+The eight-bank NTTMUL.K case is 484,112 / 489,160 cycles (SimX / RTL,
+1.032% gap). Commands run from isolated `build32_ntt_bank16_ci` and
+`build32_ntt_bank_ci` trees select `model_parity-nttbf_k` and
+`model_parity-nttbf_k_bank8`, respectively.
 This exercises the NTT-only SimX scheduling path; the integer-only complete
 application tests exercise the shared ALU arbitration with all Keccak backends.
 The CI catalog lint and software/simulator boundary check pass.
@@ -215,15 +217,16 @@ claim. Raw report paths and hashes are archived in
 ## PPA decision
 
 Two multipliers are the measured area/performance knee. They meet 250 MHz,
-reduce the NTT hierarchy by 53.396% LUT, 26.762% FF, and 75% DSP relative to
-eight, and increase standalone NTTBF.K cycles by 2.777%. Their measured complete
-XRT workloads change by at most +0.125264%. Four multipliers remain the
-latency-oriented option at +0.533% standalone NTTBF.K cycles. One multiplier is
-an endpoint for the Pareto study: relative to two it saves only 0.180% core LUT
-and 4.717% core DSP, increases core FF by 0.402%, and increases standalone
-NTTBF.K cycles by 21.445%. Use `-DVX_CFG_NTT_MUL_LANES=2` for the recommended
-post-route option; retain 16 as the repository default until the selected paper
-configuration is adopted separately.
+reduce the NTT hierarchy by 70.917% LUT, 45.954% FF, and 87.5% DSP relative to
+the 16-multiplier throughput baseline, and increase standalone NTTBF.K cycles
+by 2.963%. Their measured complete XRT workloads change by at most +0.143007%
+relative to 16. Four multipliers remain the latency-oriented option at +0.715%
+standalone NTTBF.K cycles. One multiplier is an endpoint for the Pareto study:
+relative to two it saves only 0.180% core LUT and 4.717% core DSP, increases
+core FF by 0.402%, and increases standalone NTTBF.K cycles by 21.445%. Use
+`-DVX_CFG_NTT_MUL_LANES=2` for the recommended post-route option; retain 16 as
+the repository default until the selected paper configuration is adopted
+separately.
 
 ## Completed four/two/one-multiplier RTL sweep
 
@@ -264,14 +267,17 @@ also pass. This was a test-stimulus gap, not an RTL arithmetic failure.
 Standalone NTTBF.K RTL performance shows the resource knee more clearly than
 complete applications, where Keccak and other work dilute NTT latency:
 
-| Multipliers | RTL cycles | Change vs. eight | SimX/RTL gap |
+| Multipliers | RTL cycles | Change vs. 16 | SimX/RTL gap |
 | ---: | ---: | ---: | ---: |
-| 8 | 568,327 | — | 0.956% |
-| 4 | 571,357 | +0.533% | 0.917% |
-| 2 | 584,110 | +2.777% | 0.532% |
-| 1 | 709,372 | +24.818% | 0.295% |
+| 16 | 567,302 | — | 0.959% |
+| 8 | 568,327 | +0.181% | 0.956% |
+| 4 | 571,357 | +0.715% | 0.917% |
+| 2 | 584,110 | +2.963% | 0.532% |
+| 1 | 709,372 | +25.043% | 0.295% |
 
-All four cases retire 59,534 instructions. Complete-application XRT results are:
+All five cases retire 59,534 instructions. Sixteen multipliers have the highest
+measured standalone NTTBF.K throughput, but improve on eight by only 0.181%.
+Complete-application XRT results for the lower-bank sweep are:
 
 | Workload | Eight cycles | Four cycles (change) | Two cycles (change) | One cycle (change) |
 | --- | ---: | ---: | ---: | ---: |
@@ -286,15 +292,19 @@ banks remains 0.941358%. Apparent speedups at four banks are scheduling/model
 variation, not higher multiplier throughput.
 
 One multiplier is not a throughput-preserving NTT design: its pure-butterfly
-penalty is 24.818%, although complete applications dilute it below 0.5%.
-Four multipliers are the latency-oriented candidate (+0.533% pure NTTBF), while
-two are the area-oriented candidate (+2.777% pure NTTBF and at most +0.126%
-across the measured complete XRT workloads). The five completed post-route
-builds confirm two as the design knee. Four remains useful when standalone NTT
-latency is the priority; one is retained only as the measured low-area endpoint.
+penalty is 25.043% relative to 16, although complete applications dilute it
+below 0.6%. Four multipliers are the latency-oriented candidate (+0.715% pure
+NTTBF), while two are the area-oriented candidate (+2.963% pure NTTBF and at
+most +0.144% across the measured complete XRT workloads relative to 16). The
+five completed post-route builds confirm two as the design knee. Four remains
+useful when standalone NTT latency is the priority; one is retained only as the
+measured low-area endpoint.
 
 [`ntt_multiplier_bank_performance.csv`](../../pqc/results/ntt_multiplier_bank_performance.csv)
-contains all 40 application runs. [`ntt_multiplier_bank_sources.zip`](../../pqc/results/ntt_multiplier_bank_sources.zip)
+contains all 40 application runs, and
+[`ntt_multiplier_bank_nttbf.csv`](../../pqc/results/ntt_multiplier_bank_nttbf.csv)
+contains the five matched standalone runs.
+[`ntt_multiplier_bank_sources.zip`](../../pqc/results/ntt_multiplier_bank_sources.zip)
 preserves the collector, result tables, relevant source files, build/run
 scripts, raw test logs, application binaries, runtime hashes/configurations,
 the stopped four-bank synthesis record, and all five completed post-route
