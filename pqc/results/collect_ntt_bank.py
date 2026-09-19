@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "build32_ntt_bank"
 OUT = Path(__file__).resolve().parent
 BANKS = (16, 8, 4, 2, 1)
-PPA_BANKS = (16, 8)
+PPA_BANKS = (16, 8, 4, 2, 1)
 
 
 def build_dir(bank, xlen=32):
@@ -191,7 +191,12 @@ def archive_sources():
             "build_kernel.log", "sw_sim_boundary.log", "catalog_lint.log"))
         paths.append(ROOT / f"{build.name}_ci/parity.log")
     paths.extend(BUILD / name for name in ("run_ppa.py", "run_ppa.log"))
-    paths.extend(build_dir(4) / name for name in ("run_ppa.py", "run_ppa.log", "ppa_deferred.json"))
+    paths.extend(BUILD / name for name in
+                 ("catalog_lint_ppa.log", "sw_sim_boundary_ppa.log"))
+    paths.extend(build_dir(4) / name for name in (
+        "run_ppa.py", "run_ppa.log", "ppa_deferred.json",
+        "run_ppa_sweep.py", "run_ppa_sweep.log"))
+    paths.extend(build_dir(bank) / "configure_ppa.log" for bank in (4, 2, 1))
     for bank in (4, 2, 1):
         paths.extend(build_dir(bank) / name for name in ("run_units.py", "run_units.log"))
     for bank in (2, 1):
@@ -222,6 +227,9 @@ def archive_sources():
             "project_1/src/VX_pqc_nttmul.sv"))
         if (directory / "command.json").exists():
             paths.append(directory / "command.json")
+    stopped = build_dir(4) / "hw/syn/xilinx/dut/v80_rv32im_ntt_bank4_stopped_core"
+    paths.extend(stopped / name for name in
+                 ("build.log", "command.json", "project_1/sources.txt"))
     destination = OUT / "ntt_multiplier_bank_sources.zip"
     with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(set(paths)):

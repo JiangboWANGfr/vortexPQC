@@ -2,11 +2,12 @@
 
 ## Scope
 
-Compare 16 and eight signed 32x32 multipliers in the existing shared ML-KEM /
-ML-DSA NTT unit. Keep the ISA, pair-low twiddle convention, software binaries,
-reduction arithmetic, and pipeline stages unchanged. Eight multipliers are now
-a validated area-saving option; the default remains the 16-multiplier W32
-implementation. This experiment does not modify either paper.
+Compare 16, eight, four, two, and one signed 32x32 multipliers in the existing
+shared ML-KEM / ML-DSA NTT unit. Keep the ISA, pair-low twiddle convention,
+software binaries, reduction arithmetic, and pipeline stages unchanged. The
+two-multiplier bank is the measured area/performance knee; the configuration
+default remains the 16-multiplier W32 implementation. This experiment does not
+modify either paper.
 
 ## Scheduling
 
@@ -18,18 +19,18 @@ last flag, instruction header, and coefficients through the existing pipeline.
 Assemble partial lane results in order; publish one complete result on the last
 beat. Output backpressure freezes the serializer and every pipeline stage.
 
-| W32 operation | Products | 16 multipliers | Eight multipliers |
-| --- | ---: | ---: | ---: |
-| CT K/D, GS D | 16 | 1 beat | 2 beats |
-| Scalar MUL K/D | 32 | 2 beats | 4 beats |
-| GS K: Montgomery then Barrett | 32 | 2 beats | 4 beats |
+| W32 operation | Products | M16 | M8 | M4 | M2 | M1 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| CT K/D, GS D | 16 | 1 beat | 2 | 4 | 8 | 16 |
+| Scalar MUL K/D | 32 | 2 beats | 4 | 8 | 16 | 32 |
+| GS K: Montgomery then Barrett | 32 | 2 beats | 4 | 8 | 16 | 32 |
 
 At the ALU interface without backpressure, latency is six cycles plus the beat
-count: CT K/D and GS D change from seven to eight cycles; scalar MUL K/D and
-GS K change from eight to ten. Initiation interval equals the beat count. Thus
-halving the bank halves peak product throughput, but does not double the
-latency of an individual instruction. The unit tests check the K-operation
-latencies and intervals directly; mixed K/D traffic exercises shared state.
+count. Initiation interval equals the beat count. Thus halving the bank halves
+peak product throughput, while the fixed six-cycle pipeline prevents the
+latency of an individual instruction from doubling. The unit tests check the
+K-operation latencies and intervals directly; mixed K/D traffic exercises
+shared state.
 
 SimX uses the same beat count and output-backpressure behavior. Warp scheduling
 may cover dependencies, but cannot restore the bank's lost product throughput.
@@ -37,17 +38,18 @@ may cover dependencies, but cannot restore the bank's lost product throughput.
 ## Verification and decision
 
 1. Check RV32/RV64 arithmetic, masks, headers, all XOR distances, mixed K/D
-   requests, initiation intervals, latency, and output stalls at both widths.
+   requests, initiation intervals, latency, and output stalls at all five bank
+   sizes.
 2. Run identical final ML-KEM and ML-DSA binaries on each bank, M1 and M8,
    including byte-exact KAT, exact SimX/XRT retired-instruction agreement, and
    the existing 5% cycle tolerance. Preserve raw logs and binary/runtime hashes.
 3. Run independent Vivado 2025.1 post-route builds at 250 MHz, RV32IM (F/D off),
-   one core, W8T32, OPT3. Use the same revised RTL for both bank sizes so that
+   one core, W8T32, OPT3. Use the same revised RTL for all bank sizes so that
    serializer changes are not confused with multiplier-count savings. Report
    core and NTT-hierarchy LUT/FF/DSP, WNS, and routing errors.
-4. Decide whether eight multipliers are worthwhile from measured area and
-   complete-request performance. Existing 16-bank results remain archived;
-   neither timing closure nor performance preservation is assumed.
+4. Select the Pareto knee from measured pure-NTT performance, complete-request
+   performance, and post-route area. Existing results remain archived; neither
+   timing closure nor performance preservation is assumed.
 
 ## Reproduction
 
@@ -62,11 +64,11 @@ make -C hw/unittest/pqc_unit run-nttmul-d ALU_LANES=32 THREADS=4 \
   CONFIGS="-DSIMULATION -DVX_CFG_NTT_MUL_LANES=8" OBJ_DIR=obj_ntt_d_bank8
 ```
 
-Repeat with `16` in both the define and object directory. The mixed ALU test
-checks 100 requests, all five XOR distances, partial masks, headers, sign
-extension, initiation intervals, latency, and output stability. The eight-bank
-case additionally requires a pending input beat to encounter output
-backpressure. The D-only test covers another 88 arithmetic vectors.
+Repeat with `16`, `4`, `2`, and `1` in both the define and object directory.
+The mixed ALU test checks 100 requests, all five XOR distances, partial masks,
+headers, sign extension, initiation intervals, latency, and output stability.
+The eight-bank case additionally requires a pending input beat to encounter
+output backpressure. The D-only test covers another 88 arithmetic vectors.
 
 The application/runtime flags are identical except for the bank define:
 
@@ -81,23 +83,23 @@ The application/runtime flags are identical except for the bank define:
 Use `LIBC_PATH=/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libc32` and
 `LIBCRT_PATH=/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libcrt32`.
 The generated application Makefiles are copied to separate siblings
-`tests/pqc/{mlkem,mldsa}_bank{8,16}`. KEM uses `KECCAK=pe SERIAL=1 NTT=reg32
+`tests/pqc/{mlkem,mldsa}_bank{16,8,4,2,1}`. KEM uses `KECCAK=pe SERIAL=1 NTT=reg32
 NTTMUL=ise NTTBF=ise ARITH=all ARITH_MUL=ise`; DSA uses `KECCAK=pe MLDSA_RAM=full
 NTT=reg32 NTTMUL=ise NTTBF=ise POINTWISE=ise POINTWISE_L5=w32`.
 
-Both application binaries, including their host executables, are byte-identical
+All application binaries, including their host executables, are byte-identical
 across bank sizes. Their kernels also match the prior final mapped applications:
 KEM `3c5c64b2e2a6aa874db0f7656dc8ec52e467ebc52cccd26e7d5726139d82a69d`,
 DSA `ce5ee86e8218b1303c12f13c380243788c37732765e7056f24604a9eba76c622`.
-`bank{8,16}/runtime` contains independently rebuilt SimX/XRT models and the
+`bank{16,8,4,2,1}/runtime` contains independently rebuilt SimX/XRT models and the
 unchanged archived runtime wrappers. Set `LD_LIBRARY_PATH` to that bank's
 runtime, `VORTEX_DRIVER=simx` or `xrt`, `XRT_DEVICE=xrtsim`, and
 `VORTEX_PROFILING=0`. Run KEM with `-b1 -t32` / `-b8 -t32`; DSA with
-`-b1 -s0` / `-b8 -s1`. Logs and exit status are kept under `bank{8,16}`;
+`-b1 -s0` / `-b8 -s1`. Logs and exit status are kept under the matching bank directory;
 `run_manifest.json` records the source, binary, and runtime hashes.
 
 Independent synthesis directories are
-`hw/syn/xilinx/dut/v80_rv32im_ntt_bank{8,16}_core`. Each uses a copy of the
+`hw/syn/xilinx/dut/v80_rv32im_ntt_bank{16,8,4,2,1}_core`. Each uses a copy of the
 generated `hw/syn/xilinx/dut/build.mk` as its Makefile. From that directory:
 
 ```sh
@@ -106,8 +108,8 @@ make DUT=core DEVICE=xcv80-lsva4737-2MHP-e-S MAX_JOBS=4 OPT_LEVEL=3 \
   CONFIGS="-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=8" build
 ```
 
-Repeat independently for 16. These isolate the NTT core's area; the complete
-application runs enable the Keccak backends as above. The original 16-bank
+Repeat independently for every bank size. These isolate the NTT core's area;
+the complete application runs enable the Keccak backends as above. The original 16-bank
 PPA directories and performance data remain untouched. Validate and archive
 with `python3 ../pqc/results/collect_ntt_bank.py all` from
 `build32_ntt_bank`. The collector rejects missing KATs, mismatched binaries or
@@ -169,21 +171,31 @@ vectorless power to claim energy efficiency.
 
 ## Completed post-route comparison
 
-Both independent builds use the revised RTL, Vivado 2025.1, V80, RV32IM with
-F/D disabled, one core, W8T32, OPT3, and a 4 ns clock. The generated NTT sources
-are identical after normalizing only the multiplier-count parameter. Both have
-zero routing errors and meet 250 MHz.
+All five independent builds use the revised RTL, Vivado 2025.1, V80, RV32IM
+with F/D disabled, one core, W8T32, OPT3, and a 4 ns clock. The generated NTT
+sources are identical after normalizing only the multiplier-count parameter.
+All have zero routing errors and meet 250 MHz.
 
 | Bank | Core LUT | Core FF | Core DSP | NTT LUT | NTT FF | NTT DSP | WNS (ns) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 16 | 233,819 | 138,373 | 176 | 13,379 | 10,998 | 80 | +0.031 |
 | 8 | 227,566 | 134,752 | 136 | 8,349 | 8,116 | 40 | +0.005 |
+| 4 | 227,614 | 133,721 | 116 | 5,617 | 6,707 | 20 | +0.019 |
+| 2 | 223,985 | 132,464 | 106 | 3,891 | 5,944 | 10 | +0.022 |
+| 1 | 223,582 | 132,997 | 101 | 3,505 | 6,761 | 5 | +0.020 |
 
 Eight lanes reduce core LUT/FF/DSP by 2.674% / 2.617% / 22.727%, and the NTT
 hierarchy's LUT/FF/DSP by 37.596% / 26.205% / 50%. BRAM remains 133 tiles.
 Each general 32x32 multiplier maps to three DSPs; the other 16 DSPs in the
 eight-bank NTT hierarchy implement its reduction arithmetic. Thus eight
 logical multiplier lanes do not mean eight FPGA DSP primitives.
+
+Relative to eight multipliers, four reduce NTT LUT/FF/DSP by 32.722% / 17.361%
+/ 50%, while core LUT changes by only +0.021% because physical mapping variation
+masks the hierarchy saving. Two reduce core LUT/FF/DSP by 1.574% / 1.698% /
+22.059% and NTT LUT/FF/DSP by 53.396% / 26.762% / 75%. One reduces only another
+403 core LUT and five DSP relative to two, but adds 533 core FF; its deeper
+serializer also adds 817 NTT FF. BRAM remains 133 tiles at every bank size.
 
 The earlier specialized 16-bank implementation remains a relevant reference:
 230,739 LUT, 137,252 FF, 176 DSP, WNS +0.018 ns. The revised 16-bank design
@@ -195,18 +207,23 @@ the larger matched-cohort LUT delta as the improvement over the earlier best
 16-bank core.
 
 These are NTT-only core PPA measurements. The complete application simulations
-enable all Keccak backends, as listed above; combined eight-bank Keccak PPA is
+enable all Keccak backends, as listed above; combined NTT-plus-Keccak PPA is
 not measured by this experiment. Vectorless power is not used for an energy
 claim. Raw report paths and hashes are archived in
 [`ntt_multiplier_bank_ppa.csv`](../../pqc/results/ntt_multiplier_bank_ppa.csv).
 
-## Eight-bank PPA baseline
+## PPA decision
 
-Eight multipliers preserve complete-request performance within 0.047% on the
-measured XRT workloads while reducing area and meeting 250 MHz. Use
-`-DVX_CFG_NTT_MUL_LANES=8` for this post-route option. Retain the default
-16-bank configuration for existing builds until a lower-bank candidate has
-completed PPA validation.
+Two multipliers are the measured area/performance knee. They meet 250 MHz,
+reduce the NTT hierarchy by 53.396% LUT, 26.762% FF, and 75% DSP relative to
+eight, and increase standalone NTTBF.K cycles by 2.777%. Their measured complete
+XRT workloads change by at most +0.125264%. Four multipliers remain the
+latency-oriented option at +0.533% standalone NTTBF.K cycles. One multiplier is
+an endpoint for the Pareto study: relative to two it saves only 0.180% core LUT
+and 4.717% core DSP, increases core FF by 0.402%, and increases standalone
+NTTBF.K cycles by 21.445%. Use `-DVX_CFG_NTT_MUL_LANES=2` for the recommended
+post-route option; retain 16 as the repository default until the selected paper
+configuration is adopted separately.
 
 ## Completed four/two/one-multiplier RTL sweep
 
@@ -224,10 +241,11 @@ Use isolated `build{32,64}_ntt_bank{4,2,1}` and
 backpressure, and standalone model parity. Then run the same KEM/DSA M1/M8
 applications through SimX and XRT, with identical binary hashes and KATs.
 Select PPA candidates only after comparing RTL function and performance.
-The four-bank Vivado run was stopped during synthesis at the user's request;
-its incomplete reports are not PPA results. Reuse the archived eight- and
-16-bank measurements only after checking that their RTL/model hashes match.
-Keep the default configuration and both papers unchanged during evaluation.
+An earlier four-bank Vivado run was stopped during synthesis at the user's
+request; its incomplete reports are archived but are not PPA results. The fresh
+four-bank run and the new two- and one-bank runs completed independently, and
+their RTL/model hashes match the archived eight- and 16-bank measurements. The
+default configuration and both papers remain unchanged by this evaluation.
 
 RV32/RV64 four-bank unit tests pass all 376 requests, including mixed K/D
 traffic and output stalls. The two standalone parity cases pass with identical
@@ -271,14 +289,13 @@ One multiplier is not a throughput-preserving NTT design: its pure-butterfly
 penalty is 24.818%, although complete applications dilute it below 0.5%.
 Four multipliers are the latency-oriented candidate (+0.533% pure NTTBF), while
 two are the area-oriented candidate (+2.777% pure NTTBF and at most +0.126%
-across the measured complete XRT workloads). If only one new configuration is
-synthesized, select two multipliers. For a defensible Pareto curve, synthesize
-both four and two; do not synthesize one. No PPA result is claimed for these
-three configurations yet.
+across the measured complete XRT workloads). The five completed post-route
+builds confirm two as the design knee. Four remains useful when standalone NTT
+latency is the priority; one is retained only as the measured low-area endpoint.
 
 [`ntt_multiplier_bank_performance.csv`](../../pqc/results/ntt_multiplier_bank_performance.csv)
 contains all 40 application runs. [`ntt_multiplier_bank_sources.zip`](../../pqc/results/ntt_multiplier_bank_sources.zip)
 preserves the collector, result tables, relevant source files, build/run
 scripts, raw test logs, application binaries, runtime hashes/configurations,
-the stopped four-bank synthesis record, and the completed 16/eight-bank
-post-route reports. Both papers remain unchanged.
+the stopped four-bank synthesis record, and all five completed post-route
+reports. Both papers remain unchanged.
