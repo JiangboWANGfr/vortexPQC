@@ -1,0 +1,747 @@
+{
+  "schema_version": 1,
+  "scope": "ML-KEM-768 D, PERF_ENABLE routed checkpoint, same PDI at 150 and 190 MHz, 5 runs per class and batch",
+  "images": {
+    "150": {
+      "path": "build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_perf_aved_hw/bin/vortex_afu_perf_150metadata.vbin",
+      "sha256": "169c331e66f6eb28469bb7550e08339d62d39102b125e2882e1d11383d85abe4"
+    },
+    "190": {
+      "path": "build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_perf_aved_hw/bin/vortex_afu_perf_190metadata.vbin",
+      "sha256": "64be583ff38f8db5958b20d967284043748d4e7294e07a2f3e6fb58a3bf86619"
+    },
+    "pdi_sha256": "a90371ace109feebfe67181b8d8365f14b5cfdb8805de8401987d9bec5de0760"
+  },
+  "by_batch": {
+    "M1": {
+      "150": {
+        "1": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_150mhz_r1.log",
+              "makespan_cycles": 1719893,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.2,
+              "load_latency_cycles": 62.07,
+              "scoreboard_stall_percent_reported": 26
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_150mhz_r2.log",
+              "makespan_cycles": 1719618,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.2,
+              "load_latency_cycles": 62.05,
+              "scoreboard_stall_percent_reported": 26
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_150mhz_r3.log",
+              "makespan_cycles": 1719876,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.2,
+              "load_latency_cycles": 62.06,
+              "scoreboard_stall_percent_reported": 26
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_150mhz_r4.log",
+              "makespan_cycles": 1719713,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.2,
+              "load_latency_cycles": 61.95,
+              "scoreboard_stall_percent_reported": 26
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_150mhz_r5.log",
+              "makespan_cycles": 1719695,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.2,
+              "load_latency_cycles": 61.93,
+              "scoreboard_stall_percent_reported": 26
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 1719713,
+            "retired_instructions": 126499,
+            "ifetch_latency_cycles": 4.2,
+            "load_latency_cycles": 62.05,
+            "scoreboard_stall_percent_reported": 26
+          }
+        },
+        "4": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_150mhz_r1.log",
+              "makespan_cycles": 1719843,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59678,
+              "dcache_write_misses": 57820,
+              "dcache_bank_stall_cycles": 229544,
+              "dcache_mshr_stall_cycles": 131020
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_150mhz_r2.log",
+              "makespan_cycles": 1719724,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59691,
+              "dcache_write_misses": 57832,
+              "dcache_bank_stall_cycles": 230155,
+              "dcache_mshr_stall_cycles": 132014
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_150mhz_r3.log",
+              "makespan_cycles": 1719543,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59679,
+              "dcache_write_misses": 57822,
+              "dcache_bank_stall_cycles": 229264,
+              "dcache_mshr_stall_cycles": 131649
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_150mhz_r4.log",
+              "makespan_cycles": 1719549,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59685,
+              "dcache_write_misses": 57832,
+              "dcache_bank_stall_cycles": 229884,
+              "dcache_mshr_stall_cycles": 131568
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_150mhz_r5.log",
+              "makespan_cycles": 1719690,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59688,
+              "dcache_write_misses": 57835,
+              "dcache_bank_stall_cycles": 229835,
+              "dcache_mshr_stall_cycles": 132205
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 1719690,
+            "retired_instructions": 126499,
+            "dcache_reqs": 153893,
+            "dcache_read_misses": 59685,
+            "dcache_write_misses": 57832,
+            "dcache_bank_stall_cycles": 229835,
+            "dcache_mshr_stall_cycles": 131649
+          }
+        },
+        "7": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_150mhz_r1.log",
+              "makespan_cycles": 1719863,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125681,
+              "offchip_reads": 54914,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 46.9,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_150mhz_r2.log",
+              "makespan_cycles": 1719462,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125680,
+              "offchip_reads": 54913,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 46.8,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_150mhz_r3.log",
+              "makespan_cycles": 1719717,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125682,
+              "offchip_reads": 54915,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 46.9,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_150mhz_r4.log",
+              "makespan_cycles": 1719539,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125681,
+              "offchip_reads": 54914,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 46.9,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_150mhz_r5.log",
+              "makespan_cycles": 1719521,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125682,
+              "offchip_reads": 54915,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 46.9,
+              "coalescer_misses": 26040
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 1719539,
+            "retired_instructions": 126499,
+            "offchip_reqs": 125681,
+            "offchip_reads": 54914,
+            "offchip_writes": 70767,
+            "offchip_read_latency_cycles": 46.9,
+            "coalescer_misses": 26040,
+            "offchip_read_latency_ns": 312.6666666666667,
+            "elapsed_ms": 11.463593333333334
+          }
+        }
+      },
+      "190": {
+        "1": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_190mhz_r1.log",
+              "makespan_cycles": 1838916,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.24,
+              "load_latency_cycles": 75.22,
+              "scoreboard_stall_percent_reported": 29
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_190mhz_r2.log",
+              "makespan_cycles": 1838512,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.25,
+              "load_latency_cycles": 75.21,
+              "scoreboard_stall_percent_reported": 29
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_190mhz_r3.log",
+              "makespan_cycles": 1838677,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.24,
+              "load_latency_cycles": 75.21,
+              "scoreboard_stall_percent_reported": 29
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_190mhz_r4.log",
+              "makespan_cycles": 1837963,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.25,
+              "load_latency_cycles": 75.17,
+              "scoreboard_stall_percent_reported": 29
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf1_190mhz_r5.log",
+              "makespan_cycles": 1838324,
+              "retired_instructions": 126499,
+              "ifetch_latency_cycles": 4.24,
+              "load_latency_cycles": 75.26,
+              "scoreboard_stall_percent_reported": 29
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 1838512,
+            "retired_instructions": 126499,
+            "ifetch_latency_cycles": 4.24,
+            "load_latency_cycles": 75.21,
+            "scoreboard_stall_percent_reported": 29
+          }
+        },
+        "4": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_190mhz_r1.log",
+              "makespan_cycles": 1838702,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59735,
+              "dcache_write_misses": 57839,
+              "dcache_bank_stall_cycles": 228878,
+              "dcache_mshr_stall_cycles": 182982
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_190mhz_r2.log",
+              "makespan_cycles": 1838703,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59734,
+              "dcache_write_misses": 57830,
+              "dcache_bank_stall_cycles": 228590,
+              "dcache_mshr_stall_cycles": 183759
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_190mhz_r3.log",
+              "makespan_cycles": 1839027,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59736,
+              "dcache_write_misses": 57836,
+              "dcache_bank_stall_cycles": 228900,
+              "dcache_mshr_stall_cycles": 183624
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_190mhz_r4.log",
+              "makespan_cycles": 1838517,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59733,
+              "dcache_write_misses": 57831,
+              "dcache_bank_stall_cycles": 228584,
+              "dcache_mshr_stall_cycles": 184221
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf4_190mhz_r5.log",
+              "makespan_cycles": 1838344,
+              "retired_instructions": 126499,
+              "dcache_reqs": 153893,
+              "dcache_read_misses": 59732,
+              "dcache_write_misses": 57834,
+              "dcache_bank_stall_cycles": 228700,
+              "dcache_mshr_stall_cycles": 183741
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 1838702,
+            "retired_instructions": 126499,
+            "dcache_reqs": 153893,
+            "dcache_read_misses": 59734,
+            "dcache_write_misses": 57834,
+            "dcache_bank_stall_cycles": 228700,
+            "dcache_mshr_stall_cycles": 183741
+          }
+        },
+        "7": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_190mhz_r1.log",
+              "makespan_cycles": 1838803,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125679,
+              "offchip_reads": 54912,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 62.6,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_190mhz_r2.log",
+              "makespan_cycles": 1838482,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125680,
+              "offchip_reads": 54913,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 62.7,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_190mhz_r3.log",
+              "makespan_cycles": 1838579,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125680,
+              "offchip_reads": 54913,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 62.6,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_190mhz_r4.log",
+              "makespan_cycles": 1838300,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125679,
+              "offchip_reads": 54912,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 62.6,
+              "coalescer_misses": 26040
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_perf7_190mhz_r5.log",
+              "makespan_cycles": 1838701,
+              "retired_instructions": 126499,
+              "offchip_reqs": 125682,
+              "offchip_reads": 54915,
+              "offchip_writes": 70767,
+              "offchip_read_latency_cycles": 62.6,
+              "coalescer_misses": 26040
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 1838579,
+            "retired_instructions": 126499,
+            "offchip_reqs": 125680,
+            "offchip_reads": 54913,
+            "offchip_writes": 70767,
+            "offchip_read_latency_cycles": 62.6,
+            "coalescer_misses": 26040,
+            "offchip_read_latency_ns": 329.4736842105263,
+            "elapsed_ms": 9.676731578947368
+          }
+        }
+      },
+      "elapsed_speedup_150_to_190": 1.1846555047856706
+    },
+    "M8": {
+      "150": {
+        "1": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_150mhz_r1.log",
+              "makespan_cycles": 5129106,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.26,
+              "load_latency_cycles": 83.13,
+              "scoreboard_stall_percent_reported": 96
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_150mhz_r2.log",
+              "makespan_cycles": 5141052,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.21,
+              "load_latency_cycles": 84.06,
+              "scoreboard_stall_percent_reported": 96
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_150mhz_r3.log",
+              "makespan_cycles": 5165181,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.22,
+              "load_latency_cycles": 83.73,
+              "scoreboard_stall_percent_reported": 95
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_150mhz_r4.log",
+              "makespan_cycles": 5170046,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.21,
+              "load_latency_cycles": 83.19,
+              "scoreboard_stall_percent_reported": 96
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_150mhz_r5.log",
+              "makespan_cycles": 5142675,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.24,
+              "load_latency_cycles": 82.75,
+              "scoreboard_stall_percent_reported": 96
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 5142675,
+            "retired_instructions": 1205992,
+            "ifetch_latency_cycles": 4.22,
+            "load_latency_cycles": 83.19,
+            "scoreboard_stall_percent_reported": 96
+          }
+        },
+        "4": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_150mhz_r1.log",
+              "makespan_cycles": 5107874,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 506245,
+              "dcache_write_misses": 621502,
+              "dcache_bank_stall_cycles": 1841262,
+              "dcache_mshr_stall_cycles": 1053167
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_150mhz_r2.log",
+              "makespan_cycles": 5141787,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 505716,
+              "dcache_write_misses": 622988,
+              "dcache_bank_stall_cycles": 1843396,
+              "dcache_mshr_stall_cycles": 1055341
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_150mhz_r3.log",
+              "makespan_cycles": 5119130,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 505607,
+              "dcache_write_misses": 624576,
+              "dcache_bank_stall_cycles": 1841456,
+              "dcache_mshr_stall_cycles": 1049549
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_150mhz_r4.log",
+              "makespan_cycles": 5120068,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 505776,
+              "dcache_write_misses": 622304,
+              "dcache_bank_stall_cycles": 1842488,
+              "dcache_mshr_stall_cycles": 1056610
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_150mhz_r5.log",
+              "makespan_cycles": 5160358,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 507704,
+              "dcache_write_misses": 623583,
+              "dcache_bank_stall_cycles": 1838119,
+              "dcache_mshr_stall_cycles": 1061127
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 5120068,
+            "retired_instructions": 1205992,
+            "dcache_reqs": 1345169,
+            "dcache_read_misses": 505776,
+            "dcache_write_misses": 622988,
+            "dcache_bank_stall_cycles": 1841456,
+            "dcache_mshr_stall_cycles": 1055341
+          }
+        },
+        "7": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_150mhz_r1.log",
+              "makespan_cycles": 5130156,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1131306,
+              "offchip_reads": 445234,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 48.0,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_150mhz_r2.log",
+              "makespan_cycles": 5181235,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1134865,
+              "offchip_reads": 448793,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 48.0,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_150mhz_r3.log",
+              "makespan_cycles": 5133751,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1131306,
+              "offchip_reads": 445234,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 47.9,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_150mhz_r4.log",
+              "makespan_cycles": 5130411,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1133744,
+              "offchip_reads": 447672,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 47.8,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_150mhz_r5.log",
+              "makespan_cycles": 5121986,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1131144,
+              "offchip_reads": 445072,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 47.9,
+              "coalescer_misses": 208320
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 5130411,
+            "retired_instructions": 1205992,
+            "offchip_reqs": 1131306,
+            "offchip_reads": 445234,
+            "offchip_writes": 686072,
+            "offchip_read_latency_cycles": 47.9,
+            "coalescer_misses": 208320,
+            "offchip_read_latency_ns": 319.3333333333333,
+            "elapsed_ms": 34.20274
+          }
+        }
+      },
+      "190": {
+        "1": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_190mhz_r1.log",
+              "makespan_cycles": 6139478,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.31,
+              "load_latency_cycles": 103.17,
+              "scoreboard_stall_percent_reported": 96
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_190mhz_r2.log",
+              "makespan_cycles": 6154974,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.33,
+              "load_latency_cycles": 103.54,
+              "scoreboard_stall_percent_reported": 96
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_190mhz_r3.log",
+              "makespan_cycles": 6141926,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.36,
+              "load_latency_cycles": 103.35,
+              "scoreboard_stall_percent_reported": 96
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_190mhz_r4.log",
+              "makespan_cycles": 6189745,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.33,
+              "load_latency_cycles": 103.15,
+              "scoreboard_stall_percent_reported": 97
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf1_190mhz_r5.log",
+              "makespan_cycles": 6135991,
+              "retired_instructions": 1205992,
+              "ifetch_latency_cycles": 4.35,
+              "load_latency_cycles": 102.05,
+              "scoreboard_stall_percent_reported": 96
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 6141926,
+            "retired_instructions": 1205992,
+            "ifetch_latency_cycles": 4.33,
+            "load_latency_cycles": 103.17,
+            "scoreboard_stall_percent_reported": 96
+          }
+        },
+        "4": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_190mhz_r1.log",
+              "makespan_cycles": 6151920,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 507023,
+              "dcache_write_misses": 624065,
+              "dcache_bank_stall_cycles": 1835587,
+              "dcache_mshr_stall_cycles": 1506208
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_190mhz_r2.log",
+              "makespan_cycles": 6164223,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 508101,
+              "dcache_write_misses": 622783,
+              "dcache_bank_stall_cycles": 1835488,
+              "dcache_mshr_stall_cycles": 1506565
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_190mhz_r3.log",
+              "makespan_cycles": 6148084,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 507777,
+              "dcache_write_misses": 621975,
+              "dcache_bank_stall_cycles": 1835970,
+              "dcache_mshr_stall_cycles": 1504999
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_190mhz_r4.log",
+              "makespan_cycles": 6196661,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 508061,
+              "dcache_write_misses": 623392,
+              "dcache_bank_stall_cycles": 1834865,
+              "dcache_mshr_stall_cycles": 1518384
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf4_190mhz_r5.log",
+              "makespan_cycles": 6130967,
+              "retired_instructions": 1205992,
+              "dcache_reqs": 1345169,
+              "dcache_read_misses": 506173,
+              "dcache_write_misses": 621757,
+              "dcache_bank_stall_cycles": 1836239,
+              "dcache_mshr_stall_cycles": 1503395
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 6151920,
+            "retired_instructions": 1205992,
+            "dcache_reqs": 1345169,
+            "dcache_read_misses": 507777,
+            "dcache_write_misses": 622783,
+            "dcache_bank_stall_cycles": 1835587,
+            "dcache_mshr_stall_cycles": 1506208
+          }
+        },
+        "7": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_190mhz_r1.log",
+              "makespan_cycles": 6195065,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1132482,
+              "offchip_reads": 446410,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 64.4,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_190mhz_r2.log",
+              "makespan_cycles": 6140571,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1131821,
+              "offchip_reads": 445749,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 64.1,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_190mhz_r3.log",
+              "makespan_cycles": 6142399,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1131535,
+              "offchip_reads": 445463,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 64.1,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_190mhz_r4.log",
+              "makespan_cycles": 6206134,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1132711,
+              "offchip_reads": 446639,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 64.2,
+              "coalescer_misses": 208320
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_perf7_190mhz_r5.log",
+              "makespan_cycles": 6150652,
+              "retired_instructions": 1205992,
+              "offchip_reqs": 1133276,
+              "offchip_reads": 447204,
+              "offchip_writes": 686072,
+              "offchip_read_latency_cycles": 63.9,
+              "coalescer_misses": 208320
+            }
+          ],
+          "medians": {
+            "makespan_cycles": 6150652,
+            "retired_instructions": 1205992,
+            "offchip_reqs": 1132482,
+            "offchip_reads": 446410,
+            "offchip_writes": 686072,
+            "offchip_read_latency_cycles": 64.1,
+            "coalescer_misses": 208320,
+            "offchip_read_latency_ns": 337.36842105263156,
+            "elapsed_ms": 32.371852631578946
+          }
+        }
+      },
+      "elapsed_speedup_150_to_190": 1.0565580039319409
+    }
+  }
+}

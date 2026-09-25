@@ -1,0 +1,796 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version      : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date              : Fri Sep 25 17:21:57 2026
+| Host              : jiangbowang-ubuntu2404 running 64-bit Ubuntu 24.04.5 LTS
+| Command           : report_timing_summary -file /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/pqc/results/v80_hw_validation/timing_perf_route_190mhz.txt
+| Design            : top_wrapper
+| Device            : xcv80-lsva4737
+| Speed File        : -2MHP  PRODUCTION 2.04 2024-08-06
+| Design State      : Routed
+| Temperature Grade : E
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  No
+  Borrow Time for Max Delay Exceptions       :  Yes
+  Merge Timing Exceptions                    :  Yes
+  Inter-SLR Compensation                     :  Conservative
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+------------------------------------------------------------------------------------------------
+| Report Methodology
+| ------------------
+------------------------------------------------------------------------------------------------
+
+Rule       Severity          Description                                     Violations  
+---------  ----------------  ----------------------------------------------  ----------  
+TIMING-3   Critical Warning  Invalid primary clock on Clock Modifying Block  1           
+AVAL-344   Warning           Design_needs_USER_RAM_AVERAGE_ACTIVITY_set      1           
+LUTAR-1    Warning           LUT drives async reset alert                    3           
+TIMING-18  Warning           Missing input or output delay                   2           
+CLKC-3     Advisory          Clock Buffer has LOC and not CLOCK_REGION       6           
+CLKC-61    Advisory          MMCME5 clkouts drive nothing                    1           
+CLKC-72    Advisory          Substitute PLL for MMCME5 check                 2           
+
+Note: This report is based on the most recent report_methodology run and may not be up-to-date. Run report_methodology on the current design for the latest report.
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (2)
+2. checking constant_clock (0)
+3. checking pulse_width_clock (0)
+4. checking unconstrained_internal_endpoints (0)
+5. checking no_input_delay (2)
+6. checking no_output_delay (2)
+7. checking multiple_clock (0)
+8. checking generated_clocks (0)
+9. checking loops (0)
+10. checking partial_input_delay (0)
+11. checking partial_output_delay (0)
+12. checking latch_loops (0)
+
+1. checking no_clock (2)
+------------------------
+ There are 2 register/latch pins with no clock (HIGH)
+
+
+2. checking constant_clock (0)
+------------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock (0)
+---------------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints (0)
+------------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay (2)
+------------------------------
+ There are 2 input ports with no input delay specified. (HIGH)
+
+ There are 0 input ports with no input delay but user has a false path constraint.
+
+
+6. checking no_output_delay (2)
+-------------------------------
+ There are 0 ports with no output delay specified.
+
+ There are 2 ports with no output delay but user has a false path constraint (MEDIUM)
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock (0)
+------------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks (0)
+--------------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops (0)
+---------------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay (0)
+------------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay (0)
+-------------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops (0)
+----------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+      0.063        0.000                      0               517259        0.002        0.000                      0               517199        0.389        0.000                       0                239366  
+
+
+All user specified timing constraints are met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock                    Waveform(ns)         Period(ns)      Frequency(MHz)
+-----                    ------------         ----------      --------------
+clk_pl_0                 {0.000 5.000}        10.000          100.000         
+clk_pl_1                 {0.000 15.000}       30.000          33.333          
+clk_pl_2                 {0.000 2.000}        4.000           250.000         
+clk_pl_3                 {0.000 5.000}        10.000          100.000         
+  clk_wizard_0_clk_out1  {0.000 1.389}        2.778           360.000         
+clkout1_primitive_1      {0.000 2.631}        5.263           190.006         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock                        WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----                        -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+clk_pl_0                                                                                                                                                                   3.500        0.000                       0                 10931  
+clk_pl_1                                                                                                                                                                  14.620        0.000                       0                     1  
+clk_pl_2                                                                                                                                                                   1.394        0.000                       0                 16191  
+clk_pl_3                                                                                                                                                                   4.609        0.000                       0                     4  
+  clk_wizard_0_clk_out1        0.063        0.000                      0                 8313        0.038        0.000                      0                 8313        0.389        0.000                       0                  2242  
+clkout1_primitive_1            0.094        0.000                      0               508886        0.002        0.000                      0               508886        1.631        0.000                       0                209997  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock             To Clock                   WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------             --------                   -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+clkout1_primitive_1    clk_wizard_0_clk_out1        3.669        0.000                      0                  799                                                                        
+clk_wizard_0_clk_out1  clkout1_primitive_1          1.771        0.000                      0                  543                                                                        
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    ----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_pl_0
+  To Clock:  clk_pl_0
+
+Setup :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+Hold  :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+PW    :            0  Failing Endpoints,  Worst Slack        3.500ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clk_pl_0
+Waveform(ns):       { 0.000 5.000 }
+Period(ns):         10.000
+Sources:            { top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[0] }
+
+Check Type        Corner  Lib Pin      Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location   Pin
+Min Period        n/a     MMCME5/DCLK  n/a            3.333         10.000      6.667      MMCM_X1Y0  top_i/static_region/clk_rst_shell/clk_wizard_service/inst/clock_primitive_inst/MMCME5_inst/DCLK
+Low Pulse Width   Slow    MMCME5/DCLK  n/a            1.500         5.000       3.500      MMCM_X1Y0  top_i/static_region/clk_rst_shell/clk_wizard_service/inst/clock_primitive_inst/MMCME5_inst/DCLK
+High Pulse Width  Slow    MMCME5/DCLK  n/a            1.500         5.000       3.500      MMCM_X1Y0  top_i/static_region/clk_rst_shell/clk_wizard_service/inst/clock_primitive_inst/MMCME5_inst/DCLK
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_pl_1
+  To Clock:  clk_pl_1
+
+Setup :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+Hold  :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+PW    :            0  Failing Endpoints,  Worst Slack       14.620ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clk_pl_1
+Waveform(ns):       { 0.000 15.000 }
+Period(ns):         30.000
+Sources:            { top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[1] }
+
+Check Type        Corner  Lib Pin    Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     BUFG_PS/I  n/a            0.934         30.000      29.066     BUFG_PS_X1Y7  top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_1.PL_CLK_1_BUFG/I
+Low Pulse Width   Slow    BUFG_PS/I  n/a            0.380         15.000      14.620     BUFG_PS_X1Y7  top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_1.PL_CLK_1_BUFG/I
+High Pulse Width  Slow    BUFG_PS/I  n/a            0.380         15.000      14.620     BUFG_PS_X1Y7  top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_1.PL_CLK_1_BUFG/I
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_pl_2
+  To Clock:  clk_pl_2
+
+Setup :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+Hold  :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+PW    :            0  Failing Endpoints,  Worst Slack        1.394ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clk_pl_2
+Waveform(ns):       { 0.000 2.000 }
+Period(ns):         4.000
+Sources:            { top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[2] }
+
+Check Type        Corner  Lib Pin     Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location       Pin
+Min Period        n/a     RAMD32/CLK  n/a            1.213         4.000       2.787      SLICE_X53Y185  <hidden>
+Low Pulse Width   Slow    RAMD32/CLK  n/a            0.606         2.000       1.394      SLICE_X53Y185  <hidden>
+High Pulse Width  Slow    RAMD32/CLK  n/a            0.606         2.000       1.394      SLICE_X53Y185  <hidden>
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_pl_3
+  To Clock:  clk_pl_3
+
+Setup :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+Hold  :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+PW    :            0  Failing Endpoints,  Worst Slack        4.609ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clk_pl_3
+Waveform(ns):       { 0.000 5.000 }
+Period(ns):         10.000
+Sources:            { top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[3] }
+
+Check Type        Corner  Lib Pin        Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
+Min Period        n/a     BUFG_PS/I      n/a            0.934         10.000      9.066      BUFG_PS_X1Y9  top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG/I
+Max Period        n/a     MMCME5/CLKIN1  n/a            100.000       10.000      90.000     MMCM_X1Y0     top_i/static_region/clk_rst_shell/clk_wizard_service/inst/clock_primitive_inst/MMCME5_inst/CLKIN1
+Low Pulse Width   Slow    MMCME5/CLKIN1  n/a            0.391         5.000       4.609      MMCM_X1Y0     top_i/static_region/clk_rst_shell/clk_wizard_service/inst/clock_primitive_inst/MMCME5_inst/CLKIN1
+High Pulse Width  Slow    MMCME5/CLKIN1  n/a            0.391         5.000       4.609      MMCM_X1Y0     top_i/static_region/clk_rst_shell/clk_wizard_service/inst/clock_primitive_inst/MMCME5_inst/CLKIN1
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_wizard_0_clk_out1
+  To Clock:  clk_wizard_0_clk_out1
+
+Setup :            0  Failing Endpoints,  Worst Slack        0.063ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.038ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        0.389ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.063ns  (required time - arrival time)
+  Source:                 top_i/static_region/noc/axi_noc_cips/inst/HBM01_AXI_nmu/bd_6ff4_HBM01_AXI_nmu_0_top_INST/NOC_NMU_HBM2E_INST/CLK
+                            (rising edge-triggered cell NOC_NMU_HBM2E clocked by clk_wizard_0_clk_out1  {rise@0.000ns fall@1.389ns period=2.778ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDSE clocked by clk_wizard_0_clk_out1  {rise@0.000ns fall@1.389ns period=2.778ns})
+  Path Group:             clk_wizard_0_clk_out1
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.778ns  (clk_wizard_0_clk_out1 rise@2.778ns - clk_wizard_0_clk_out1 rise@0.000ns)
+  Data Path Delay:        2.382ns  (logic 0.610ns (25.609%)  route 1.772ns (74.391%))
+  Logic Levels:           5  (LUT2=1 LUT3=2 LUT6=2)
+  Clock Path Skew:        -0.189ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    7.842ns = ( 10.620 - 2.778 ) 
+    Source Clock Delay      (SCD):    9.091ns
+    Clock Pessimism Removal (CPR):    1.059ns
+  Clock Uncertainty:      0.152ns  (CJ)/2 + PE + PJ
+    Clock Jitter             (CJ):    0.303ns
+    Phase Error              (PE):    0.000ns
+    Phase Jitter             (PJ):    0.000ns
+  Clock Net Delay (Source):      6.958ns (routing 1.896ns, distribution 5.063ns)
+  Clock Net Delay (Destination): 6.145ns (routing 1.690ns, distribution 4.454ns)
+
+    Location             Delay type                Incr(ns)  Path(ns)    Partition      PBlock               Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------------------------------------------
+                         (clock clk_wizard_0_clk_out1 rise edge)
+                                                      0.000     0.000 r                                      
+    PS9_X0Y0             PS9                          0.000     0.000 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[3]
+                         net (fo=1, routed)           0.000     0.000    static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/pmc_pl_ref_clk[3]
+    BUFG_PS_X1Y9         BUFG_PS (Prop_BUFG_PS_I_O)
+                                                      0.105     0.105 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG/O
+                         net (fo=3, routed)           1.531     1.636    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_in1
+    MMCM_X8Y0            MMCME5 (Prop_MMCM_CLKIN1_CLKOUT0)
+                                                      0.051     1.687 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.367     2.054    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1
+    BUFGCE_X8Y0          BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.078     2.132 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1_BUFG_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=2240, routed)        6.958     9.091    static                              top_i/static_region/noc/axi_noc_cips/inst/HBM01_AXI_nmu/bd_6ff4_HBM01_AXI_nmu_0_top_INST/aclk
+    SLR Crossing[0->2]   
+    NOC_NMU_HBM2E_X3Y0   NOC_NMU_HBM2E                                r  static                              top_i/static_region/noc/axi_noc_cips/inst/HBM01_AXI_nmu/bd_6ff4_HBM01_AXI_nmu_0_top_INST/NOC_NMU_HBM2E_INST/CLK
+  -------------------------------------------------------------------    -------------------------------------------------------
+    NOC_NMU_HBM2E_X3Y0   NOC_NMU_HBM2E (Prop_NMU_NOC_NMU_HBM2E_CLK_IF_NOC_AXI_TOP_ARREADY)
+                                                      0.288     9.379 r  static                              top_i/static_region/noc/axi_noc_cips/inst/HBM01_AXI_nmu/bd_6ff4_HBM01_AXI_nmu_0_top_INST/NOC_NMU_HBM2E_INST/IF_NOC_AXI_TOP_ARREADY
+                         net (fo=1, routed)           0.522     9.901    static                              <hidden>
+    SLICE_X38Y900        LUT2 (Prop_A6LUT_SLICEL_I0_O)
+                                                      0.029     9.930 r  static         pblock_dfx_decoupler <hidden>
+                         net (fo=5, routed)           0.535    10.464    boundary                            <hidden>
+    SLICE_X36Y863        LUT3 (Prop_G6LUT_SLICEL_I1_O)
+                                                      0.087    10.551 r  reconfigurable pblock_slash         <hidden>
+                         net (fo=4, routed)           0.021    10.572    reconfigurable                      <hidden>
+    SLICE_X36Y863        LUT3 (Prop_H6LUT_SLICEL_I0_O)
+                                                      0.060    10.632 r  reconfigurable pblock_slash         <hidden>
+                         net (fo=105, routed)         0.461    11.093    reconfigurable                      <hidden>
+    SLICE_X38Y850        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.029    11.122 r  reconfigurable pblock_slash         <hidden>
+                         net (fo=1, routed)           0.162    11.284    reconfigurable                      <hidden>
+    SLICE_X38Y850        LUT6 (Prop_A6LUT_SLICEL_I0_O)
+                                                      0.117    11.401 r  reconfigurable pblock_slash         <hidden>
+                         net (fo=1, routed)           0.071    11.472    reconfigurable                      <hidden>
+    SLICE_X38Y850        FDSE                                         r  reconfigurable pblock_slash         <hidden>
+  -------------------------------------------------------------------    -------------------------------------------------------
+
+                         (clock clk_wizard_0_clk_out1 rise edge)
+                                                      2.778     2.778 r                                      
+    PS9_X0Y0             PS9                          0.000     2.778 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[3]
+                         net (fo=1, routed)           0.000     2.778    static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/pmc_pl_ref_clk[3]
+    BUFG_PS_X1Y9         BUFG_PS (Prop_BUFG_PS_I_O)
+                                                      0.057     2.835 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG/O
+                         net (fo=3, routed)           1.266     4.101    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_in1
+    MMCM_X8Y0            MMCME5 (Prop_MMCM_CLKIN1_CLKOUT0)
+                                                     -0.005     4.096 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.316     4.412    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1
+    BUFGCE_X8Y0          BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.063     4.475 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1_BUFG_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=2240, routed)        6.145    10.620    boundary                            <hidden>
+    SLR Crossing[0->2]   
+    SLICE_X38Y850        FDSE                                         r  reconfigurable pblock_slash         <hidden>
+                         clock pessimism              1.059    11.679                                            
+                         clock uncertainty           -0.152    11.527                                            
+    SLICE_X38Y850        FDSE (Setup_AFF2_SLICEL_C_D)
+                                                      0.008    11.535    reconfigurable   pblock_slash           <hidden>
+  -------------------------------------------------------------------
+                         required time                         11.535                                            
+                         arrival time                         -11.472                                            
+  -------------------------------------------------------------------
+                         slack                                  0.063                                            
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.038ns  (arrival time - required time)
+  Source:                 top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/POR_SRL_I/CLK
+                            (rising edge-triggered cell SRL16E clocked by clk_wizard_0_clk_out1  {rise@0.000ns fall@1.389ns period=2.778ns})
+  Destination:            top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/lpf_int_reg_bret/D
+                            (rising edge-triggered cell FDRE clocked by clk_wizard_0_clk_out1  {rise@0.000ns fall@1.389ns period=2.778ns})
+  Path Group:             clk_wizard_0_clk_out1
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (clk_wizard_0_clk_out1 rise@0.000ns - clk_wizard_0_clk_out1 rise@0.000ns)
+  Data Path Delay:        0.130ns  (logic 0.114ns (87.692%)  route 0.016ns (12.308%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.057ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    6.411ns
+    Source Clock Delay      (SCD):    5.275ns
+    Clock Pessimism Removal (CPR):    1.079ns
+  Clock Net Delay (Source):      4.133ns (routing 1.120ns, distribution 3.013ns)
+  Clock Net Delay (Destination): 4.838ns (routing 1.359ns, distribution 3.479ns)
+
+    Location             Delay type                Incr(ns)  Path(ns)    Partition      PBlock               Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------------------------------------------
+                         (clock clk_wizard_0_clk_out1 rise edge)
+                                                      0.000     0.000 r                                      
+    PS9_X0Y0             PS9                          0.000     0.000 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[3]
+                         net (fo=1, routed)           0.000     0.000    static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/pmc_pl_ref_clk[3]
+    BUFG_PS_X1Y9         BUFG_PS (Prop_BUFG_PS_I_O)
+                                                      0.043     0.043 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG/O
+                         net (fo=3, routed)           0.879     0.922    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_in1
+    MMCM_X8Y0            MMCME5 (Prop_MMCM_CLKIN1_CLKOUT0)
+                                                     -0.034     0.888 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.209     1.097    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1
+    BUFGCE_X8Y0          BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.045     1.142 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1_BUFG_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=2240, routed)        4.133     5.275    boundary                            top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/aclk1
+    SLR Crossing[0->2]   
+    SLICE_X67Y785        SRL16E                                       r  reconfigurable pblock_slash         top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/POR_SRL_I/CLK
+  -------------------------------------------------------------------    -------------------------------------------------------
+    SLICE_X67Y785        SRL16E (Prop_A6LUT_SLICEM_CLK_Q)
+                                                      0.114     5.389 r  reconfigurable pblock_slash         top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/POR_SRL_I/Q
+                         net (fo=1, routed)           0.016     5.405    reconfigurable                      top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/Q
+    SLICE_X67Y785        FDRE                                         r  reconfigurable pblock_slash         top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/lpf_int_reg_bret/D
+  -------------------------------------------------------------------    -------------------------------------------------------
+
+                         (clock clk_wizard_0_clk_out1 rise edge)
+                                                      0.000     0.000 r                                      
+    PS9_X0Y0             PS9                          0.000     0.000 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/PS9_inst/PMCRCLKCLK[3]
+                         net (fo=1, routed)           0.000     0.000    static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/pmc_pl_ref_clk[3]
+    BUFG_PS_X1Y9         BUFG_PS (Prop_BUFG_PS_I_O)
+                                                      0.082     0.082 r  static                              top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG/O
+                         net (fo=3, routed)           1.134     1.216    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_in1
+    MMCM_X8Y0            MMCME5 (Prop_MMCM_CLKIN1_CLKOUT0)
+                                                      0.029     1.245 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.267     1.512    static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1
+    BUFGCE_X8Y0          BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.061     1.573 r  static                              top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1_BUFG_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=2240, routed)        4.838     6.411    boundary                            top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/aclk1
+    SLR Crossing[0->2]   
+    SLICE_X67Y785        FDRE                                         r  reconfigurable pblock_slash         top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/lpf_int_reg_bret/C
+                         clock pessimism             -1.079     5.332                                            
+    SLICE_X67Y785        FDRE (Hold_AFF2_SLICEM_C_D)
+                                                      0.035     5.367    reconfigurable   pblock_slash           top_i/slash/hbm_sc_01/inst/clk_map/psr_aclk1/U0/EXT_LPF/lpf_int_reg_bret
+  -------------------------------------------------------------------
+                         required time                         -5.367                                            
+                         arrival time                           5.405                                            
+  -------------------------------------------------------------------
+                         slack                                  0.038                                            
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clk_wizard_0_clk_out1
+Waveform(ns):       { 0.000 1.389 }
+Period(ns):         2.778
+Sources:            { top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0 }
+
+Check Type        Corner  Lib Pin            Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location            Pin
+Min Period        n/a     NOC_NMU_HBM2E/CLK  n/a            2.000         2.778       0.778      NOC_NMU_HBM2E_X2Y0  top_i/static_region/noc/axi_noc_cips/inst/HBM00_AXI_nmu/bd_6ff4_HBM00_AXI_nmu_0_top_INST/NOC_NMU_HBM2E_INST/CLK
+Low Pulse Width   Slow    NOC_NMU_HBM2E/CLK  n/a            1.000         1.389       0.389      NOC_NMU_HBM2E_X2Y0  top_i/static_region/noc/axi_noc_cips/inst/HBM00_AXI_nmu/bd_6ff4_HBM00_AXI_nmu_0_top_INST/NOC_NMU_HBM2E_INST/CLK
+High Pulse Width  Slow    NOC_NMU_HBM2E/CLK  n/a            1.000         1.389       0.389      NOC_NMU_HBM2E_X2Y0  top_i/static_region/noc/axi_noc_cips/inst/HBM00_AXI_nmu/bd_6ff4_HBM00_AXI_nmu_0_top_INST/NOC_NMU_HBM2E_INST/CLK
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clkout1_primitive_1
+  To Clock:  clkout1_primitive_1
+
+Setup :            0  Failing Endpoints,  Worst Slack        0.094ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.002ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        1.631ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.094ns  (required time - arrival time)
+  Source:                 top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].tid_r_reg[6][0][7]/C
+                            (rising edge-triggered cell FDRE clocked by clkout1_primitive_1  {rise@0.000ns fall@2.632ns period=5.263ns})
+  Destination:            top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][3]/D
+                            (rising edge-triggered cell FDRE clocked by clkout1_primitive_1  {rise@0.000ns fall@2.632ns period=5.263ns})
+  Path Group:             clkout1_primitive_1
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            5.263ns  (clkout1_primitive_1 rise@5.263ns - clkout1_primitive_1 rise@0.000ns)
+  Data Path Delay:        4.707ns  (logic 1.667ns (35.412%)  route 3.040ns (64.588%))
+  Logic Levels:           17  (LOOKAHEAD8=3 LUT2=2 LUT5=2 LUT6=7 LUTCY1=3)
+  Clock Path Skew:        -0.283ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    6.080ns = ( 11.343 - 5.263 ) 
+    Source Clock Delay      (SCD):    7.005ns
+    Clock Pessimism Removal (CPR):    0.642ns
+  Clock Uncertainty:      0.187ns  (CJ)/2 + PE + PJ
+    Clock Jitter             (CJ):    0.375ns
+    Phase Error              (PE):    0.000ns
+    Phase Jitter             (PJ):    0.000ns
+  Clock Net Delay (Source):      6.515ns (routing 1.789ns, distribution 4.726ns)
+  Clock Net Delay (Destination): 5.663ns (routing 1.601ns, distribution 4.062ns)
+
+    Location             Delay type                Incr(ns)  Path(ns)    Partition      PBlock               Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------------------------------------------
+                         (clock clkout1_primitive_1 rise edge)
+                                                      0.000     0.000 r                                      
+    MMCM_X9Y0            MMCME5                       0.000     0.000 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.412     0.412    static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/clkout1_primitive
+    BUFGCE_X9Y22         BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.078     0.490 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/BUFG_clkout1_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=210023, routed)      6.515     7.005    boundary                            top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/ap_clk
+    SLR Crossing[0->2]   
+    SLICE_X184Y648       FDRE                                         r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].tid_r_reg[6][0][7]/C
+  -------------------------------------------------------------------    -------------------------------------------------------
+    SLICE_X184Y648       FDRE (Prop_BFF2_SLICEL_C_Q)
+                                                      0.092     7.097 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].tid_r_reg[6][0][7]/Q
+                         net (fo=4, routed)           0.200     7.298    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].tid_r_reg[6][0]_217[7]
+    SLICE_X186Y648       LUT6 (Prop_G6LUT_SLICEL_I1_O)
+                                                      0.129     7.427 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[15].tid_r_reg[7][0][7]_srl12_i_4_comp/O
+                         net (fo=3, routed)           0.179     7.606    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][1]_i_6/I2
+    SLICE_X186Y648       LUTCY1 (Prop_D5LUT_SLICEL_I2_PROP)
+                                                      0.116     7.722 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][1]_i_6/LUTCY1_INST/PROP
+                         net (fo=1, routed)           0.000     7.722    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][1]_i_6_n_3
+    SLICE_X186Y648       LOOKAHEAD8 (Prop_LOOKAHEAD8_SLICEL_PROPD_COUTF)
+                                                      0.158     7.880 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][1]_i_2/COUTF
+                         net (fo=46, routed)          0.288     8.167    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/p_75_in
+    SLICE_X187Y647       LUT6 (Prop_B6LUT_SLICEM_I5_O)
+                                                      0.134     8.301 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[15].tid_r_reg[7][0][6]_srl12_i_1/O
+                         net (fo=3, routed)           0.271     8.572    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[15].tid_r_reg[7][0][6]_srl12_i_1_n_0
+    SLICE_X188Y644       LUT6 (Prop_B6LUT_SLICEL_I0_O)
+                                                      0.131     8.703 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][0][7]_i_7/O
+                         net (fo=3, routed)           0.080     8.783    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][0][7]_i_7_n_0
+    SLICE_X188Y644       LUT2 (Prop_C6LUT_SLICEL_I0_O)
+                                                      0.053     8.836 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][0][7]_i_4/O
+                         net (fo=3, routed)           0.189     9.025    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][7]_i_11/I3
+    SLICE_X188Y642       LUTCY1 (Prop_D5LUT_SLICEL_I3_PROP)
+                                                      0.064     9.089 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][7]_i_11/LUTCY1_INST/PROP
+                         net (fo=1, routed)           0.000     9.089    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][7]_i_11_n_3
+    SLICE_X188Y642       LOOKAHEAD8 (Prop_LOOKAHEAD8_SLICEL_PROPD_COUTF)
+                                                      0.158     9.247 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][0][7]_i_5/COUTF
+                         net (fo=27, routed)          0.388     9.635    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][7]_i_11/I0
+    SLICE_X186Y642       LUT5 (Prop_A5LUT_SLICEL_I0_O)
+                                                      0.054     9.689 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][7]_i_11/LUT5/O
+                         net (fo=2, routed)           0.224     9.913    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][7]_i_11_n_0
+    SLICE_X186Y642       LUT6 (Prop_C6LUT_SLICEL_I4_O)
+                                                      0.048     9.961 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][5]_i_4/O
+                         net (fo=4, routed)           0.015     9.976    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][5]_i_4_n_0
+    SLICE_X186Y642       LUT6 (Prop_D6LUT_SLICEL_I4_O)
+                                                      0.059    10.035 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][5]_i_2/O
+                         net (fo=4, routed)           0.167    10.202    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][5]_i_2_n_0
+    SLICE_X186Y641       LUT6 (Prop_H6LUT_SLICEL_I4_O)
+                                                      0.029    10.231 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][7]_i_2/O
+                         net (fo=4, routed)           0.236    10.467    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][7]_i_1/I0
+    SLICE_X187Y641       LUT5 (Prop_G5LUT_SLICEM_I0_O)
+                                                      0.057    10.524 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][1][7]_i_1/LUT5/O
+                         net (fo=2, routed)           0.206    10.730    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][7]_i_8/I3
+    SLICE_X187Y642       LUTCY1 (Prop_D5LUT_SLICEM_I3_PROP)
+                                                      0.079    10.809 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][7]_i_8/LUTCY1_INST/PROP
+                         net (fo=1, routed)           0.000    10.809    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][7]_i_8_n_3
+    SLICE_X187Y642       LOOKAHEAD8 (Prop_LOOKAHEAD8_SLICEM_PROPD_COUTF)
+                                                      0.159    10.968 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][7]_i_4/COUTF
+                         net (fo=17, routed)          0.326    11.295    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/p_71_in
+    SLICE_X188Y643       LUT2 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.118    11.413 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][2][3]_i_3/O
+                         net (fo=1, routed)           0.200    11.613    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/p_73_out
+    SLICE_X188Y643       LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.029    11.642 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][2][3]_i_1/O
+                         net (fo=1, routed)           0.071    11.713    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/tid_next2[2]_return[3]
+    SLICE_X188Y643       FDRE                                         r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][3]/D
+  -------------------------------------------------------------------    -------------------------------------------------------
+
+                         (clock clkout1_primitive_1 rise edge)
+                                                      5.263     5.263 r                                      
+    MMCM_X9Y0            MMCME5                       0.000     5.263 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.354     5.617    static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/clkout1_primitive
+    BUFGCE_X9Y22         BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.063     5.680 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/BUFG_clkout1_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=210023, routed)      5.663    11.343    boundary                            top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/ap_clk
+    SLR Crossing[0->2]   
+    SLICE_X188Y643       FDRE                                         r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][3]/C
+                         clock pessimism              0.642    11.985                                            
+                         clock uncertainty           -0.187    11.798                                            
+    SLICE_X188Y643       FDRE (Setup_AFF2_SLICEL_C_D)
+                                                      0.008    11.806    reconfigurable   pblock_slash           top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][3]
+  -------------------------------------------------------------------
+                         required time                         11.806                                            
+                         arrival time                         -11.713                                            
+  -------------------------------------------------------------------
+                         slack                                  0.094                                            
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.002ns  (arrival time - required time)
+  Source:                 top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].bdy_r_reg[7]/C
+                            (rising edge-triggered cell FDRE clocked by clkout1_primitive_1  {rise@0.000ns fall@2.632ns period=5.263ns})
+  Destination:            top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][6]/D
+                            (rising edge-triggered cell FDRE clocked by clkout1_primitive_1  {rise@0.000ns fall@2.632ns period=5.263ns})
+  Path Group:             clkout1_primitive_1
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (clkout1_primitive_1 rise@0.000ns - clkout1_primitive_1 rise@0.000ns)
+  Data Path Delay:        0.570ns  (logic 0.188ns (32.975%)  route 0.382ns (67.025%))
+  Logic Levels:           4  (LOOKAHEAD8=1 LUT6=2 LUTCY1=1)
+  Clock Path Skew:        0.533ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    5.122ns
+    Source Clock Delay      (SCD):    3.962ns
+    Clock Pessimism Removal (CPR):    0.628ns
+  Clock Net Delay (Source):      3.683ns (routing 1.057ns, distribution 2.626ns)
+  Clock Net Delay (Destination): 4.761ns (routing 1.274ns, distribution 3.487ns)
+
+    Location             Delay type                Incr(ns)  Path(ns)    Partition      PBlock               Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------------------------------------------
+                         (clock clkout1_primitive_1 rise edge)
+                                                      0.000     0.000 r                                      
+    MMCM_X9Y0            MMCME5                       0.000     0.000 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.234     0.234    static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/clkout1_primitive
+    BUFGCE_X9Y22         BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.045     0.279 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/BUFG_clkout1_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=210023, routed)      3.683     3.962    boundary                            top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/ap_clk
+    SLR Crossing[0->2]   
+    SLICE_X185Y641       FDRE                                         r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].bdy_r_reg[7]/C
+  -------------------------------------------------------------------    -------------------------------------------------------
+    SLICE_X185Y641       FDRE (Prop_CFF2_SLICEM_C_Q)
+                                                      0.050     4.012 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[3].bdy_r_reg[7]/Q
+                         net (fo=8, routed)           0.140     4.152    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][0]_i_6/I3
+    SLICE_X185Y641       LUTCY1 (Prop_D5LUT_SLICEM_I3_PROP)
+                                                      0.025     4.177 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][0]_i_6/LUTCY1_INST/PROP
+                         net (fo=1, routed)           0.000     4.177    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][0]_i_6_n_3
+    SLICE_X185Y641       LOOKAHEAD8 (Prop_LOOKAHEAD8_SLICEM_PROPD_COUTF)
+                                                      0.054     4.231 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][1][0]_i_2/COUTF
+                         net (fo=22, routed)          0.211     4.442    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/p_74_in
+    SLICE_X188Y640       LUT6 (Prop_A6LUT_SLICEL_I1_O)
+                                                      0.034     4.476 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][2][6]_i_2/O
+                         net (fo=3, routed)           0.007     4.483    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][2][6]_i_2_n_0
+    SLICE_X188Y640       LUT6 (Prop_B6LUT_SLICEL_I2_O)
+                                                      0.025     4.508 r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r[8][2][6]_i_1/O
+                         net (fo=1, routed)           0.024     4.532    reconfigurable                      top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/tid_next2[2]_return[6]
+    SLICE_X188Y640       FDRE                                         r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][6]/D
+  -------------------------------------------------------------------    -------------------------------------------------------
+
+                         (clock clkout1_primitive_1 rise edge)
+                                                      0.000     0.000 r                                      
+    MMCM_X9Y0            MMCME5                       0.000     0.000 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0
+                         net (fo=1, routed)           0.300     0.300    static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/clkout1_primitive
+    BUFGCE_X9Y22         BUFGCE (Prop_BUFCE_BUFGCE_I_O)
+                                                      0.061     0.361 r  static                              top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/BUFG_clkout1_inst/O
+    X7Y7 (CLOCK_ROOT)    net (fo=210023, routed)      4.761     5.122    boundary                            top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/ap_clk
+    SLR Crossing[0->2]   
+    SLICE_X188Y640       FDRE                                         r  reconfigurable pblock_slash         top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][6]/C
+                         clock pessimism             -0.628     4.494                                            
+    SLICE_X188Y640       FDRE (Hold_BFF2_SLICEL_C_D)
+                                                      0.035     4.529    reconfigurable   pblock_slash           top_i/slash/vortex_afu_0/inst/afu_wrap/vortex_axi/vortex/g_clusters[0].cluster/g_sockets[0].socket/g_cores[0].core/scheduler/cta_dispatcher/g_tid_pipe[4].tid_r_reg[8][2][6]
+  -------------------------------------------------------------------
+                         required time                         -4.529                                            
+                         arrival time                           4.532                                            
+  -------------------------------------------------------------------
+                         slack                                  0.002                                            
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         clkout1_primitive_1
+Waveform(ns):       { 0.000 2.632 }
+Period(ns):         5.263
+Sources:            { top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/MMCME5_inst/CLKOUT0 }
+
+Check Type        Corner  Lib Pin         Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location          Pin
+Min Period        n/a     NOC_NSU512/CLK  n/a            2.000         5.263       3.263      NOC_NSU512_X0Y14  top_i/slash/axi_noc_0/inst/M00_AXI_nsu/bd_2beb_M00_AXI_nsu_0_top_INST/NOC_NSU512_INST/CLK
+Low Pulse Width   Slow    NOC_NSU512/CLK  n/a            1.000         2.631       1.631      NOC_NSU512_X0Y14  top_i/slash/axi_noc_0/inst/M00_AXI_nsu/bd_2beb_M00_AXI_nsu_0_top_INST/NOC_NSU512_INST/CLK
+High Pulse Width  Slow    NOC_NSU512/CLK  n/a            1.000         2.632       1.632      NOC_NSU512_X0Y14  top_i/slash/axi_noc_0/inst/M00_AXI_nsu/bd_2beb_M00_AXI_nsu_0_top_INST/NOC_NSU512_INST/CLK
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clkout1_primitive_1
+  To Clock:  clk_wizard_0_clk_out1
+
+Setup :            0  Failing Endpoints,  Worst Slack        3.669ns,  Total Violation        0.000ns
+Hold  :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             3.669ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by clkout1_primitive_1  {rise@0.000ns fall@2.632ns period=5.263ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by clk_wizard_0_clk_out1  {rise@0.000ns fall@1.389ns period=2.778ns})
+  Path Group:             clk_wizard_0_clk_out1
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            5.000ns  (MaxDelay Path 5.000ns)
+  Data Path Delay:        1.339ns  (logic 0.333ns (24.869%)  route 1.006ns (75.131%))
+  Logic Levels:           0  
+  Timing Exception:       MaxDelay Path 5.000ns -datapath_only
+
+    Location             Delay type                Incr(ns)  Path(ns)    Partition      PBlock               Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------------------------------------------
+    SLICE_X45Y848                                     0.000     0.000 r  reconfigurable pblock_slash         <hidden>
+    SLICE_X45Y848        RAMD32 (Prop_E6LUT_SLICEM_CLK_O)
+                                                      0.333     0.333 r  reconfigurable pblock_slash         <hidden>
+                         net (fo=1, routed)           1.006     1.339    reconfigurable                      <hidden>
+    SLICE_X42Y882        FDRE                                         r  reconfigurable pblock_slash         <hidden>
+  -------------------------------------------------------------------    -------------------------------------------------------
+
+                         max delay                    5.000     5.000                                        
+    SLICE_X42Y882        FDRE (Setup_AFF_SLICEL_C_D)
+                                                      0.008     5.008    reconfigurable   pblock_slash           <hidden>
+  -------------------------------------------------------------------
+                         required time                          5.008                                            
+                         arrival time                          -1.339                                            
+  -------------------------------------------------------------------
+                         slack                                  3.669                                            
+
+
+
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  clk_wizard_0_clk_out1
+  To Clock:  clkout1_primitive_1
+
+Setup :            0  Failing Endpoints,  Worst Slack        1.771ns,  Total Violation        0.000ns
+Hold  :           NA  Failing Endpoints,  Worst Slack           NA  ,  Total Violation           NA
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             1.771ns  (required time - arrival time)
+  Source:                 <hidden>
+                            (rising edge-triggered cell RAMD32 clocked by clk_wizard_0_clk_out1  {rise@0.000ns fall@1.389ns period=2.778ns})
+  Destination:            <hidden>
+                            (rising edge-triggered cell FDRE clocked by clkout1_primitive_1  {rise@0.000ns fall@2.632ns period=5.263ns})
+  Path Group:             clkout1_primitive_1
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.778ns  (MaxDelay Path 2.778ns)
+  Data Path Delay:        1.014ns  (logic 0.317ns (31.262%)  route 0.697ns (68.738%))
+  Logic Levels:           0  
+  Timing Exception:       MaxDelay Path 2.778ns -datapath_only
+
+    Location             Delay type                Incr(ns)  Path(ns)    Partition      PBlock               Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------------------------------------------
+    SLICE_X57Y806                                     0.000     0.000 r  reconfigurable pblock_slash         <hidden>
+    SLICE_X57Y806        RAMD32 (Prop_F6LUT_SLICEM_CLK_O)
+                                                      0.317     0.317 r  reconfigurable pblock_slash         <hidden>
+                         net (fo=1, routed)           0.697     1.014    reconfigurable                      <hidden>
+    SLICE_X58Y806        FDRE                                         r  reconfigurable pblock_slash         <hidden>
+  -------------------------------------------------------------------    -------------------------------------------------------
+
+                         max delay                    2.778     2.778                                        
+    SLICE_X58Y806        FDRE (Setup_FFF2_SLICEL_C_D)
+                                                      0.007     2.785    reconfigurable   pblock_slash           <hidden>
+  -------------------------------------------------------------------
+                         required time                          2.785                                            
+                         arrival time                          -1.014                                            
+  -------------------------------------------------------------------
+                         slack                                  1.771                                            
+
+
+
+
+

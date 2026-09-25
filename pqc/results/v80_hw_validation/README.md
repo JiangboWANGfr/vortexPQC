@@ -47,3 +47,35 @@ single-request and eight-request byte-exact KATs. Their logs are named
 counters because that image was built without `PERF_ENABLE`. A separate
 instrumented image is required to attribute the extra cycles; its results
 must not be substituted for the uninstrumented performance numbers above.
+
+The `PERF_ENABLE` image was routed with the same architecture and a 200 MHz
+target. Its route report had WNS -0.167 ns at 200 MHz. A diagnostic PDI was
+generated from that routed checkpoint after applying a temporary 190 MHz XDC
+with `read_xdc -no_add`; the 190 MHz report has WNS +0.063 ns, TNS 0, and no
+routing errors. The project constraint-file list was unchanged. This PDI was
+loaded once, then tested at 150 and 190 MHz by changing only the user clock
+and vbin clock metadata. Both clock rates were read back from the board.
+
+`mlkem768_perf_150_190mhz_5x.json` indexes five byte-exact ML-KEM-768 arm D
+runs per batch, clock, and profiling class; `collect_perf.py` regenerates it
+from the raw logs. Profiling classes 1, 4, and 7 report core, D-cache, and
+off-chip-memory counters, respectively. The table shows medians; MSHR and
+bank stall counters sum events over cache banks, so they are not exclusive
+wall-clock cycles.
+
+| Batch | Clock | Makespan | Time | D-cache MSHR stalls | D-cache bank stalls | Off-chip reads/writes | Mean off-chip read latency |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| M1 | 150 MHz | 1,719,539 cyc | 11.464 ms | 131,649 | 229,835 | 54,914 / 70,767 | 46.9 cyc / 313 ns |
+| M1 | 190 MHz | 1,838,579 cyc | 9.677 ms | 183,741 | 228,700 | 54,913 / 70,767 | 62.6 cyc / 329 ns |
+| M8 | 150 MHz | 5,130,411 cyc | 34.203 ms | 1,055,341 | 1,841,456 | 445,234 / 686,072 | 47.9 cyc / 319 ns |
+| M8 | 190 MHz | 6,150,652 cyc | 32.372 ms | 1,506,208 | 1,835,587 | 446,410 / 686,072 | 64.1 cyc / 337 ns |
+
+M1 improves 1.185x in elapsed time from 150 to 190 MHz, whereas M8 improves
+only 1.057x. Both retire identical instruction counts at the two clocks.
+The M8 off-chip traffic and D-cache bank stalls remain nearly constant, but
+MSHR stall events rise by 42.7% and average off-chip read latency rises in
+core cycles while staying near 0.3 us in absolute time. This supports memory
+completion latency and MSHR backpressure as the main reason that the batch
+does not scale with core frequency. The counters do not split AXI handshake
+backpressure from HBM service time, and the profiling image is not used for
+the reported 150/200 MHz performance speedups.

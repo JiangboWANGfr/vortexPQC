@@ -1,0 +1,37 @@
+SCHEDULING: requests=1 workers=1 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234004184 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+CODEC_ARM: id=0 polybytes=warp compress=warp
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=warp multi=scalar
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=0
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=0 arm=234004184 keypair=491136 encaps=632796 decaps=714745 total=1838677 start=3073 end=1841750
+CYCLES: keypair=491136 encaps=632796 decaps=714745 total=1838677
+BATCH: requests=1 start=3073 end=1841750 makespan=1838677
+PERF: scheduler: idle=313%, occupancy=1.0 (12%), simt_util=21.9 (68%)
+PERF: stalls: fetch=0%, ibuf=0%, scrb=29%, opds=0%, alu=0%, lsu=0%, sfu=0%
+PERF: inst_mix: alu=75%, lsu=17%, sfu=8%
+PERF: branches: total=10840, divergent=965 (rate=9%)
+PERF: memory: ifetch_lat=4.24, load_lat=75.21, loads=211852, stores=124631
+PERF: instrs=126499, cycles=1842848, IPC=0.069
+PASSED!

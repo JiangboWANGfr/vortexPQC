@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2025.1 (64-bit)
+# SW Build 6140274 on Wed May 21 22:58:25 MDT 2025
+# IP Build 6138677 on Thu May 22 03:10:11 MDT 2025
+# SharedData Build 6139179 on Tue May 20 17:58:58 MDT 2025
+# Start of session at: Fri Sep 25 17:19:46 2026
+# Process ID         : 1085600
+# Current directory  : /home/jiangbowang/aphdcode/vortex_v80/vortexPQC
+# Command line       : vivado -mode batch -source /tmp/v80_pqc_perf_190.tcl -log pqc/results/v80_hw_validation/vivado_perf_route_190mhz.log -journal pqc/results/v80_hw_validation/vivado_perf_route_190mhz.jou
+# Log file           : /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/pqc/results/v80_hw_validation/vivado_perf_route_190mhz.log
+# Journal file       : /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/pqc/results/v80_hw_validation/vivado_perf_route_190mhz.jou
+# Running On         : jiangbowang-ubuntu2404
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.5 LTS
+# Processor Detail   : Intel(R) Core(TM) Ultra 7 265K
+# CPU Frequency      : 798.874 MHz
+# CPU Physical cores : 20
+# CPU Logical cores  : 20
+# Host memory        : 33065 MB
+# Swap memory        : 62277 MB
+# Total Virtual      : 95342 MB
+# Available Virtual  : 89109 MB
+#-----------------------------------------------------------
+source /tmp/v80_pqc_perf_190.tcl

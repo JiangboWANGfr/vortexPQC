@@ -1,0 +1,6 @@
+Vbin build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_perf_aved_hw/bin/vortex_afu_perf_150metadata.vbin:
+    Platform: HARDWARE
+    Clock frequency: 150000000
+    Kernel:
+        Name: vortex_afu_0
+        Physical address: 0x20200000000
