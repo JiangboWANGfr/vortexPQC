@@ -3,6 +3,13 @@ include $(ROOT_DIR)/config.mk
 
 PROJECT := mldsa_profile
 
+PARAM ?= 65
+ifeq ($(filter $(PARAM),44 65 87),)
+$(error PARAM must be one of 44 65 87)
+endif
+VX_CFLAGS += -DMLD_CONFIG_PARAMETER_SET=$(PARAM)
+CXXFLAGS += -DMLD_CONFIG_PARAMETER_SET=$(PARAM)
+
 SRC_DIR := $(VORTEX_HOME)/tests/pqc/$(PROJECT)
 
 MLDSA_DIR := $(VORTEX_HOME)/pqc/third_party/mldsa-native
@@ -61,6 +68,66 @@ endif
 	CXXFLAGS += -DPQC_NTTBF_D
 else ifneq ($(NTTBF),)
 $(error NTTBF must be ise or unset)
+endif
+
+ifneq ($(SAMPLER),)
+ifneq ($(NTT),reg32)
+$(error SAMPLER requires NTT=reg32)
+endif
+endif
+ifeq ($(SAMPLER),warp)
+	VX_CFLAGS += -DPQC_REJ_WARP
+	CXXFLAGS += -DPQC_REJ_WARP
+else ifeq ($(SAMPLER),all)
+	VX_CFLAGS += -DPQC_REJ_WARP -DPQC_REJ_ETA_WARP
+	CXXFLAGS += -DPQC_REJ_WARP -DPQC_REJ_ETA_WARP
+else ifneq ($(SAMPLER),)
+$(error SAMPLER must be warp, all, or unset)
+endif
+
+ifeq ($(SHAKE_EXTRACT),warp)
+ifeq ($(filter sg25 kround,$(KECCAK)),)
+$(error SHAKE_EXTRACT=warp requires KECCAK=sg25 or kround)
+endif
+	VX_CFLAGS += -DPQC_SHAKE_EXTRACT_WARP
+	CXXFLAGS += -DPQC_SHAKE_EXTRACT_WARP
+else ifneq ($(SHAKE_EXTRACT),)
+$(error SHAKE_EXTRACT must be warp or unset)
+endif
+
+ifneq ($(SIGN_ARITH),)
+ifneq ($(NTT),reg32)
+$(error SIGN_ARITH requires NTT=reg32)
+endif
+endif
+ifeq ($(SIGN_ARITH),warp)
+	SIGN_ARITH_FLAGS := -DPQC_SIGN_DECOMPOSE_WARP -DPQC_SIGN_HINT_WARP \
+	                    -DPQC_SIGN_CHKNORM_WARP -DPQC_SIGN_CADDQ_WARP \
+	                    -DPQC_SIGN_ZUNPACK_WARP
+else ifeq ($(SIGN_ARITH),decompose)
+	SIGN_ARITH_FLAGS := -DPQC_SIGN_DECOMPOSE_WARP
+else ifeq ($(SIGN_ARITH),hint)
+	SIGN_ARITH_FLAGS := -DPQC_SIGN_HINT_WARP
+else ifeq ($(SIGN_ARITH),chknorm)
+	SIGN_ARITH_FLAGS := -DPQC_SIGN_CHKNORM_WARP
+else ifeq ($(SIGN_ARITH),caddq)
+	SIGN_ARITH_FLAGS := -DPQC_SIGN_CADDQ_WARP
+else ifeq ($(SIGN_ARITH),zunpack)
+	SIGN_ARITH_FLAGS := -DPQC_SIGN_ZUNPACK_WARP
+else ifneq ($(SIGN_ARITH),)
+$(error SIGN_ARITH must be warp, decompose, hint, chknorm, caddq, zunpack, or unset)
+endif
+VX_CFLAGS += $(SIGN_ARITH_FLAGS)
+CXXFLAGS += $(SIGN_ARITH_FLAGS)
+
+ifeq ($(ZEROIZE),warp)
+ifneq ($(NTT),reg32)
+$(error ZEROIZE=warp requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_ZEROIZE_WARP
+	CXXFLAGS += -DPQC_ZEROIZE_WARP
+else ifneq ($(ZEROIZE),)
+$(error ZEROIZE must be warp or unset)
 endif
 
 ifeq ($(POINTWISE),ise)
@@ -125,6 +192,21 @@ endif
 VX_CFLAGS += $(ABLATE_FLAGS)
 CXXFLAGS  += $(ABLATE_FLAGS)
 
+ifeq ($(STOP_AFTER),keypair)
+	STOP_AFTER_FLAGS := -DPQC_KEYPAIR_ONLY
+else ifeq ($(STOP_AFTER),sign)
+	STOP_AFTER_FLAGS := -DPQC_STOP_AFTER_SIGN
+else ifneq ($(STOP_AFTER),)
+$(error STOP_AFTER must be keypair, sign, or unset)
+endif
+ifneq ($(ABLATE),)
+ifneq ($(STOP_AFTER),)
+$(error STOP_AFTER cannot be combined with ABLATE)
+endif
+endif
+VX_CFLAGS += $(STOP_AFTER_FLAGS)
+CXXFLAGS  += $(STOP_AFTER_FLAGS)
+
 # The host binary reads kernel_arg_t out of these; without them a layout
 # change rebuilds the kernel and leaves the host on the old struct.
 HDRS := $(SRC_DIR)/common.h $(SRC_DIR)/host_reference.h \
@@ -143,8 +225,8 @@ $(error MLDSA_RAM must be low or full -- got '$(MLDSA_RAM)')
 endif
 
 ifeq ($(PROFILE_PHASES),1)
-ifneq ($(KECCAK),pe)
-$(error PROFILE_PHASES=1 requires KECCAK=pe)
+ifeq ($(filter pe sg25 sg25_sw kround,$(KECCAK)),)
+$(error PROFILE_PHASES=1 requires an instrumented Keccak backend)
 endif
 ifneq ($(NTT),reg32)
 $(error PROFILE_PHASES=1 requires NTT=reg32)
@@ -161,10 +243,20 @@ VX_HDRS := $(HDRS) $(SRC_DIR)/mld_prof_fips202.h \
            $(VORTEX_HOME)/tests/pqc/mldsa/mld_vortex_alloc.h
 ifeq ($(NTT),reg32)
 VX_HDRS += $(SRC_DIR)/mld_ntt_reg32.h \
+           $(VORTEX_HOME)/tests/pqc/mldsa_ntt_reg32.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h
+endif
+ifeq ($(SAMPLER),warp)
+VX_HDRS += $(SRC_DIR)/mld_rej_warp.h
 endif
 ifneq ($(filter ise w32,$(POINTWISE) $(POINTWISE_L5)),)
 VX_HDRS += $(SRC_DIR)/mld_pointwise_w32.h
+endif
+ifneq ($(SIGN_ARITH),)
+VX_HDRS += $(SRC_DIR)/mld_sign_w32.h
+endif
+ifeq ($(ZEROIZE),warp)
+VX_HDRS += $(SRC_DIR)/mld_zeroize_w32.h
 endif
 ifneq ($(filter sg25 sg25_sw kround,$(KECCAK)),)
 VX_HDRS += $(SRC_DIR)/mld_sg25.h \

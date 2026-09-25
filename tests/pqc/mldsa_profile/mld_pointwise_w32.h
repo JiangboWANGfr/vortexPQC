@@ -42,7 +42,7 @@ extern "C" __attribute__((noinline, used)) void mld_profile_pointwise_lanes() {
     for (unsigned k = 0; k < 8; ++k) {
       const unsigned i = lane + 32 * k;
       int64_t sum = 0;
-      for (unsigned j = 0; j < 5; ++j)
+      for (unsigned j = 0; j < MLD_PROFILE_L; ++j)
         sum += (int64_t)u[j][i] * v[j][i];
       a[i] = mld_prof_montgomery_reduce(sum);
     }
@@ -88,15 +88,16 @@ extern "C" void mld_profile_pointwise(int32_t* a, const int32_t* b) {
 #if defined(PQC_POINTWISE_L5_W32)
   mld_pointwise_l5_mode[slot] = 0;
 #endif
+  vx_fence();
   __syncthreads();
   mld_profile_pointwise_expand();
 }
 #endif
 
 #if defined(PQC_POINTWISE_L5_W32)
-extern "C" void mld_profile_pointwise_l5(int32_t* w,
-                                          const int32_t u[5][256],
-                                          const int32_t v[5][256]) {
+extern "C" void mld_profile_pointwise_acc(int32_t* w,
+                                          const int32_t u[MLD_PROFILE_L][256],
+                                          const int32_t v[MLD_PROFILE_L][256]) {
   const unsigned slot = mld_prof_slot();
   mld_pointwise_a[slot] = w;
   mld_pointwise_u[slot] = u;
@@ -104,6 +105,7 @@ extern "C" void mld_profile_pointwise_l5(int32_t* w,
 #if defined(PQC_POINTWISE_ISE)
   mld_pointwise_l5_mode[slot] = 1;
 #endif
+  vx_fence();
   __syncthreads();
   mld_profile_pointwise_expand();
 }

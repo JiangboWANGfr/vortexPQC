@@ -3,6 +3,13 @@ include $(ROOT_DIR)/config.mk
 
 PROJECT := mlkem_profile
 
+PARAM ?= 768
+ifeq ($(filter $(PARAM),512 768 1024),)
+$(error PARAM must be one of 512 768 1024)
+endif
+VX_CFLAGS += -DMLK_CONFIG_PARAMETER_SET=$(PARAM)
+CXXFLAGS += -DMLK_CONFIG_PARAMETER_SET=$(PARAM)
+
 SRC_DIR := $(VORTEX_HOME)/tests/pqc/$(PROJECT)
 
 MLKEM_DIR := $(VORTEX_HOME)/pqc/third_party/mlkem-native
@@ -105,6 +112,26 @@ else ifneq ($(ARITH_MUL),)
 $(error ARITH_MUL must be ise or unset)
 endif
 
+ifeq ($(LINEAR),warp)
+ifneq ($(NTT),reg32)
+$(error LINEAR=warp requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_LINEAR_WARP
+	CXXFLAGS  += -DPQC_LINEAR_WARP
+else ifneq ($(LINEAR),)
+$(error LINEAR must be warp or unset)
+endif
+
+ifeq ($(ZEROIZE),warp)
+ifneq ($(NTT),reg32)
+$(error ZEROIZE=warp requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_ZEROIZE_WARP
+	CXXFLAGS  += -DPQC_ZEROIZE_WARP
+else ifneq ($(ZEROIZE),)
+$(error ZEROIZE must be warp or unset)
+endif
+
 ifneq ($(NTT),)
 ifneq ($(filter coop reg32 smem32,$(NTT)),$(NTT))
 $(error NTT must be coop, reg32, smem32, or unset -- got '$(NTT)')
@@ -141,6 +168,42 @@ endif
 	CXXFLAGS  += -DPQC_NTTBF_K
 else ifneq ($(NTTBF),)
 $(error NTTBF must be ise or unset -- got '$(NTTBF)')
+endif
+
+ifeq ($(SAMPLER),warp)
+ifneq ($(NTT),reg32)
+$(error SAMPLER=warp requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_REJ_WARP
+	CXXFLAGS  += -DPQC_REJ_WARP
+else ifneq ($(SAMPLER),)
+$(error SAMPLER must be warp or unset)
+endif
+
+ifeq ($(CODEC),warp)
+ifneq ($(NTT),reg32)
+$(error CODEC=warp requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_CODEC_WARP
+	CXXFLAGS  += -DPQC_CODEC_WARP
+else ifeq ($(CODEC),all)
+ifneq ($(NTT),reg32)
+$(error CODEC=all requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_CODEC_WARP -DPQC_CODEC_COMPRESS_WARP
+	CXXFLAGS  += -DPQC_CODEC_WARP -DPQC_CODEC_COMPRESS_WARP
+else ifneq ($(CODEC),)
+$(error CODEC must be warp, all, or unset)
+endif
+
+ifeq ($(NOISE),warp)
+ifneq ($(NTT),reg32)
+$(error NOISE=warp requires NTT=reg32)
+endif
+	VX_CFLAGS += -DPQC_NOISE_WARP
+	CXXFLAGS  += -DPQC_NOISE_WARP
+else ifneq ($(NOISE),)
+$(error NOISE must be warp or unset)
 endif
 
 ifeq ($(PROFILE_ARITH),1)
@@ -190,6 +253,20 @@ VX_HDRS := $(HDRS) $(SRC_DIR)/mlk_prof_arith.h \
            $(VORTEX_HOME)/tests/pqc/mlkem_coop_arith.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_ntt.h \
            $(VORTEX_HOME)/sw/kernel/include/pqc/vx_pqc_defs.h
+ifeq ($(CODEC),warp)
+VX_HDRS += $(SRC_DIR)/mlk_codec_w32.h
+else ifeq ($(CODEC),all)
+VX_HDRS += $(SRC_DIR)/mlk_codec_w32.h
+endif
+ifeq ($(NOISE),warp)
+VX_HDRS += $(SRC_DIR)/mlk_noise_w32.h
+endif
+ifeq ($(LINEAR),warp)
+VX_HDRS += $(SRC_DIR)/mlk_linear_w32.h
+endif
+ifeq ($(ZEROIZE),warp)
+VX_HDRS += $(SRC_DIR)/mlk_zeroize_w32.h
+endif
 ifneq ($(filter sg25 sg25_sw kround,$(KECCAK)),)
 VX_HDRS += $(SRC_DIR)/profile_sg25_fips202.h \
            $(VORTEX_HOME)/tests/pqc/mlkem_width/sg25_fips202.h

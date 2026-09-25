@@ -80,6 +80,7 @@ static inline void mlk_arith_dispatch(unsigned operation, int16_t* output,
   args.b = b;
   args.cache = cache;
   args.operation = operation;
+  vx_fence();
   __syncthreads();
   mlk_profile_arith_expand();
 }

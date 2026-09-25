@@ -16,6 +16,25 @@
 
 #include "vortex_mlkem_config.h"
 
+#if defined(PQC_ZEROIZE_WARP) && defined(__VORTEX__) && !defined(__ASSEMBLER__)
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include <VX_config.h>
+#include <vx_intrinsics.h>
+#define MLK_CONFIG_CUSTOM_ZEROIZE
+extern uint32_t mlk_zeroize_parallel[VX_CFG_NUM_WARPS];
+void mlk_profile_zeroize_warp(void* ptr, size_t len);
+static inline void mlk_zeroize(void* ptr, size_t len) {
+  if (mlk_zeroize_parallel[vx_warp_id()]) {
+    mlk_profile_zeroize_warp(ptr, len);
+  } else {
+    memset(ptr, 0, len);
+    asm volatile ("" : : "r"(ptr) : "memory");
+  }
+}
+#endif
+
 #if defined(PQC_SERIAL_FIPS202_ONLY) || defined(PQC_KECCAK_SG25)
 #define MLK_CONFIG_SERIAL_FIPS202_ONLY
 #endif

@@ -3,8 +3,6 @@
 
 #include <vx_pqc.h>
 
-static_assert(MLKEM_K == 3, "W32 basemul requires ML-KEM-768");
-
 template<bool UseNTTMUL>
 static inline void mlk_mulcache_w32(int16_t* x, const int16_t* a, unsigned lane) {
   for (unsigned i = lane; i < MLKEM_N / 4; i += 32) {
@@ -24,7 +22,7 @@ static inline void mlk_basemul_w32(int16_t* r, const int16_t* a,
   for (unsigned i = lane; i < MLKEM_N / 2; i += 32) {
     int32_t t0 = 0;
     int32_t t1 = 0;
-    for (unsigned k = 0; k < 3; ++k) {
+    for (unsigned k = 0; k < MLKEM_K; ++k) {
       const unsigned offset = k * MLKEM_N + 2 * i;
       const int32_t a0 = a[offset];
       const int32_t a1 = a[offset + 1];

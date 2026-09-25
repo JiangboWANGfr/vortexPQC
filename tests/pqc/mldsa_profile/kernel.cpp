@@ -21,15 +21,23 @@ extern "C" {
 #if defined(PQC_NTT_REG32)
 #include "mld_ntt_reg32.h"
 #endif
+#if defined(PQC_REJ_WARP)
+#include "mld_rej_warp.h"
+#endif
 #if defined(PQC_POINTWISE_ISE) || defined(PQC_POINTWISE_L5_W32)
 #include "mld_pointwise_w32.h"
 #endif
+#if defined(PQC_SIGN_DECOMPOSE_WARP) || defined(PQC_SIGN_HINT_WARP) || \
+    defined(PQC_SIGN_CHKNORM_WARP) || defined(PQC_SIGN_CADDQ_WARP) || \
+    defined(PQC_SIGN_ZUNPACK_WARP)
+#include "mld_sign_w32.h"
+#endif
+#if defined(PQC_ZEROIZE_WARP)
+#include "mld_zeroize_w32.h"
+#endif
 
 extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* arg) {
-  const unsigned req = blockIdx.x;
-  if (req >= arg->requests) {
-    return;
-  }
+  for (unsigned req = blockIdx.x; req < arg->requests; req += arg->workers) {
 
   auto seed   = reinterpret_cast<const uint8_t*>(arg->seed_addr) + req * MLDSA_SEEDBYTES;
   auto rnd    = reinterpret_cast<const uint8_t*>(arg->rnd_addr) + req * MLDSA_RNDBYTES;
@@ -52,6 +60,9 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
   }
   local_counts[MLD_PROF_ARM] = MLD_ARM_EXPECTED;
   const unsigned slot = mld_prof_slot();
+#if defined(PQC_ZEROIZE_WARP)
+  mld_zeroize_parallel[slot] = arg->workers == 1;
+#endif
   for (unsigned phase = 0; phase < MLDSA_ST_COUNT; ++phase)
     for (unsigned kind = 0; kind < 2; ++kind)
       mld_prof_pointwise_cycles[slot][phase][kind] = 0;
@@ -62,7 +73,7 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
 #endif
 
   // Setup and diagnostics must not overlap another resident request's timing.
-  vx_barrier(1u << 8, arg->requests);
+  vx_barrier(1u << 8, arg->workers);
   uint64_t t0 = vx_rdcycle();
   mld_prof_phase[slot] = MLDSA_ST_KEYPAIR;
   mld_arena_reset();
@@ -87,14 +98,19 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
                                                    nullptr, 0, rnd, sk, 0);
 
   uint64_t t2 = vx_rdcycle();
+#if defined(PQC_STOP_AFTER_SIGN)
+  status[MLDSA_ST_VERIFY] = 0;
+  uint64_t t3 = t2;
+#else
   mld_prof_phase[slot] = MLDSA_ST_VERIFY;
   mld_arena_reset();
   status[MLDSA_ST_VERIFY] = mldsa_verify_internal(sig, msg, MLDSA_MSG_BYTES,
                                                   nullptr, 0, pk, 0);
   uint64_t t3 = vx_rdcycle();
 #endif
+#endif
 
-  vx_barrier(1u << 8, arg->requests);
+  vx_barrier(1u << 8, arg->workers);
   cycles[MLDSA_CY_START] = t0;
   cycles[MLDSA_CY_END] = t3;
 
@@ -122,6 +138,7 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
       pointwise_cycles[MLDSA_POINTWISE_CY_COUNT + phase * MLD_PHASE_COUNT + kind] =
           mld_prof_detail_cycles[slot][phase][kind];
 #endif
+  }
 }
 
 __kernel __attribute__((naked)) void kernel_main(kernel_arg_t*) {

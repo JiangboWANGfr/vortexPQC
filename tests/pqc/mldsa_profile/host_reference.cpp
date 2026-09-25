@@ -2,7 +2,9 @@
 
 // Keep the oracle independent of the device's native hooks and arena.
 #undef MLD_CONFIG_FILE
+#ifndef MLD_CONFIG_PARAMETER_SET
 #define MLD_CONFIG_PARAMETER_SET 65
+#endif
 #define MLD_CONFIG_NAMESPACE_PREFIX mldsa_ref
 #define MLD_CONFIG_NO_RANDOMIZED_API
 extern "C" {

@@ -11,9 +11,9 @@
 #ifndef VORTEX_MLDSA_CONFIG_H
 #define VORTEX_MLDSA_CONFIG_H
 
-// ML-DSA-65: the FIPS 204 parameter set at NIST level 3, matching ML-KEM-768
-// so the two baselines sit at the same security level and their costs compare.
+#ifndef MLD_CONFIG_PARAMETER_SET
 #define MLD_CONFIG_PARAMETER_SET 65
+#endif
 
 #define MLD_CONFIG_NAMESPACE_PREFIX mldsa
 

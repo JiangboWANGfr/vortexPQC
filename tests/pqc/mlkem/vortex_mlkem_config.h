@@ -15,9 +15,9 @@
 #ifndef VORTEX_MLKEM_CONFIG_H
 #define VORTEX_MLKEM_CONFIG_H
 
-// ML-KEM-768: the FIPS 203 parameter set at the security level most deployments
-// pick, and the middle of the three for area/latency purposes.
+#ifndef MLK_CONFIG_PARAMETER_SET
 #define MLK_CONFIG_PARAMETER_SET 768
+#endif
 
 // Public symbols become mlkem_keypair_derand, mlkem_enc_derand, mlkem_dec.
 #define MLK_CONFIG_NAMESPACE_PREFIX mlkem

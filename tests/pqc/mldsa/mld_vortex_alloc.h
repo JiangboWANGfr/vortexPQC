@@ -33,9 +33,17 @@
                    VX_CFG_NUM_WARPS * VX_CFG_NUM_THREADS)
 // Materializing A needs a larger budget than lazy matrix expansion.
 #if defined(PQC_MLDSA_RAM_FULL)
+#if MLD_CONFIG_PARAMETER_SET == 87
+#define MLD_ARENA_BYTES 163840u
+#else
 #define MLD_ARENA_BYTES 90112u
+#endif
+#else
+#if MLD_CONFIG_PARAMETER_SET == 87
+#define MLD_ARENA_BYTES 32768u
 #else
 #define MLD_ARENA_BYTES 24576u
+#endif
 #endif
 #define MLD_ARENA_ALIGN 32u
 #if defined(PQC_MLDSA_WARP_REQUEST)

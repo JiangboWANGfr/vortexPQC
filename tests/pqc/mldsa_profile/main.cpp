@@ -5,7 +5,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// mldsa_profile -- exact primitive call counts for one ML-DSA-65 round trip,
+// mldsa_profile -- exact primitive call counts for one ML-DSA round trip,
 // and the ablation that measures each primitive's share directly.
 //
 // Same three operations as the mldsa baseline, with the counting backends
@@ -75,20 +75,22 @@ static void fill_input(uint32_t id, uint8_t* seed, uint8_t* rnd, uint8_t* msg) {
 int main(int argc, char** argv) {
     const char* kernel_file = "kernel.vxbin";
     uint32_t requests = 1;
+    uint32_t workers = 0;
     uint32_t input_id = 0;
     int c;
-    while ((c = getopt(argc, argv, "k:b:s:h")) != -1) {
+    while ((c = getopt(argc, argv, "k:b:s:w:h")) != -1) {
         switch (c) {
         case 'k': kernel_file = optarg; break;
         case 'b': requests = parse_u32(optarg); break;
+        case 'w': workers = parse_u32(optarg); break;
         case 's': input_id = parse_u32(optarg); break;
         default:
-            std::cout << "Usage: [-k kernel] [-b requests] [-s first-input-id] [-h]\n";
+            std::cout << "Usage: [-k kernel] [-b requests] [-w resident-workers] [-s first-input-id] [-h]\n";
             return c == 'h' ? 0 : 1;
         }
     }
-    if (!requests || requests > VX_CFG_NUM_WARPS || input_id > UINT32_MAX - (requests - 1)) {
-        std::fprintf(stderr, "Batch must fit the resident warp count and input IDs must not wrap\n");
+    if (!requests || input_id > UINT32_MAX - (requests - 1)) {
+        std::fprintf(stderr, "Batch must be nonzero and input IDs must not wrap\n");
         return 1;
     }
 
@@ -98,11 +100,19 @@ int main(int argc, char** argv) {
               << " sig=" << MLDSA_SIG_BYTES << std::endl;
 
     STEP("device_open");
+    if (!workers) workers = requests < VX_CFG_NUM_WARPS ? requests : VX_CFG_NUM_WARPS;
+    if (workers > requests || workers > VX_CFG_NUM_WARPS || requests % workers != 0) {
+        std::fprintf(stderr, "Requests must be a multiple of 1..NUM_WARPS resident workers\n");
+        return 1;
+    }
+    std::printf("SCHEDULING: requests=%u workers=%u waves=%u\n",
+                requests, workers, requests / workers);
+
     vx_device_h dev = nullptr;
     CHECK(vx_device_open(0, &dev));
     const pqc::config cfg = pqc::print_config(dev, requests, VX_CFG_NUM_THREADS);
     if (cfg.cores != 1 || cfg.threads != VX_CFG_NUM_THREADS ||
-        pqc::require_slots(cfg, requests, VX_CFG_NUM_THREADS) != 0) {
+        pqc::require_slots(cfg, workers, VX_CFG_NUM_THREADS) != 0) {
         std::fprintf(stderr, "Batch timing requires one core and matching resident warps\n");
         vx_device_release(dev);
         return 1;
@@ -132,6 +142,7 @@ int main(int argc, char** argv) {
 
     kernel_arg_t arg{};
     arg.requests = requests;
+    arg.workers = workers;
     uint64_t* slots[] = { &arg.seed_addr, &arg.rnd_addr, &arg.msg_addr,
                           &arg.pk_addr, &arg.sk_addr, &arg.sig_addr,
                           &arg.status_addr, &arg.cycles_addr, &arg.arena_addr,
@@ -164,7 +175,7 @@ int main(int argc, char** argv) {
     vx_launch_info_t li{};
     li.struct_size = sizeof(li); li.kernel = kern;
     li.args_host = &arg; li.args_size = sizeof(arg);
-    li.ndim = 1; li.grid_dim[0] = requests; li.block_dim[0] = VX_CFG_NUM_THREADS;
+    li.ndim = 1; li.grid_dim[0] = workers; li.block_dim[0] = VX_CFG_NUM_THREADS;
     vx_event_h lev = nullptr;
     CHECK(vx_enqueue_launch(q, &li, 0, nullptr, &lev));
 
@@ -185,6 +196,20 @@ int main(int argc, char** argv) {
     CHECK(vx_event_wait_value(e3, 1, VX_TIMEOUT_INFINITE));
     CHECK(vx_event_wait_value(e4, 1, VX_TIMEOUT_INFINITE));
     CHECK(vx_event_wait_value(e5, 1, VX_TIMEOUT_INFINITE));
+
+    std::vector<uint8_t> h_pk(requests * MLDSA_PK_BYTES);
+    std::vector<uint8_t> h_sk(requests * MLDSA_SK_BYTES);
+    std::vector<uint8_t> h_sig(requests * MLDSA_SIG_BYTES);
+    auto read_output = [&](std::vector<uint8_t>& output, vx_buffer_h buffer) {
+        vx_event_h read = nullptr;
+        CHECK(vx_enqueue_read(q, output.data(), buffer, 0, output.size(),
+                              1, &lev, &read));
+        CHECK(vx_event_wait_value(read, 1, VX_TIMEOUT_INFINITE));
+        vx_event_release(read);
+    };
+    read_output(h_pk, bufs[3].h);
+    read_output(h_sk, bufs[4].h);
+    read_output(h_sig, bufs[5].h);
 
     STEP("verify");
     int errors = 0;
@@ -218,19 +243,35 @@ int main(int argc, char** argv) {
             ++errors;
         } else {
             const std::vector<uint8_t>* reference[] = { &ref_pk, &ref_sk, &ref_sig };
+            const std::vector<uint8_t>* output[] = { &h_pk, &h_sk, &h_sig };
             const char* names[] = { "pk", "sk", "signature" };
-            for (int i = 0; i < 3; ++i) {
-                std::vector<uint8_t> got(reference[i]->size());
-                vx_event_h read = nullptr;
-                CHECK(vx_enqueue_read(q, got.data(), bufs[3+i].h, req * got.size(), got.size(), 1, &lev, &read));
-                CHECK(vx_event_wait_value(read, 1, VX_TIMEOUT_INFINITE));
-                vx_event_release(read);
-                if (got != *reference[i]) {
-                    std::printf("*** %s differs from portable host reference\n", names[i]);
+#if defined(PQC_KEYPAIR_ONLY)
+            const int reference_count = 2;
+#else
+            const int reference_count = 3;
+#endif
+            for (int i = 0; i < reference_count; ++i) {
+                const size_t size = reference[i]->size();
+                const auto begin = output[i]->begin() + req * size;
+                const auto end = begin + size;
+                if (!std::equal(begin, end, reference[i]->begin())) {
+                    const auto mismatch = std::mismatch(begin, end,
+                                                        reference[i]->begin());
+                    const size_t offset = mismatch.first - begin;
+                    std::printf("*** %s differs from portable host reference at byte %zu: "
+                                "got=0x%02x expected=0x%02x\n",
+                                names[i], offset, unsigned(*mismatch.first),
+                                unsigned((*reference[i])[offset]));
                     ++errors;
                 }
             }
-            if (!errors) std::printf("REFERENCE: pk/sk/signature match portable C byte-for-byte\n");
+            if (!errors) {
+#if defined(PQC_KEYPAIR_ONLY)
+                std::printf("REFERENCE: pk/sk match portable C byte-for-byte\n");
+#else
+                std::printf("REFERENCE: pk/sk/signature match portable C byte-for-byte\n");
+#endif
+            }
         }
 #endif
         if (ar[1] != 0) {
@@ -251,11 +292,14 @@ int main(int argc, char** argv) {
             ++errors;
         }
 #if defined(PQC_KEYPAIR_ONLY)
-        if (cy[MLDSA_CY_KEYPAIR] == 0) { std::printf("*** keypair measured zero cycles\n"); ++errors; }
+        const int measured_phases = 1;
+#elif defined(PQC_STOP_AFTER_SIGN)
+        const int measured_phases = 2;
 #else
-        for (int i = 0; i < MLDSA_ST_COUNT; ++i)
-            if (cy[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
+        const int measured_phases = MLDSA_ST_COUNT;
 #endif
+        for (int i = 0; i < measured_phases; ++i)
+            if (cy[i] == 0) { std::printf("*** phase %d measured zero cycles\n", i); ++errors; }
 
         if (ar[2] == 0) {
             std::printf("*** stack watermark is zero -- the probe never ran\n");
@@ -295,6 +339,19 @@ int main(int argc, char** argv) {
                     (dev_arm & MLD_ARM_POINTWISE_L5_W32) ? "w32" : "c",
                     (dev_arm & MLD_ARM_ABLATE_KECCAK) ? "keccak"
                       : (dev_arm & MLD_ARM_ABLATE_NTT) ? "ntt" : "none");
+        std::printf("SAMPLER_ARM: matrix=%s eta=%s\n",
+                    (dev_arm & MLD_ARM_REJ_WARP) ? "warp" : "scalar",
+                    (dev_arm & MLD_ARM_REJ_ETA_WARP) ? "warp" : "scalar");
+        std::printf("SHAKE_EXTRACT_ARM: x4=%s\n",
+                    (dev_arm & MLD_ARM_SHAKE_EXTRACT_WARP) ? "warp" : "scalar");
+        std::printf("SIGN_ARITH_ARM: decompose=%s hint=%s chknorm=%s caddq=%s zunpack=%s\n",
+                    (dev_arm & MLD_ARM_SIGN_DECOMPOSE_WARP) ? "warp" : "scalar",
+                    (dev_arm & MLD_ARM_SIGN_HINT_WARP) ? "warp" : "scalar",
+                    (dev_arm & MLD_ARM_SIGN_CHKNORM_WARP) ? "warp" : "scalar",
+                    (dev_arm & MLD_ARM_SIGN_CADDQ_WARP) ? "warp" : "scalar",
+                    (dev_arm & MLD_ARM_SIGN_ZUNPACK_WARP) ? "warp" : "scalar");
+        std::printf("ZEROIZE_ARM: single=%s multi=scalar\n",
+                    (dev_arm & MLD_ARM_ZEROIZE_WARP) ? "warp" : "scalar");
         if (dev_arm != host_arm) {
             std::printf("*** arm mismatch: device 0x%x, host 0x%x -- one side was "
                         "built without the other's flags\n", dev_arm, host_arm);
@@ -316,16 +373,18 @@ int main(int argc, char** argv) {
 #if defined(PQC_PROFILE_PHASES)
             const auto detail = pw + MLDSA_POINTWISE_CY_COUNT + phase * MLD_PHASE_COUNT;
             const uint64_t named = detail[MLD_PHASE_PERMUTE] + detail[MLD_PHASE_NTT]
-                                 + detail[MLD_PHASE_INTT] + simple + l5;
+                                 + detail[MLD_PHASE_INTT]
+                                 + detail[MLD_PHASE_ZEROIZE] + simple + l5;
             if (named > cy[phase]) {
                 std::printf("*** phase detail exceeds %s interval\n", phase_name[phase]);
                 ++errors;
             }
-            std::printf("DETAIL: phase=%s permute=%llu ntt=%llu intt=%llu pointwise=%llu residual=%llu total=%llu\n",
+            std::printf("DETAIL: phase=%s permute=%llu ntt=%llu intt=%llu zeroize=%llu pointwise=%llu residual=%llu total=%llu\n",
                         phase_name[phase],
                         (unsigned long long)detail[MLD_PHASE_PERMUTE],
                         (unsigned long long)detail[MLD_PHASE_NTT],
                         (unsigned long long)detail[MLD_PHASE_INTT],
+                        (unsigned long long)detail[MLD_PHASE_ZEROIZE],
                         (unsigned long long)(simple + l5),
                         (unsigned long long)(named <= cy[phase] ? cy[phase] - named : 0),
                         (unsigned long long)cy[phase]);

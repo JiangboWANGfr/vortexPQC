@@ -1,4 +1,4 @@
-// Primitive call counts and optional cooperative paths for an ML-KEM-768 round trip.
+// Primitive call counts and optional cooperative paths for an ML-KEM round trip.
 //
 // Sources are included per-file rather than through mlkem_native.c so the
 // counter array stays reachable; see tests/pqc/mlkem_microbench/kernel.cpp for why
@@ -7,10 +7,66 @@ extern "C" {
 #include "src/common.h"
 #include "src/compress.c"
 #include "src/debug.c"
+#if defined(PQC_LINEAR_WARP)
+#include "src/poly_k.h"
+void mlk_profile_polyvec_tomont(mlk_polyvec* r);
+void mlk_profile_polyvec_add(mlk_polyvec* r, const mlk_polyvec* b);
+void mlk_profile_poly_add(mlk_poly* r, const mlk_poly* b);
+void mlk_profile_poly_sub(mlk_poly* r, const mlk_poly* b);
+void mlk_profile_poly_frommsg(mlk_poly* r, const uint8_t* msg);
+void mlk_profile_poly_tomsg(uint8_t* msg, const mlk_poly* r);
+#undef mlk_polyvec_tomont
+#define mlk_polyvec_tomont mlk_profile_polyvec_tomont
+#undef mlk_polyvec_add
+#define mlk_polyvec_add mlk_profile_polyvec_add
+#undef mlk_poly_add
+#define mlk_poly_add mlk_profile_poly_add
+#undef mlk_poly_sub
+#define mlk_poly_sub mlk_profile_poly_sub
+#undef mlk_poly_frommsg
+#define mlk_poly_frommsg mlk_profile_poly_frommsg
+#undef mlk_poly_tomsg
+#define mlk_poly_tomsg mlk_profile_poly_tomsg
+#endif
 #include "src/indcpa.c"
+#if defined(PQC_LINEAR_WARP)
+#undef mlk_polyvec_tomont
+#define mlk_polyvec_tomont MLK_NAMESPACE(polyvec_tomont)
+#undef mlk_polyvec_add
+#define mlk_polyvec_add MLK_NAMESPACE(polyvec_add)
+#undef mlk_poly_add
+#define mlk_poly_add MLK_NAMESPACE(poly_add)
+#undef mlk_poly_sub
+#define mlk_poly_sub MLK_NAMESPACE(poly_sub)
+#undef mlk_poly_frommsg
+#define mlk_poly_frommsg MLK_NAMESPACE(poly_frommsg)
+#undef mlk_poly_tomsg
+#define mlk_poly_tomsg MLK_NAMESPACE(poly_tomsg)
+#endif
 #include "src/kem.c"
 #include "src/poly.c"
+#if defined(PQC_NOISE_WARP)
+#include "src/sampling.h"
+void mlk_profile_poly_cbd2(mlk_poly* r, const uint8_t* buf);
+#if MLKEM_ETA1 == 3
+void mlk_profile_poly_cbd3(mlk_poly* r, const uint8_t* buf);
+#endif
+#undef mlk_poly_cbd2
+#define mlk_poly_cbd2 mlk_profile_poly_cbd2
+#if MLKEM_ETA1 == 3
+#undef mlk_poly_cbd3
+#define mlk_poly_cbd3 mlk_profile_poly_cbd3
+#endif
+#endif
 #include "src/poly_k.c"
+#if defined(PQC_NOISE_WARP)
+#undef mlk_poly_cbd2
+#define mlk_poly_cbd2 MLK_NAMESPACE(poly_cbd2)
+#if MLKEM_ETA1 == 3
+#undef mlk_poly_cbd3
+#define mlk_poly_cbd3 MLK_NAMESPACE(poly_cbd3)
+#endif
+#endif
 #include "src/sampling.c"
 #include "src/verify.c"
 #if !defined(PQC_KECCAK_SG25)
@@ -171,6 +227,18 @@ static_assert(VX_CFG_NUM_THREADS == 32 && VX_CFG_SIMD_WIDTH == 32 &&
 #if defined(PQC_NTT_COOP)
 #include "mlkem_coop_ntt.h"
 #include "mlk_coop_dispatch.h"
+#if defined(PQC_CODEC_WARP)
+#include "mlk_codec_w32.h"
+#endif
+#if defined(PQC_NOISE_WARP)
+#include "mlk_noise_w32.h"
+#endif
+#if defined(PQC_LINEAR_WARP)
+#include "mlk_linear_w32.h"
+#endif
+#if defined(PQC_ZEROIZE_WARP)
+#include "mlk_zeroize_w32.h"
+#endif
 
 extern "C" __attribute__((noinline, used)) void mlk_profile_main(kernel_arg_t* arg) {
 #else
@@ -179,10 +247,8 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
 #if defined(PQC_KECCAK_SG25) && !defined(PQC_NTT_COOP)
   vx_tmc_one();
 #endif
-  const unsigned req = blockIdx.x;
-  if (req >= arg->requests || threadIdx.x != 0) {
-    return;
-  }
+  if (threadIdx.x != 0) return;
+  for (unsigned req = blockIdx.x; req < arg->requests; req += arg->workers) {
 
   auto s      = reinterpret_cast<uint8_t*>(arg->scratch_addr) + req * P_SCRATCH_LEN;
   auto counts = reinterpret_cast<uint32_t*>(arg->counts_addr) + req * MLK_PROF_COUNT;
@@ -208,8 +274,14 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
 #if defined(PQC_NTT_COOP)
   mlk_coop_args[vx_warp_id()].lanes = arg->ntt_lanes;
 #endif
+#if defined(PQC_ZEROIZE_WARP)
+  mlk_zeroize_parallel[vx_warp_id()] = arg->workers == 1;
+#endif
 
   auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr) + req * P_CYCLE_COUNT;
+
+  // Keep setup and result writes outside every resident request's interval.
+  vx_barrier(1u << 8, arg->workers);
 
   // The arena is a bump allocator whose frees are no-ops, so it has to be reset
   // between operations or the three phases accumulate and the third runs out.
@@ -225,6 +297,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   status[2] = mlkem_dec(s + P_OFF_SS_DEC, s + P_OFF_CT, s + P_OFF_SK);
   uint64_t t3 = vx_rdcycle();
 
+  vx_barrier(1u << 8, arg->workers);
   cycles[P_CYCLE_KEYPAIR] = t1 - t0;
   cycles[P_CYCLE_ENCAPS] = t2 - t1;
   cycles[P_CYCLE_DECAPS] = t3 - t2;
@@ -244,6 +317,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
 
   for (int i = 0; i < MLK_PROF_COUNT; ++i) {
     counts[i] = local_counts[i];
+  }
   }
 }
 

@@ -190,6 +190,13 @@ static MLK_INLINE uint64_t mlksg_load_word(const uint8_t *input,
                                             size_t length, unsigned lane) {
   uint64_t value = 0;
   size_t offset = 8u * lane;
+  if (offset + 8 <= length && ((uintptr_t)(input + offset) & 3u) == 0) {
+    uint32_t words[2];
+    const uint8_t *aligned = (const uint8_t *)
+        __builtin_assume_aligned(input + offset, 4);
+    __builtin_memcpy(words, aligned, sizeof(words));
+    return (uint64_t)words[0] | ((uint64_t)words[1] << 32);
+  }
   unsigned i;
   for (i = 0; i < 8 && offset + i < length; ++i) {
     value |= (uint64_t)input[offset + i] << (8 * i);
@@ -201,6 +208,16 @@ static MLK_INLINE void mlksg_extract(uint8_t *output, size_t length,
                                      uint64_t lane_value) {
   const unsigned lane = (unsigned)vx_thread_id();
   size_t offset = 8u * lane;
+  if (offset + 8 <= length && ((uintptr_t)(output + offset) & 3u) == 0) {
+    const uint32_t words[2] = {
+      (uint32_t)lane_value,
+      (uint32_t)(lane_value >> 32),
+    };
+    uint8_t *aligned =
+        (uint8_t *)__builtin_assume_aligned(output + offset, 4);
+    __builtin_memcpy(aligned, words, sizeof(words));
+    return;
+  }
   if (offset < length) {
     unsigned i;
     for (i = 0; i < 8 && offset + i < length; ++i) {
@@ -262,6 +279,7 @@ static __attribute__((noinline)) void mlksg_sponge_worker(
 static __attribute__((noinline)) void mlksg_sponge(
     uint8_t *output, size_t outlen, const uint8_t *input, size_t inlen,
     unsigned rate, uint8_t domain) {
+  vx_fence();
   vx_tmc(-1);
   mlksg_sponge_worker(output, outlen, input, inlen, rate, domain);
   vx_tmc_one();
@@ -299,12 +317,14 @@ static __attribute__((noinline)) void mlksg_shake128_absorb_once_worker(
     a ^= UINT64_C(0x8000000000000000);
   }
   state->ctx[lane] = a;
+  vx_fence();
   MLKSG_PROFILE_END_EXCLUDING_PERMUTE(absorb_profile, MLK_PHASE_ABSORB);
   mlksg_count(permutations);
 }
 
 static MLK_INLINE void mlk_shake128_absorb_once(
     mlk_shake128ctx *state, const uint8_t *input, size_t inlen) {
+  vx_fence();
   vx_tmc(-1);
   mlksg_shake128_absorb_once_worker(state, input, inlen);
   vx_tmc_one();
@@ -334,6 +354,7 @@ static __attribute__((noinline)) void mlksg_shake128_squeezeblocks_worker(
 
 static MLK_INLINE void mlk_shake128_squeezeblocks(
     uint8_t *output, size_t nblocks, mlk_shake128ctx *state) {
+  vx_fence();
   vx_tmc(-1);
   mlksg_shake128_squeezeblocks_worker(output, nblocks, state);
   vx_tmc_one();
@@ -348,6 +369,7 @@ static __attribute__((noinline)) void mlksg_shake128_release_worker(
 
 #define mlk_shake128_release MLK_NAMESPACE(shake128_release)
 static MLK_INLINE void mlk_shake128_release(mlk_shake128ctx *state) {
+  vx_fence();
   vx_tmc(-1);
   mlksg_shake128_release_worker(state);
   vx_tmc_one();

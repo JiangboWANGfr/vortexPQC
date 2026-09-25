@@ -48,7 +48,11 @@
 // Measured peak is 19,232 bytes (decaps); sized with headroom, and the reported
 // peak is checked against this so a parameter-set change cannot silently
 // overflow it.
+#if MLK_CONFIG_PARAMETER_SET == 1024
+#define MLK_ARENA_BYTES 32768u
+#else
 #define MLK_ARENA_BYTES 24576u
+#endif
 #define MLK_ARENA_ALIGN 32u
 
 #if defined(__VORTEX__)

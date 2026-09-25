@@ -44,6 +44,7 @@ typedef struct {
   uint64_t counts_addr;   // out : MLD_PROF_COUNT * uint32_t per request
   uint64_t pointwise_cycles_addr; // out : MLDSA_PROFILE_CY_COUNT * uint64_t
   uint32_t requests;
+  uint32_t workers;
 } kernel_arg_t;
 
 #endif

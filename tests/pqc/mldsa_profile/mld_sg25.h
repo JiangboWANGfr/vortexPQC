@@ -168,13 +168,71 @@ extern "C" __attribute__((naked, noinline)) void mld_profile_keccak_expand() {
       :: "i"(RISCV_CUSTOM0));
 }
 
-#undef MLDSG_SAVE_RA
-#undef MLDSG_RESTORE_RA
-
 extern "C" void mld_profile_keccak(uint64_t* state) {
   mld_sg25_state[mld_prof_slot()] = state;
+  vx_fence();
   __syncthreads();
   mld_profile_keccak_expand();
 }
+
+#if defined(PQC_SHAKE_EXTRACT_WARP)
+struct mld_sg25_extract_args_t {
+  const uint8_t* state;
+  uint8_t* output[4];
+  unsigned offset;
+  unsigned length;
+};
+
+static mld_sg25_extract_args_t mld_sg25_extract_args[MLD_PROF_SLOTS];
+
+extern "C" __attribute__((noinline, used)) void mld_profile_extract_x4_lanes() {
+  const auto& args = mld_sg25_extract_args[mld_prof_slot()];
+  const unsigned lane = vx_thread_id();
+  for (unsigned i = lane; i < args.length; i += 32) {
+    const unsigned pos = args.offset + i;
+    args.output[0][i] = args.state[pos];
+    args.output[1][i] = args.state[25 * sizeof(uint64_t) + pos];
+    args.output[2][i] = args.state[50 * sizeof(uint64_t) + pos];
+    args.output[3][i] = args.state[75 * sizeof(uint64_t) + pos];
+  }
+  __syncthreads();
+}
+
+extern "C" __attribute__((naked, noinline)) void mld_profile_extract_x4_expand() {
+  asm volatile (
+      "addi sp, sp, -16\n\t"
+      MLDSG_SAVE_RA
+      "li t0, -1\n\t"
+      ".insn r %0, 0, 0, x0, t0, x0\n\t"
+      "call mld_profile_extract_x4_lanes\n\t"
+      ".insn r %0, 7, 0, x0, x0, x0\n\t"
+      "li t0, 1\n\t"
+      ".insn r %0, 0, 0, x0, t0, x0\n\t"
+      MLDSG_RESTORE_RA
+      "addi sp, sp, 16\n\t"
+      "ret"
+      :: "i"(RISCV_CUSTOM0));
+}
+
+extern "C" void mld_profile_extract_x4(uint64_t* state, unsigned char* data0,
+                                         unsigned char* data1, unsigned char* data2,
+                                         unsigned char* data3, unsigned offset,
+                                         unsigned length) {
+  auto& args = mld_sg25_extract_args[mld_prof_slot()];
+  args.state = reinterpret_cast<const uint8_t*>(state);
+  args.output[0] = data0;
+  args.output[1] = data1;
+  args.output[2] = data2;
+  args.output[3] = data3;
+  args.offset = offset;
+  args.length = length;
+  vx_fence();
+  __syncthreads();
+  mld_profile_extract_x4_expand();
+}
+#endif
+
+#undef MLDSG_SAVE_RA
+#undef MLDSG_RESTORE_RA
 
 #endif

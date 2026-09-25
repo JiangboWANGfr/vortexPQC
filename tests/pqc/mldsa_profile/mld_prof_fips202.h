@@ -24,6 +24,20 @@
 #elif defined(PQC_KECCAK_SG25)
 void mld_profile_keccak(uint64_t* state);
 #endif
+#if defined(PQC_SHAKE_EXTRACT_WARP)
+void mld_profile_extract_x4(uint64_t* state, unsigned char* data0,
+                            unsigned char* data1, unsigned char* data2,
+                            unsigned char* data3, unsigned offset,
+                            unsigned length);
+#define MLD_USE_NATIVE_FIPS202_X4_EXTRACT_BYTES
+static MLD_INLINE int mld_keccakf1600_extract_bytes_x4_native(
+    uint64_t* state, unsigned char* data0, unsigned char* data1,
+    unsigned char* data2, unsigned char* data3, unsigned offset,
+    unsigned length) {
+  mld_profile_extract_x4(state, data0, data1, data2, data3, offset, length);
+  return MLD_NATIVE_FUNC_SUCCESS;
+}
+#endif
 
 #define MLD_USE_NATIVE_FIPS202_X1
 static MLD_INLINE int mld_keccak_f1600_x1_native(uint64_t *state)
@@ -42,7 +56,15 @@ static MLD_INLINE int mld_keccak_f1600_x1_native(uint64_t *state)
 #endif
   return MLD_NATIVE_FUNC_SUCCESS;
 #elif defined(PQC_KECCAK_SG25)
+#if defined(PQC_PROFILE_PHASES)
+  const unsigned slot = mld_prof_slot();
+  const uint64_t start = vx_rdcycle();
+#endif
   mld_profile_keccak(state);
+#if defined(PQC_PROFILE_PHASES)
+  mld_prof_detail_cycles[slot][mld_prof_phase[slot]][MLD_PHASE_PERMUTE] +=
+      vx_rdcycle() - start;
+#endif
   return MLD_NATIVE_FUNC_SUCCESS;
 #elif defined(PQC_ABLATE_KECCAK)
   return MLD_NATIVE_FUNC_SUCCESS;

@@ -5,7 +5,7 @@
 // You may obtain a copy of the License at
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// profile -- exact primitive call counts for one ML-KEM-768 round trip.
+// profile -- exact primitive call counts for one ML-KEM round trip.
 //
 // Combined with the per-call costs from tests/pqc/mlkem_microbench, this turns the
 // end-to-end 33M cycles into an attribution: how much of it is Keccak, how much
@@ -56,17 +56,20 @@ const Cost kCost[MLK_PROF_ARM] = {
 
 int main(int argc, char** argv) {
     uint32_t requests = 1;
+    uint32_t workers = 0;
     uint32_t ntt_lanes = 1;
     int c;
-    while ((c = getopt(argc, argv, "k:b:t:h")) != -1) {
+    while ((c = getopt(argc, argv, "k:b:t:w:h")) != -1) {
         if (c == 'k') {
             kernel_file = optarg;
         } else if (c == 'b') {
             requests = (uint32_t)std::atoi(optarg);
+        } else if (c == 'w') {
+            workers = (uint32_t)std::atoi(optarg);
         } else if (c == 't') {
             ntt_lanes = (uint32_t)std::atoi(optarg);
         } else {
-            std::cout << "Usage: [-k kernel] [-b requests] [-t NTT lanes] [-h]" << std::endl;
+            std::cout << "Usage: [-k kernel] [-b requests] [-w resident-workers] [-t NTT lanes] [-h]" << std::endl;
             std::exit(c == 'h' ? 0 : -1);
         }
     }
@@ -97,16 +100,25 @@ int main(int argc, char** argv) {
     }
 #endif
 
+    if (!workers) workers = requests < VX_CFG_NUM_WARPS ? requests : VX_CFG_NUM_WARPS;
+    if (workers > requests || workers > VX_CFG_NUM_WARPS || requests % workers != 0) {
+        std::fprintf(stderr, "Requests must be a multiple of 1..NUM_WARPS resident workers\n");
+        return 1;
+    }
+    std::printf("SCHEDULING: requests=%u workers=%u waves=%u\n",
+                requests, workers, requests / workers);
+
     vx_device_h dev = nullptr;
     CHECK(vx_device_open(0, &dev));
     const pqc::config cfg = pqc::print_config(dev, requests, ntt_lanes);
+    std::printf("PARAMETER_SET: ML-KEM-%u\n", MLK_CONFIG_PARAMETER_SET);
     std::printf("MAPPING: KEM_lanes=1 NTT_lanes=%u\n", ntt_lanes);
     if (cfg.cores != 1) {
         std::fprintf(stderr, "FAIL: batch timestamps require one shared core cycle counter\n");
         vx_device_release(dev);
         return 1;
     }
-    if (pqc::require_slots(cfg, requests, ntt_lanes) != 0) {
+    if (pqc::require_slots(cfg, workers, ntt_lanes) != 0) {
         vx_device_release(dev);
         return 1;
     }
@@ -126,6 +138,7 @@ int main(int argc, char** argv) {
     CHECK(vx_buffer_address(st,  &arg.status_addr));
     CHECK(vx_buffer_address(cyc, &arg.cycles_addr));
     arg.requests = requests;
+    arg.workers = workers;
     arg.ntt_lanes = ntt_lanes;
 
     vx_module_h mod = nullptr; vx_kernel_h kern = nullptr;
@@ -157,7 +170,7 @@ int main(int argc, char** argv) {
     vx_launch_info_t li{};
     li.struct_size = sizeof(li); li.kernel = kern;
     li.args_host = &arg; li.args_size = sizeof(arg);
-    li.ndim = 1; li.grid_dim[0] = requests; li.block_dim[0] = ntt_lanes;
+    li.ndim = 1; li.grid_dim[0] = workers; li.block_dim[0] = ntt_lanes;
 #if defined(PQC_NTT_SMEM32)
     li.lmem_size = 288u * sizeof(uint32_t);
 #endif
@@ -217,6 +230,17 @@ int main(int argc, char** argv) {
                     (arm & MLK_ARM_ABLATE_KECCAK) ? "keccak" : "none",
                     ntt, (arm & MLK_ARM_NTTMUL_K) ? "k" : "c", nttbf, arm,
                     (unsigned)((arm & (MLK_ARM_KECCAK_UNROLL | MLK_ARM_KECCAK_KROUND25)) != 0));
+        std::printf("SAMPLER_ARM: id=%u matrix=%s\n", req,
+                    (arm & MLK_ARM_REJ_WARP) ? "warp" : "scalar");
+        std::printf("CODEC_ARM: id=%u polybytes=%s compress=%s\n", req,
+                    (arm & MLK_ARM_CODEC_WARP) ? "warp" : "scalar",
+                    (arm & MLK_ARM_COMPRESS_WARP) ? "warp" : "scalar");
+        std::printf("NOISE_ARM: id=%u cbd=%s\n", req,
+                    (arm & MLK_ARM_NOISE_WARP) ? "warp" : "scalar");
+        std::printf("LINEAR_ARM: id=%u poly=%s\n", req,
+                    (arm & MLK_ARM_LINEAR_WARP) ? "warp" : "scalar");
+        std::printf("ZEROIZE_ARM: id=%u single=%s multi=scalar\n", req,
+                    (arm & MLK_ARM_ZEROIZE_WARP) ? "warp" : "scalar");
 #if defined(PQC_PROFILE_PHASES)
         std::printf("PHASE_ARM: id=%u direct_intervals=1\n", req);
 #endif
@@ -325,6 +349,15 @@ int main(int argc, char** argv) {
             { "keccak_squeeze", P_CYCLE_SQUEEZE },
             { "ntt", P_CYCLE_NTT },
             { "intt", P_CYCLE_INTT },
+            { "rejection", P_CYCLE_REJECTION },
+            { "codec", P_CYCLE_CODEC },
+            { "noise", P_CYCLE_NOISE },
+#if defined(PQC_LINEAR_WARP)
+            { "linear", P_CYCLE_LINEAR },
+#endif
+#if defined(PQC_ZEROIZE_WARP)
+            { "zeroize", P_CYCLE_ZEROIZE },
+#endif
             { "mulcache", P_CYCLE_MULCACHE },
             { "basemul", P_CYCLE_BASEMUL },
             { "reduce", P_CYCLE_REDUCE },
