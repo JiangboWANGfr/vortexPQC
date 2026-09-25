@@ -1,0 +1,52 @@
+SCHEDULING: requests=2 workers=2 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=17989656 unroll=1
+SAMPLER_ARM: id=0 matrix=scalar
+CODEC_ARM: id=0 polybytes=scalar compress=scalar
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=scalar
+ZEROIZE_ARM: id=0 single=scalar multi=scalar
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+*** request 0: ct differs from known-answer vector
+*** request 0: ss_dec differs from known-answer vector
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=0 arm=17989656 keypair=2043360 encaps=2492308 decaps=2728949 total=7264617 start=2999 end=7267616
+ARM: id=1 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=17989656 unroll=1
+SAMPLER_ARM: id=1 matrix=scalar
+CODEC_ARM: id=1 polybytes=scalar compress=scalar
+NOISE_ARM: id=1 cbd=warp
+LINEAR_ARM: id=1 poly=scalar
+ZEROIZE_ARM: id=1 single=scalar multi=scalar
+STATUS: id=1 keypair=0 encaps=0 decaps=0
+KAT: id=1 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=1 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=1 arm=17989656 keypair=2048368 encaps=2487296 decaps=2729231 total=7264895 start=3001 end=7267896
+BATCH: requests=2 start=2999 end=7267896 makespan=7264897
+PERF: instrs=1200862, cycles=7268957, IPC=0.165
+FAILED!

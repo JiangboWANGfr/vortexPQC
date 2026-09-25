@@ -1,0 +1,12 @@
+minimal vortex2: n=1 buf=4B
+[minimal] device_open
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+[minimal] queue_create
+[minimal] buffer_create
+[minimal] module_load
+[minimal] write
+[minimal] launch
+[minimal] readback
+[minimal] wait
+[minimal] verify
+PASSED!

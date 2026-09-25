@@ -1,0 +1,56 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=2 workers=1 waves=2
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[mldsa] verify
+REQUEST: id=0 input=3
+REFERENCE: pk/sk/signature match portable C byte-for-byte
+STACK: peak=2736 of 7792 paintable (slab 8192)   ARENA: peak=14624 of 24576 fail=0
+primitive               calls
+keccak_f1600_x1           608
+keccak_f1600_x4             6
+poly_ntt                   42
+poly_invntt                43
+rej_uniform                 0
+poly_pointwise            115
+pointwise_acc_l5            0
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=scalar multi=scalar
+CYCLES: keypair=7631467 sign=16670404 verify=0 total=24301871
+POINTWISE: phase=keypair simple=300029 l5=0 share=3.93%
+POINTWISE: phase=sign simple=855785 l5=0 share=5.13%
+POINTWISE: phase=verify simple=0 l5=0 share=0.00%
+REQUEST: id=1 input=4
+*** pk differs from portable host reference at byte 0: got=0x00 expected=0x14 mismatches=1946 last=1951 zeros=42/1952 first_matches=2/1952
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0x03 mismatches=3287 last=3308 zeros=108/3309 first_matches=11/3309
+STACK: peak=2736 of 7792 paintable (slab 8192)   ARENA: peak=14624 of 24576 fail=0
+primitive               calls
+keccak_f1600_x1          2049
+keccak_f1600_x4             6
+poly_ntt                  162
+poly_invntt               163
+rej_uniform                 0
+poly_pointwise            403
+pointwise_acc_l5            0
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=scalar multi=scalar
+CYCLES: keypair=7648701 sign=71182447 verify=0 total=78831148
+POINTWISE: phase=keypair simple=300163 l5=0 share=3.92%
+POINTWISE: phase=sign simple=3754885 l5=0 share=5.28%
+POINTWISE: phase=verify simple=0 l5=0 share=0.00%
+BATCH: requests=2 first_input=3 makespan=103449392
+FAILED!

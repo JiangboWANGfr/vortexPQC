@@ -1,0 +1,7 @@
+minimal vortex2: n=1 buf=4B
+[minimal] device_open
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+[minimal] queue_create
+[minimal] buffer_create
+[minimal] module_load
+FAIL /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/tests/regression/minimal/main.cpp:107: 'vx_module_load_file(dev, kernel_file, &mod)' returned VX_ERR_INVALID_VALUE

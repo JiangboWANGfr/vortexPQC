@@ -1,0 +1,337 @@
+{
+  "schema_version": 1,
+  "scope": "ML-KEM-768 matched A/B/C/D V80 200 MHz, five runs each",
+  "configuration": {
+    "xlen": 32,
+    "cores": 1,
+    "warps": 8,
+    "threads": 32,
+    "ntt_mul_lanes": 2,
+    "dcache_writeback": 0,
+    "max_outstanding_axi_writes_per_bank": 16,
+    "board_clock_hz": 200000000,
+    "board_clock_readback_log": "pqc/results/v80_hw_validation/board_clock_multiout_200mhz_readback.log"
+  },
+  "image": {
+    "path": "build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_aved_hw/bin/vortex_afu.vbin",
+    "sha256": "c98747981d05748cca5b5cf517044206cc06c83d7847335bdb9dcedb004adf73",
+    "final_timing_report": "pqc/results/v80_hw_validation/timing_multiout_200mhz.txt",
+    "wns_ns": 0.001,
+    "tns_ns": 0.0,
+    "routing_errors": 0,
+    "route_status_report": "pqc/results/v80_hw_validation/route_status_multiout_200mhz.rpt"
+  },
+  "arms": {
+    "A": {
+      "description": "software Keccak + software NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_keccak_sw_ntt_sw/kernel.vxbin",
+      "kernel_sha256": "86e35a30a52de88a05f13f6ea5a0c189edf68267b211cf8337e81acca8d32337"
+    },
+    "B": {
+      "description": "Stage Keccak + software NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_keccak_hw_ntt_sw/kernel.vxbin",
+      "kernel_sha256": "9334ba3e14e65126a03f1440e7702a1cdb63a3a935f481c1721f5d5d7de62e02"
+    },
+    "C": {
+      "description": "software Keccak + hardware NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_keccak_sw_ntt_hw/kernel.vxbin",
+      "kernel_sha256": "523ccb93a4197d86ed53f82762963f9421ee938b831751fb8093dd4a9e97d2d0"
+    },
+    "D": {
+      "description": "Stage Keccak + hardware NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_full/kernel.vxbin",
+      "kernel_sha256": "992703e067458dacef087c9542ddecc1bc2564f6be98ce2c04e7d18d3cf9cfc8"
+    }
+  },
+  "measurements": {
+    "M1": {
+      "A": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m1_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 4404817,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m1_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 4403684,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m1_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 4404658,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m1_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 4404507,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m1_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 4404723,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 4404658,
+        "median_elapsed_ms": 22.02329,
+        "all_kat_pass": true
+      },
+      "B": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m1_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 2119463,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m1_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 2119768,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m1_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 2119565,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m1_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 2119836,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m1_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 2119344,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 2119565,
+        "median_elapsed_ms": 10.597825,
+        "all_kat_pass": true
+      },
+      "C": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m1_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 4148622,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m1_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 4148547,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m1_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 4149169,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m1_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 4148535,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m1_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 4149143,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 4148622,
+        "median_elapsed_ms": 20.743109999999998,
+        "all_kat_pass": true
+      },
+      "D": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 1868785,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 1869008,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 1868936,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 1868367,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 1867837,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 1868785,
+        "median_elapsed_ms": 9.343924999999999,
+        "all_kat_pass": true
+      }
+    },
+    "M8": {
+      "A": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m8_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 13144658,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m8_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 13073958,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m8_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 13127710,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m8_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 13106496,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_A_m8_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 13093122,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 13106496,
+        "median_elapsed_ms": 65.53248,
+        "all_kat_pass": true
+      },
+      "B": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m8_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 7076967,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m8_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 7117404,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m8_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 7112554,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m8_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 7085866,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_B_m8_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 7052328,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 7085866,
+        "median_elapsed_ms": 35.42933,
+        "all_kat_pass": true
+      },
+      "C": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m8_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 12664129,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m8_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 12408337,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m8_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 12489053,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m8_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 12420683,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_C_m8_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 12527612,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 12489053,
+        "median_elapsed_ms": 62.445265,
+        "all_kat_pass": true
+      },
+      "D": {
+        "runs": [
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_multiout_v80_200mhz_r1.log",
+            "makespan_cycles": 6409745,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_multiout_v80_200mhz_r2.log",
+            "makespan_cycles": 6429732,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_multiout_v80_200mhz_r3.log",
+            "makespan_cycles": 6430179,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_multiout_v80_200mhz_r4.log",
+            "makespan_cycles": 6411939,
+            "kat": "PASS"
+          },
+          {
+            "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_multiout_v80_200mhz_r5.log",
+            "makespan_cycles": 6399325,
+            "kat": "PASS"
+          }
+        ],
+        "median_makespan_cycles": 6411939,
+        "median_elapsed_ms": 32.059695,
+        "all_kat_pass": true
+      }
+    }
+  },
+  "speedups": {
+    "M1": {
+      "joint_A_over_D": 2.356963481620411,
+      "keccak_A_over_B": 2.078095269548233,
+      "ntt_after_keccak_B_over_D": 1.1341941421832902,
+      "ntt_without_keccak_A_over_C": 1.0617159143445702
+    },
+    "M8": {
+      "joint_A_over_D": 2.044076838535114,
+      "keccak_A_over_B": 1.8496674930065005,
+      "ntt_after_keccak_B_over_D": 1.105105023612982,
+      "ntt_without_keccak_A_over_C": 1.049438736467849
+    }
+  },
+  "clock_scaling": {
+    "M1": {
+      "A": 1.232453764476909,
+      "B": 1.2272920780128627,
+      "C": 1.2328257431021676,
+      "D": 1.2270025711893022
+    },
+    "M8": {
+      "A": 1.0551681649567766,
+      "B": 1.0686526295209835,
+      "C": 1.051615149149686,
+      "D": 1.0683613802314713
+    }
+  },
+  "note": "Five measured repetitions per arm and batch after partial reconfiguration and clock readback. The first post-load smoke run is excluded from timing statistics."
+}

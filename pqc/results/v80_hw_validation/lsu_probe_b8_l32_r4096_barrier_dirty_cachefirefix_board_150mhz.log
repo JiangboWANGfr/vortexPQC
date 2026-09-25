@@ -1,0 +1,14 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+LSU_PROBE request=0 mode=barrier_dirty M=8 L=32 rounds=4096 start=5912 end=881780 cycles=875868 checksum=0x8e67bd94 bad=0
+LSU_PROBE request=1 mode=barrier_dirty M=8 L=32 rounds=4096 start=5914 end=883928 cycles=878014 checksum=0x0e7e75f9 bad=0
+LSU_PROBE request=2 mode=barrier_dirty M=8 L=32 rounds=4096 start=5916 end=885281 cycles=879365 checksum=0xe7b7d92d bad=0
+LSU_PROBE request=3 mode=barrier_dirty M=8 L=32 rounds=4096 start=5920 end=887185 cycles=881265 checksum=0x9c8db83f bad=0
+LSU_PROBE request=4 mode=barrier_dirty M=8 L=32 rounds=4096 start=5948 end=889083 cycles=883135 checksum=0xd67ce31b bad=0
+LSU_PROBE request=5 mode=barrier_dirty M=8 L=32 rounds=4096 start=5956 end=888565 cycles=882609 checksum=0x24d9cdfb bad=0
+LSU_PROBE request=6 mode=barrier_dirty M=8 L=32 rounds=4096 start=5929 end=890094 cycles=884165 checksum=0x5ffdfa27 bad=0
+LSU_PROBE request=7 mode=barrier_dirty M=8 L=32 rounds=4096 start=5933 end=892389 cycles=886456 checksum=0xcd1a5313 bad=0
+LSU_PROBE_BATCH mode=barrier_dirty M=8 L=32 rounds=4096 start=5912 end=892389 makespan=886477 min=875868 max=886456 sum=7050877 bad=0
+PERF: instrs=590648, cycles=894131, IPC=0.661
+PASSED!

@@ -1,0 +1,15 @@
+Matrix dimensions: 16 x 16
+Opening device connection
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+Allocating device memory
+Uploading matrix A
+Uploading vector x
+Loading kernel
+Launching kernel
+Downloading results
+Elapsed time: 2 ms
+Verifying results
+*** error: [12] expected=5.755726, actual=5.782251
+Cleaning up
+PERF: instrs=4935, cycles=67772, IPC=0.073
+Found 1 errors!

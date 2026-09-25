@@ -1,0 +1,54 @@
+SCHEDULING: requests=2 workers=2 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234004184 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+CODEC_ARM: id=0 polybytes=warp compress=warp
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=warp multi=scalar
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=0
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+*** request 0: sk differs from known-answer vector
+*** request 0: ss_dec differs from known-answer vector
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=0 arm=234004184 keypair=673968 encaps=838513 decaps=941532 total=2454013 start=2992 end=2457005
+ARM: id=1 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234004184 unroll=1
+SAMPLER_ARM: id=1 matrix=warp
+CODEC_ARM: id=1 polybytes=warp compress=warp
+NOISE_ARM: id=1 cbd=warp
+LINEAR_ARM: id=1 poly=warp
+ZEROIZE_ARM: id=1 single=warp multi=scalar
+ARITH_ARM: id=1 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=0
+STATUS: id=1 keypair=0 encaps=0 decaps=0
+*** request 1: ss_dec differs from known-answer vector
+COUNTERS: id=1 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=1 arm=234004184 keypair=674367 encaps=838110 decaps=941532 total=2454009 start=2994 end=2457003
+BATCH: requests=2 start=2992 end=2457005 makespan=2454013
+PERF: instrs=301522, cycles=2458066, IPC=0.123
+FAILED!

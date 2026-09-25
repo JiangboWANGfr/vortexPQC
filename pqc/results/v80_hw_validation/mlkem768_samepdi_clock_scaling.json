@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "scope": "ML-KEM-768 D, same routed PDI at 150 and 200 MHz, five measured repetitions after one warmup",
+  "pdi_sha256": "c5784f6b555440618d2010071caed22c70123fd81bef4b8dae25249b3451f28e",
+  "images": {
+    "150": {
+      "path": "build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_aved_hw/bin/vortex_afu_150metadata.vbin",
+      "vbin_sha256": "881fe75336ad34aa4a455a91906e5ee805f6a8643e06d8857576a741d109b296",
+      "board_clock_hz": 150000000,
+      "clock_readback_log": "pqc/results/v80_hw_validation/board_clock_samepdi_150mhz_readback.log"
+    },
+    "200": {
+      "path": "build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_aved_hw/bin/vortex_afu.vbin",
+      "vbin_sha256": "c98747981d05748cca5b5cf517044206cc06c83d7847335bdb9dcedb004adf73",
+      "board_clock_hz": 200000000,
+      "clock_readback_log": "pqc/results/v80_hw_validation/board_clock_samepdi_200mhz_readback.log"
+    }
+  },
+  "measurements": {
+    "M1": {
+      "by_clock_mhz": {
+        "150": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_150mhz_r1.log",
+              "makespan_cycles": 1719543,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_150mhz_r2.log",
+              "makespan_cycles": 1719916,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_150mhz_r3.log",
+              "makespan_cycles": 1719531,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_150mhz_r4.log",
+              "makespan_cycles": 1719605,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_150mhz_r5.log",
+              "makespan_cycles": 1719609,
+              "retired_instructions": 126499
+            }
+          ],
+          "median_makespan_cycles": 1719605,
+          "median_elapsed_ms": 11.464033333333333,
+          "retired_instructions": 126499
+        },
+        "200": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_200mhz_r1.log",
+              "makespan_cycles": 1867812,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_200mhz_r2.log",
+              "makespan_cycles": 1868960,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_200mhz_r3.log",
+              "makespan_cycles": 1868364,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_200mhz_r4.log",
+              "makespan_cycles": 1868369,
+              "retired_instructions": 126499
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m1_samepdi_200mhz_r5.log",
+              "makespan_cycles": 1868070,
+              "retired_instructions": 126499
+            }
+          ],
+          "median_makespan_cycles": 1868364,
+          "median_elapsed_ms": 9.34182,
+          "retired_instructions": 126499
+        }
+      },
+      "elapsed_time_speedup_150_to_200": 1.2271734344413971
+    },
+    "M8": {
+      "by_clock_mhz": {
+        "150": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_150mhz_r1.log",
+              "makespan_cycles": 5146784,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_150mhz_r2.log",
+              "makespan_cycles": 5125716,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_150mhz_r3.log",
+              "makespan_cycles": 5138685,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_150mhz_r4.log",
+              "makespan_cycles": 5129601,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_150mhz_r5.log",
+              "makespan_cycles": 5135041,
+              "retired_instructions": 1205992
+            }
+          ],
+          "median_makespan_cycles": 5135041,
+          "median_elapsed_ms": 34.23360666666667,
+          "retired_instructions": 1205992
+        },
+        "200": {
+          "runs": [
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_200mhz_r1.log",
+              "makespan_cycles": 6399623,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_200mhz_r2.log",
+              "makespan_cycles": 6411908,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_200mhz_r3.log",
+              "makespan_cycles": 6410446,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_200mhz_r4.log",
+              "makespan_cycles": 6419407,
+              "retired_instructions": 1205992
+            },
+            {
+              "log": "pqc/results/v80_hw_validation/mlkem768_D_m8_samepdi_200mhz_r5.log",
+              "makespan_cycles": 6417175,
+              "retired_instructions": 1205992
+            }
+          ],
+          "median_makespan_cycles": 6411908,
+          "median_elapsed_ms": 32.05954,
+          "retired_instructions": 1205992
+        }
+      },
+      "elapsed_time_speedup_150_to_200": 1.0678134080110528
+    }
+  }
+}

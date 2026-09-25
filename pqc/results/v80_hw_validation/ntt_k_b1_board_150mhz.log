@@ -1,0 +1,17 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+NTT_REQUEST implementation=hardware direction=forward M=1 L=32 request=0 coop_start=138884 coop_end=142700 ref_start=714515 ref_end=849576 stack=128/8128 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=0 coop=3816 ref=135061 speedup=35.393 checked=256 mismatch=0
+NTT implementation=hardware W=32  coop=3816  ref=135061  speedup=35.393  stack=128/8128  mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=1 coop=3812 ref=135025 speedup=35.421 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=2 coop=3798 ref=135010 speedup=35.548 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=3 coop=3778 ref=134959 speedup=35.722 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=4 coop=3792 ref=135010 speedup=35.604 checked=256 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=1 L=32 request=0 coop_start=5904851 coop_end=5911412 ref_start=6483113 ref_end=6739539 stack=88/8128 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=0 coop=6561 ref=256426 speedup=39.083 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=1 coop=6615 ref=256364 speedup=38.755 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=2 coop=6528 ref=256376 speedup=39.273 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=3 coop=6574 ref=256378 speedup=38.999 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=4 coop=6565 ref=256389 speedup=39.054 checked=256 mismatch=0
+PERF: instrs=1031965, cycles=12158445, IPC=0.085
+PASSED!

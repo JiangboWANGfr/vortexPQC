@@ -1,0 +1,21 @@
+open device connection
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+data type: integer
+number of points: 65536
+buffer size: 262144 bytes
+allocate device memory
+dev_src0=0x10000
+dev_src1=0x50000
+dev_dst=0x90000
+allocate host buffers
+upload source buffer0
+upload source buffer1
+load kernel module
+launch kernel
+grid_dim=8x1, block_dim=20x1
+download destination buffer
+wait for completion
+verify result
+cleanup
+PERF: instrs=18712, cycles=680406, IPC=0.028
+PASSED!

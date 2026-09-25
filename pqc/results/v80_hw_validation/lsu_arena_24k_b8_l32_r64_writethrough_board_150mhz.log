@@ -1,0 +1,18 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+mismatch i=0 got=650801fd expected=18c5d5a6
+mismatch i=1 got=bf15f538 expected=c04a73c1
+mismatch i=2 got=60c02881 expected=d1ff7754
+mismatch i=3 got=aac25ce3 expected=aab99b24
+mismatch i=4 got=d906cd72 expected=44407301
+mismatch i=5 got=e19f3c09 expected=5801a2ed
+mismatch i=6 got=a193d9dc expected=29651801
+mismatch i=7 got=8de72b57 expected=590230db
+mismatch i=8 got=aea7fac0 expected=7bc87cb4
+mismatch i=9 got=6b3dcf7b expected=8ccf3cf8
+mismatch i=10 got=2b570d92 expected=dac7844d
+mismatch i=11 got=695de12a expected=9c92613b
+mismatch i=12 got=b4b87a9d expected=c79163b4
+LSU_ARENA requests=8 bytes_per_request=24576 rounds=64 readwrites=3145728 bad=18435
+PERF: instrs=2443208, cycles=5569692, IPC=0.439
+FAILED!

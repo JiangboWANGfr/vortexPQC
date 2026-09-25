@@ -1,0 +1,5 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+LSU_ARENA requests=8 bytes_per_request=24576 rounds=2 readwrites=98304 bad=0
+PERF: instrs=77304, cycles=181298, IPC=0.426
+PASSED!

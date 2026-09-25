@@ -1,0 +1,12 @@
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+LSU_PROBE request=0 mode=dirty M=8 L=32 rounds=64 start=2834 end=130427 cycles=127593 checksum=0x850a2db6 bad=0
+LSU_PROBE request=1 mode=dirty M=8 L=32 rounds=64 start=2836 end=161492 cycles=158656 checksum=0xed844590 bad=0
+LSU_PROBE request=2 mode=dirty M=8 L=32 rounds=64 start=2838 end=161665 cycles=158827 checksum=0xa48e4e55 bad=0
+LSU_PROBE request=3 mode=dirty M=8 L=32 rounds=64 start=2842 end=161671 cycles=158829 checksum=0xc3b6690c bad=0
+LSU_PROBE request=4 mode=dirty M=8 L=32 rounds=64 start=2870 end=163593 cycles=160723 checksum=0x00fb6ab9 bad=0
+LSU_PROBE request=5 mode=dirty M=8 L=32 rounds=64 start=2877 end=154764 cycles=151887 checksum=0x2401b0d2 bad=0
+LSU_PROBE request=6 mode=dirty M=8 L=32 rounds=64 start=2851 end=157568 cycles=154717 checksum=0x6323e5d5 bad=0
+LSU_PROBE request=7 mode=dirty M=8 L=32 rounds=64 start=2855 end=161482 cycles=158627 checksum=0x93bc65f6 bad=0
+LSU_PROBE_BATCH mode=dirty M=8 L=32 rounds=64 start=2834 end=163593 makespan=160759 min=127593 max=160723 sum=1229859 bad=0
+PERF: instrs=17888, cycles=165374, IPC=0.108
+PASSED!

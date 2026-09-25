@@ -1,0 +1,31 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=0 coop_start=163625 coop_end=176521 ref_start=974108 ref_end=1167434 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=1 coop_start=163627 coop_end=176546 ref_start=974110 ref_end=1167419 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=2 coop_start=163629 coop_end=176548 ref_start=974112 ref_end=1167443 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=3 coop_start=163633 coop_end=176565 ref_start=974116 ref_end=1167715 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=4 coop_start=163650 coop_end=176571 ref_start=974133 ref_end=1167792 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=5 coop_start=163652 coop_end=176575 ref_start=974135 ref_end=1167732 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=6 coop_start=163642 coop_end=176544 ref_start=974125 ref_end=1167764 stack=128/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=forward M=8 L=32 request=7 coop_start=163646 coop_end=176519 ref_start=974129 ref_end=1167833 stack=128/8128 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=8 L=32 sample=0 coop=12950 ref=193725 speedup=14.959 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=8 L=32 sample=1 coop=12992 ref=192922 speedup=14.849 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=8 L=32 sample=2 coop=12896 ref=195690 speedup=15.174 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=8 L=32 sample=3 coop=12857 ref=195238 speedup=15.185 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=8 L=32 sample=4 coop=12919 ref=189424 speedup=14.662 checked=2048 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=0 coop_start=7920917 coop_end=7941042 ref_start=8723531 ref_end=9123700 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=1 coop_start=7920919 coop_end=7941020 ref_start=8723533 ref_end=9123903 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=2 coop_start=7920921 coop_end=7941022 ref_start=8723535 ref_end=9123670 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=3 coop_start=7920925 coop_end=7941053 ref_start=8723539 ref_end=9123674 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=4 coop_start=7920942 coop_end=7941055 ref_start=8723556 ref_end=9123962 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=5 coop_start=7920944 coop_end=7941057 ref_start=8723558 ref_end=9123696 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=6 coop_start=7920934 coop_end=7941062 ref_start=8723548 ref_end=9123970 stack=88/8128 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=8 L=32 request=7 coop_start=7920938 coop_end=7941066 ref_start=8723552 ref_end=9123974 stack=88/8128 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=8 L=32 sample=0 coop=20149 ref=400443 speedup=19.874 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=8 L=32 sample=1 coop=19810 ref=400106 speedup=20.197 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=8 L=32 sample=2 coop=19807 ref=403067 speedup=20.350 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=8 L=32 sample=3 coop=19947 ref=401647 speedup=20.136 checked=2048 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=8 L=32 sample=4 coop=19890 ref=402257 speedup=20.224 checked=2048 mismatch=0
+PERF: instrs=8255720, cycles=16608384, IPC=0.497
+PASSED!

@@ -1,0 +1,185 @@
+SCHEDULING: requests=8 workers=8 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+CODEC_ARM: id=0 polybytes=warp compress=warp
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=warp multi=scalar
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=0 arm=233983512 keypair=3749818 encaps=4351534 decaps=4817552 total=12918904 start=7575 end=12926479
+ARM: id=1 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=1 matrix=warp
+CODEC_ARM: id=1 polybytes=warp compress=warp
+NOISE_ARM: id=1 cbd=warp
+LINEAR_ARM: id=1 poly=warp
+ZEROIZE_ARM: id=1 single=warp multi=scalar
+ARITH_ARM: id=1 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=1 keypair=0 encaps=0 decaps=0
+KAT: id=1 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=1 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=1 arm=233983512 keypair=3762203 encaps=4352578 decaps=4802273 total=12917054 start=7577 end=12924631
+ARM: id=2 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=2 matrix=warp
+CODEC_ARM: id=2 polybytes=warp compress=warp
+NOISE_ARM: id=2 cbd=warp
+LINEAR_ARM: id=2 poly=warp
+ZEROIZE_ARM: id=2 single=warp multi=scalar
+ARITH_ARM: id=2 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=2 keypair=0 encaps=0 decaps=0
+KAT: id=2 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=2 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=2 arm=233983512 keypair=3779726 encaps=4354661 decaps=4782674 total=12917061 start=7579 end=12924640
+ARM: id=3 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=3 matrix=warp
+CODEC_ARM: id=3 polybytes=warp compress=warp
+NOISE_ARM: id=3 cbd=warp
+LINEAR_ARM: id=3 poly=warp
+ZEROIZE_ARM: id=3 single=warp multi=scalar
+ARITH_ARM: id=3 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=3 keypair=0 encaps=0 decaps=0
+KAT: id=3 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=3 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=3 arm=233983512 keypair=3780839 encaps=4390441 decaps=4787015 total=12958295 start=7584 end=12965879
+ARM: id=4 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=4 matrix=warp
+CODEC_ARM: id=4 polybytes=warp compress=warp
+NOISE_ARM: id=4 cbd=warp
+LINEAR_ARM: id=4 poly=warp
+ZEROIZE_ARM: id=4 single=warp multi=scalar
+ARITH_ARM: id=4 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=4 keypair=0 encaps=0 decaps=0
+KAT: id=4 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=4 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=4 arm=233983512 keypair=3830955 encaps=4346863 decaps=4868276 total=13046094 start=7592 end=13053686
+ARM: id=5 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=5 matrix=warp
+CODEC_ARM: id=5 polybytes=warp compress=warp
+NOISE_ARM: id=5 cbd=warp
+LINEAR_ARM: id=5 poly=warp
+ZEROIZE_ARM: id=5 single=warp multi=scalar
+ARITH_ARM: id=5 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=5 keypair=0 encaps=0 decaps=0
+KAT: id=5 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=5 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=5 arm=233983512 keypair=3881738 encaps=4301353 decaps=4884787 total=13067878 start=7600 end=13075478
+ARM: id=6 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=6 matrix=warp
+CODEC_ARM: id=6 polybytes=warp compress=warp
+NOISE_ARM: id=6 cbd=warp
+LINEAR_ARM: id=6 poly=warp
+ZEROIZE_ARM: id=6 single=warp multi=scalar
+ARITH_ARM: id=6 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=6 keypair=0 encaps=0 decaps=0
+KAT: id=6 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=6 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=6 arm=233983512 keypair=3940937 encaps=4316307 decaps=4847357 total=13104601 start=7606 end=13112207
+ARM: id=7 keccak=sg25_sw fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=233983512 unroll=1
+SAMPLER_ARM: id=7 matrix=warp
+CODEC_ARM: id=7 polybytes=warp compress=warp
+NOISE_ARM: id=7 cbd=warp
+LINEAR_ARM: id=7 poly=warp
+ZEROIZE_ARM: id=7 single=warp multi=scalar
+ARITH_ARM: id=7 mulcache=w32 basemul=w32 reduce=w32 mul=c profile=0
+STATUS: id=7 keypair=0 encaps=0 decaps=0
+KAT: id=7 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=7 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=7 arm=233983512 keypair=3959890 encaps=4438966 decaps=4745766 total=13144622 start=7611 end=13152233
+BATCH: requests=8 start=7575 end=13152233 makespan=13144658
+PERF: instrs=2982576, cycles=13153879, IPC=0.227
+PASSED!

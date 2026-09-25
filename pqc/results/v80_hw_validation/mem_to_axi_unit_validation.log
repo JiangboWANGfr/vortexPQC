@@ -1,0 +1,8 @@
+make: Entering directory '/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/unittest/mem_to_axi'
+./obj_32/VVX_mem_to_axi_tb
+PASSED
+- /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/hw/unittest/mem_to_axi/VX_mem_to_axi_tb.sv:199: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.028 2024-08-21
+- Verilator: $finish at 150ps; walltime 0.001 s; speed 174.064 ns/s
+- Verilator: cpu 0.001 s on 1 threads; alloced 153 MB
+make: Leaving directory '/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/unittest/mem_to_axi'

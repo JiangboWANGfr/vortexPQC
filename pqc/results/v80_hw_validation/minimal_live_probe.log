@@ -1,0 +1,19 @@
+minimal vortex2: n=1 buf=4B
+[minimal] device_open
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+[VXDRV] fence: seq=0 cmpl_addr=0x0 region=MISSING shadow_cmpl=0
+[VXDRV] staged alloc: cp_addr=0x4020000000 size=65536
+[VXDRV] staged alloc: cp_addr=0x4020010000 size=64
+[VXDRV] staged alloc: cp_addr=0x4020011000 size=128
+[VXDRV] staged alloc: cp_addr=0x4020012000 size=512
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=0 target=1 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x0000004020000000 HEAD_ADDR=0x0000004020010000 CMPL_ADDR=0x0000004020011000
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000040
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+[VXDRV] Error: CP poll timed out after 15s (Q_SEQNUM=0 target=1)
+[VXDRV] staged park: 0x4020012000 size=512 seq64=0
+[VXDRV] staged park: 0x4020000000 size=65536 seq64=0
+[VXDRV] staged park: 0x4020010000 size=64 seq64=0
+[VXDRV] staged park: 0x4020011000 size=128 seq64=0
+FAIL /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/tests/regression/minimal/main.cpp:83: 'vx_device_open(0, &dev)' returned VX_ERR_DEVICE_LOST

@@ -1,0 +1,50 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+SCHEDULING: requests=2 workers=2 waves=1
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=68321304 unroll=1
+SAMPLER_ARM: id=0 matrix=scalar
+CODEC_ARM: id=0 polybytes=scalar compress=scalar
+NOISE_ARM: id=0 cbd=scalar
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=scalar multi=scalar
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=0 arm=68321304 keypair=2030807 encaps=2530431 decaps=2737591 total=7298829 start=3001 end=7301830
+ARM: id=1 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=c nttbf=shfl flags=68321304 unroll=1
+SAMPLER_ARM: id=1 matrix=scalar
+CODEC_ARM: id=1 polybytes=scalar compress=scalar
+NOISE_ARM: id=1 cbd=scalar
+LINEAR_ARM: id=1 poly=warp
+ZEROIZE_ARM: id=1 single=scalar multi=scalar
+STATUS: id=1 keypair=0 encaps=0 decaps=0
+KAT: id=1 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=1 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+REQUEST: id=1 arm=68321304 keypair=2029730 encaps=2531504 decaps=2737873 total=7299107 start=3003 end=7302110
+BATCH: requests=2 start=3001 end=7302110 makespan=7299109
+PERF: instrs=1210516, cycles=7303124, IPC=0.166
+PASSED!

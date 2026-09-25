@@ -1,0 +1,36 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=1 workers=1 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[mldsa] verify
+REQUEST: id=0 input=4
+*** verify_internal returned -6
+*** signature differs from portable host reference at byte 0: got=0x73 expected=0x03
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           582
+keccak_f1600_x4           121
+poly_ntt                   46
+poly_invntt                43
+rej_uniform                 0
+poly_pointwise             25
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=3764923 sign=5863319 verify=2761061 total=12389303
+POINTWISE: phase=keypair simple=0 l5=69257 share=1.84%
+POINTWISE: phase=sign simple=136963 l5=138872 share=4.70%
+POINTWISE: phase=verify simple=44322 l5=68623 share=4.09%
+BATCH: requests=1 first_input=4 makespan=12389303
+FAILED!

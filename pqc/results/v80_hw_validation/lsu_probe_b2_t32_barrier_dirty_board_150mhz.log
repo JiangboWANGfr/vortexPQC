@@ -1,0 +1,7 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+LSU_PROBE request=0 mode=barrier_dirty M=2 L=32 rounds=32 start=1298 end=8004 cycles=6706 checksum=0xd05c2a73 bad=0
+LSU_PROBE request=1 mode=barrier_dirty M=2 L=32 rounds=32 start=1300 end=8006 cycles=6706 checksum=0x5be48841 bad=0
+LSU_PROBE_BATCH mode=barrier_dirty M=2 L=32 rounds=32 start=1298 end=8006 makespan=6708 min=6706 max=6706 sum=13412 bad=0
+PERF: instrs=1358, cycles=8807, IPC=0.154
+PASSED!

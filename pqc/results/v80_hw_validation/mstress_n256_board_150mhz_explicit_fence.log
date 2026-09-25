@@ -1,0 +1,20 @@
+open device connection
+number of points: 65536
+addr buffer size: 262172 bytes
+src buffer size: 262144 bytes
+dst buffer size: 262144 bytes
+allocate device memory
+dev_addr=0x10000
+dev_src=0x51000
+dev_dst=0x91000
+allocate host buffers
+upload address buffer
+upload source buffer
+load kernel module
+start device
+download destination buffer
+wait for completion
+verify result
+cleanup
+PERF: instrs=1202424, cycles=33602940, IPC=0.036
+PASSED!

@@ -1,0 +1,10 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=301 target=302 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x0000004020000000 HEAD_ADDR=0x0000004020010000 CMPL_ADDR=0x0000004020011000
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000004b80
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+[VXDRV] Error: CP poll timed out after 120s (Q_SEQNUM=301 target=302)
+FAIL /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/tests/pqc/shared_ntt_xn/main.cpp:105: 'vx_event_wait_value(launch, 1, VX_TIMEOUT_INFINITE)' -> 6

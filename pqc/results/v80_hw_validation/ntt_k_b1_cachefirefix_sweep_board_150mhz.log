@@ -1,0 +1,18 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+NTT_REQUEST implementation=hardware direction=forward M=1 L=32 request=0 coop_start=139240 coop_end=143187 ref_start=715016 ref_end=850066 stack=128/8128 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=0 coop=3947 ref=135050 speedup=34.216 checked=256 mismatch=0
+NTT implementation=hardware W=32  coop=3947  ref=135050  speedup=34.216  stack=128/8128  mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=1 coop=3922 ref=135043 speedup=34.432 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=2 coop=3948 ref=135069 speedup=34.212 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=3 coop=3941 ref=135099 speedup=34.280 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=forward M=1 L=32 sample=4 coop=3933 ref=135123 speedup=34.356 checked=256 mismatch=0
+NTT_REQUEST implementation=hardware direction=inverse M=1 L=32 request=0 coop_start=5907663 coop_end=5914404 ref_start=6486186 ref_end=6742673 stack=88/8128 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=0 coop=6741 ref=256487 speedup=38.049 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=1 coop=6811 ref=256479 speedup=37.657 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=2 coop=6706 ref=256586 speedup=38.262 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=3 coop=6766 ref=256447 speedup=37.902 checked=256 mismatch=0
+NTT_BATCH implementation=hardware direction=inverse M=1 L=32 sample=4 coop=6801 ref=256491 speedup=37.714 checked=256 mismatch=0
+PERF: instrs=1031965, cycles=12164226, IPC=0.085
+PASSED!

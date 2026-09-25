@@ -1,0 +1,13 @@
+2026-09-25T08:33:57+08:00
+device=0000:02:00.0 parent=0000:00:06.0
+[0000:02:00.0]
+aer_dev_correctable=RxErr 0 BadTLP 0 BadDLLP 0 Rollover 0 Timeout 0 NonFatalErr 0 CorrIntErr 0 HeaderOF 0 TOTAL_ERR_COR 0 
+aer_dev_fatal=Undefined 0 DLP 0 SDES 0 TLP 0 FCP 0 CmpltTO 0 CmpltAbrt 0 UnxCmplt 0 RxOF 0 MalfTLP 0 ECRC 0 UnsupReq 0 ACSViol 0 UncorrIntErr 0 BlockedTLP 0 AtomicOpBlocked 0 TLPBlockedErr 0 PoisonTLPBlocked 0 DMWrReqBlocked 0 IDECheck 0 MisIDETLP 0 PCRC_CHECK 0 TLPXlatBlocked 0 TOTAL_ERR_FATAL 0 
+aer_dev_nonfatal=Undefined 0 DLP 0 SDES 0 TLP 0 FCP 0 CmpltTO 0 CmpltAbrt 0 UnxCmplt 0 RxOF 0 MalfTLP 0 ECRC 0 UnsupReq 0 ACSViol 0 UncorrIntErr 0 BlockedTLP 0 AtomicOpBlocked 0 TLPBlockedErr 0 PoisonTLPBlocked 0 DMWrReqBlocked 0 IDECheck 0 MisIDETLP 0 PCRC_CHECK 0 TLPXlatBlocked 0 TOTAL_ERR_NONFATAL 0 
+[0000:00:06.0]
+aer_dev_correctable=RxErr 0 BadTLP 0 BadDLLP 0 Rollover 0 Timeout 0 NonFatalErr 0 CorrIntErr 0 HeaderOF 0 TOTAL_ERR_COR 0 
+aer_dev_fatal=Undefined 0 DLP 0 SDES 0 TLP 0 FCP 0 CmpltTO 0 CmpltAbrt 0 UnxCmplt 0 RxOF 0 MalfTLP 0 ECRC 0 UnsupReq 0 ACSViol 0 UncorrIntErr 0 BlockedTLP 0 AtomicOpBlocked 0 TLPBlockedErr 0 PoisonTLPBlocked 0 DMWrReqBlocked 0 IDECheck 0 MisIDETLP 0 PCRC_CHECK 0 TLPXlatBlocked 0 TOTAL_ERR_FATAL 0 
+aer_dev_nonfatal=Undefined 0 DLP 0 SDES 0 TLP 0 FCP 0 CmpltTO 0 CmpltAbrt 0 UnxCmplt 0 RxOF 0 MalfTLP 0 ECRC 0 UnsupReq 0 ACSViol 0 UncorrIntErr 0 BlockedTLP 0 AtomicOpBlocked 0 TLPBlockedErr 0 PoisonTLPBlocked 0 DMWrReqBlocked 0 IDECheck 0 MisIDETLP 0 PCRC_CHECK 0 TLPXlatBlocked 0 TOTAL_ERR_NONFATAL 0 
+aer_rootport_total_err_cor=0 
+aer_rootport_total_err_fatal=0 
+aer_rootport_total_err_nonfatal=0 

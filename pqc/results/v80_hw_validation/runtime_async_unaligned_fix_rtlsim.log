@@ -1,0 +1,20 @@
+CONFIGS: num_threads=32, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0xffff0000, num_barriers=8
+[RUN ] event_chain
+[ OK ] event_chain
+[RUN ] user_event
+[ OK ] user_event
+[RUN ] user_event_gated_enqueue
+[ OK ] user_event_gated_enqueue
+[RUN ] barrier
+[ OK ] barrier
+[RUN ] profiling
+[ OK ] profiling
+[RUN ] map_unmap
+[ OK ] map_unmap
+[RUN ] queue_finish
+[ OK ] queue_finish
+[RUN ] unaligned_transfers
+[ OK ] unaligned_transfers
+[RUN ] concurrent_queues
+[ OK ] concurrent_queues
+PASSED

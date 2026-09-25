@@ -1,0 +1,189 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=8 workers=8 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[mldsa] verify
+REQUEST: id=0 input=3
+*** verify_internal returned -6
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           582
+keccak_f1600_x4           121
+poly_ntt                   46
+poly_invntt                49
+rej_uniform                 0
+poly_pointwise             31
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6677833 sign=13701232 verify=5547827 total=25926892
+POINTWISE: phase=keypair simple=0 l5=66965 share=1.00%
+POINTWISE: phase=sign simple=192924 l5=199752 share=2.87%
+POINTWISE: phase=verify simple=44196 l5=72381 share=2.10%
+REQUEST: id=1 input=4
+*** verify_internal returned -6
+*** pk differs from portable host reference at byte 0: got=0x00 expected=0x14
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0x03
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           813
+keccak_f1600_x4           156
+poly_ntt                   88
+poly_invntt               169
+rej_uniform                 0
+poly_pointwise            109
+pointwise_acc_l5           66
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6677836 sign=33494726 verify=3285849 total=43458411
+POINTWISE: phase=keypair simple=0 l5=81015 share=1.21%
+POINTWISE: phase=sign simple=719214 l5=697450 share=4.23%
+POINTWISE: phase=verify simple=34475 l5=67071 share=3.09%
+REQUEST: id=2 input=5
+*** verify_internal returned -6
+*** sk differs from portable host reference at byte 64: got=0x50 expected=0x35
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0x18
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           648
+keccak_f1600_x4           131
+poly_ntt                   58
+poly_invntt                83
+rej_uniform                 0
+poly_pointwise             53
+pointwise_acc_l5           36
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6682936 sign=20264853 verify=4776501 total=31724290
+POINTWISE: phase=keypair simple=0 l5=93039 share=1.39%
+POINTWISE: phase=sign simple=371348 l5=399696 share=3.80%
+POINTWISE: phase=verify simple=48002 l5=81809 share=2.72%
+REQUEST: id=3 input=6
+*** verify_internal returned -6
+*** pk differs from portable host reference at byte 0: got=0x00 expected=0x7b
+*** sk differs from portable host reference at byte 64: got=0x63 expected=0x4a
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0x57
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           549
+keccak_f1600_x4           116
+poly_ntt                   40
+poly_invntt                35
+rej_uniform                 0
+poly_pointwise             23
+pointwise_acc_l5           18
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6683946 sign=10499354 verify=5819728 total=23003028
+POINTWISE: phase=keypair simple=0 l5=91697 share=1.37%
+POINTWISE: phase=sign simple=148240 l5=132235 share=2.67%
+POINTWISE: phase=verify simple=48683 l5=81643 share=2.24%
+REQUEST: id=4 input=7
+*** verify_internal returned -6
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0x61
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           879
+keccak_f1600_x4           166
+poly_ntt                  100
+poly_invntt               173
+rej_uniform                 0
+poly_pointwise            101
+pointwise_acc_l5           78
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6697042 sign=34862671 verify=3077931 total=44637644
+POINTWISE: phase=keypair simple=0 l5=100078 share=1.49%
+POINTWISE: phase=sign simple=653546 l5=886859 share=4.42%
+POINTWISE: phase=verify simple=32846 l5=55429 share=2.87%
+REQUEST: id=5 input=8
+*** verify_internal returned -6
+*** pk differs from portable host reference at byte 0: got=0x00 expected=0x38
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0x93
+*** arena allocation/release failures: 12
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=86912 of 90112 fail=12
+primitive               calls
+keccak_f1600_x1           780
+keccak_f1600_x4           151
+poly_ntt                   82
+poly_invntt               103
+rej_uniform                 0
+poly_pointwise             49
+pointwise_acc_l5           60
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6747981 sign=25768761 verify=4351998 total=36868740
+POINTWISE: phase=keypair simple=0 l5=72500 share=1.07%
+POINTWISE: phase=sign simple=338713 l5=639146 share=3.79%
+POINTWISE: phase=verify simple=36445 l5=67235 share=2.38%
+REQUEST: id=6 input=9
+*** verify_internal returned -6
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0xc2
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           813
+keccak_f1600_x4           156
+poly_ntt                   88
+poly_invntt               159
+rej_uniform                 0
+poly_pointwise             99
+pointwise_acc_l5           66
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6752709 sign=32706633 verify=3372601 total=42831943
+POINTWISE: phase=keypair simple=0 l5=78302 share=1.16%
+POINTWISE: phase=sign simple=654117 l5=784323 share=4.40%
+POINTWISE: phase=verify simple=38646 l5=58596 share=2.88%
+REQUEST: id=7 input=10
+*** verify_internal returned -6
+*** pk differs from portable host reference at byte 0: got=0x00 expected=0x94
+*** signature differs from portable host reference at byte 0: got=0x00 expected=0xfa
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           714
+keccak_f1600_x4           141
+poly_ntt                   70
+poly_invntt               107
+rej_uniform                 0
+poly_pointwise             65
+pointwise_acc_l5           48
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=6819917 sign=25381065 verify=4355677 total=36556659
+POINTWISE: phase=keypair simple=0 l5=65303 share=0.96%
+POINTWISE: phase=sign simple=432873 l5=516065 share=3.74%
+POINTWISE: phase=verify simple=42194 l5=61380 share=2.38%
+BATCH: requests=8 first_input=3 makespan=44637671
+FAILED!

@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "scope": "ML-KEM-768 matched A/B/C/D diagnostic comparison",
+  "git_head": "24a74cdb8912091ff154479173d99eaffc993a91",
+  "configuration": {
+    "xlen": 32,
+    "cores": 1,
+    "warps": 8,
+    "threads": 32,
+    "board_clock_mhz": 150
+  },
+  "note": "The V80 image serializes each AXI-bank write until BRESP; these are validation results, not final paper performance numbers.",
+  "arms": {
+    "A": {
+      "description": "software Keccak + software NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_keccak_sw_ntt_sw/kernel.vxbin",
+      "kernel_sha256": "86e35a30a52de88a05f13f6ea5a0c189edf68267b211cf8337e81acca8d32337"
+    },
+    "B": {
+      "description": "Stage Keccak + software NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_keccak_hw_ntt_sw/kernel.vxbin",
+      "kernel_sha256": "9334ba3e14e65126a03f1440e7702a1cdb63a3a935f481c1721f5d5d7de62e02"
+    },
+    "C": {
+      "description": "software Keccak + hardware NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_keccak_sw_ntt_hw/kernel.vxbin",
+      "kernel_sha256": "523ccb93a4197d86ed53f82762963f9421ee938b831751fb8093dd4a9e97d2d0"
+    },
+    "D": {
+      "description": "Stage Keccak + hardware NTT",
+      "kernel": "build32_v80_pqc_hw/tests/pqc/v80_variants/mlkem768_full/kernel.vxbin",
+      "kernel_sha256": "992703e067458dacef087c9542ddecc1bc2564f6be98ce2c04e7d18d3cf9cfc8"
+    }
+  },
+  "measurements": {
+    "M1": {
+      "v80": {
+        "A": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_A_b1_w1_v80_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 5533609,
+          "retired_instructions": 348572,
+          "perf_cycles": 5537767,
+          "ipc": 0.063,
+          "kat": "PASS"
+        },
+        "B": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_B_b1_w1_v80_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 2722256,
+          "retired_instructions": 145852,
+          "perf_cycles": 2726536,
+          "ipc": 0.053,
+          "kat": "PASS"
+        },
+        "C": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_C_b1_w1_v80_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 5232976,
+          "retired_instructions": 329219,
+          "perf_cycles": 5237180,
+          "ipc": 0.063,
+          "kat": "PASS"
+        },
+        "D": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_D_b1_w1_v80_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 2418027,
+          "retired_instructions": 126499,
+          "perf_cycles": 2422147,
+          "ipc": 0.052,
+          "kat": "PASS"
+        }
+      },
+      "rtlsim": {
+        "A": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_A_b1_w1_rtlsim_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 4606518,
+          "retired_instructions": 348572,
+          "perf_cycles": 4610357,
+          "ipc": 0.076,
+          "kat": "PASS"
+        },
+        "B": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_B_b1_w1_rtlsim_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 2358950,
+          "retired_instructions": 145852,
+          "perf_cycles": 2362781,
+          "ipc": 0.062,
+          "kat": "PASS"
+        },
+        "C": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_C_b1_w1_rtlsim_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 4316152,
+          "retired_instructions": 329219,
+          "perf_cycles": 4319942,
+          "ipc": 0.076,
+          "kat": "PASS"
+        },
+        "D": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_D_b1_w1_rtlsim_bresp.log",
+          "requests": 1,
+          "makespan_cycles": 2078540,
+          "retired_instructions": 126499,
+          "perf_cycles": 2082287,
+          "ipc": 0.061,
+          "kat": "PASS"
+        }
+      }
+    },
+    "M8": {
+      "v80": {
+        "A": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_A_b8_w8_v80_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 24445162,
+          "retired_instructions": 2982576,
+          "perf_cycles": 24461903,
+          "ipc": 0.122,
+          "kat": "PASS"
+        },
+        "B": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_B_b8_w8_v80_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 13871830,
+          "retired_instructions": 1360816,
+          "perf_cycles": 13888484,
+          "ipc": 0.098,
+          "kat": "PASS"
+        },
+        "C": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_C_b8_w8_v80_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 23393165,
+          "retired_instructions": 2827752,
+          "perf_cycles": 23410068,
+          "ipc": 0.121,
+          "kat": "PASS"
+        },
+        "D": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_D_b8_w8_v80_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 12810347,
+          "retired_instructions": 1205992,
+          "perf_cycles": 12826880,
+          "ipc": 0.094,
+          "kat": "PASS"
+        }
+      },
+      "rtlsim": {
+        "A": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_A_b8_w8_rtlsim_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 17179037,
+          "retired_instructions": 2982576,
+          "perf_cycles": 17193690,
+          "ipc": 0.173,
+          "kat": "PASS"
+        },
+        "B": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_B_b8_w8_rtlsim_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 10413984,
+          "retired_instructions": 1360816,
+          "perf_cycles": 10428511,
+          "ipc": 0.13,
+          "kat": "PASS"
+        },
+        "C": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_C_b8_w8_rtlsim_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 16167896,
+          "retired_instructions": 2827752,
+          "perf_cycles": 16182544,
+          "ipc": 0.175,
+          "kat": "PASS"
+        },
+        "D": {
+          "log": "pqc/results/v80_hw_validation/mlkem768_ablation_D_b8_w8_rtlsim_bresp.log",
+          "requests": 8,
+          "makespan_cycles": 9409986,
+          "retired_instructions": 1205992,
+          "perf_cycles": 9424417,
+          "ipc": 0.128,
+          "kat": "PASS"
+        }
+      }
+    }
+  },
+  "speedups": {
+    "M1": {
+      "keccak_A_over_B": {
+        "v80": 2.0327291040960143,
+        "rtlsim": 1.9527832298268297,
+        "relative_difference_pct": 4.093945147013267
+      },
+      "ntt_after_keccak_B_over_D": {
+        "v80": 1.1258170400909502,
+        "rtlsim": 1.1349071944730436,
+        "relative_difference_pct": -0.8009601513112363
+      },
+      "ntt_first_A_over_C": {
+        "v80": 1.0574497188597847,
+        "rtlsim": 1.067274275790102,
+        "relative_difference_pct": -0.9205278486679624
+      },
+      "joint_A_over_D": {
+        "v80": 2.288481063280104,
+        "rtlsim": 2.216227736776776,
+        "relative_difference_pct": 3.260194126457927
+      }
+    },
+    "M8": {
+      "keccak_A_over_B": {
+        "v80": 1.7622160882882791,
+        "rtlsim": 1.6496123865755892,
+        "relative_difference_pct": 6.826070331979173
+      },
+      "ntt_after_keccak_B_over_D": {
+        "v80": 1.0828613776035887,
+        "rtlsim": 1.106694951512149,
+        "relative_difference_pct": -2.153581154047457
+      },
+      "ntt_first_A_over_C": {
+        "v80": 1.0449702722996226,
+        "rtlsim": 1.062540048501054,
+        "relative_difference_pct": -1.6535636681382027
+      },
+      "joint_A_over_D": {
+        "v80": 1.9082357409990534,
+        "rtlsim": 1.825617700175112,
+        "relative_difference_pct": 4.525484213700204
+      }
+    }
+  }
+}

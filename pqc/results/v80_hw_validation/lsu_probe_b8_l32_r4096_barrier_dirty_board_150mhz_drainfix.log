@@ -1,0 +1,13 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+LSU_PROBE request=0 mode=barrier_dirty M=8 L=32 rounds=4096 start=5941 end=888559 cycles=882618 checksum=0x8e67bd94 bad=0
+LSU_PROBE request=1 mode=barrier_dirty M=8 L=32 rounds=4096 start=5943 end=889545 cycles=883602 checksum=0x0e7e75f9 bad=0
+LSU_PROBE request=2 mode=barrier_dirty M=8 L=32 rounds=4096 start=5945 end=889933 cycles=883988 checksum=0xe7b7d92d bad=0
+LSU_PROBE request=3 mode=barrier_dirty M=8 L=32 rounds=4096 start=5949 end=890349 cycles=884400 checksum=0x9c8db83f bad=0
+LSU_PROBE request=4 mode=barrier_dirty M=8 L=32 rounds=4096 start=5977 end=890552 cycles=884575 checksum=0xd67ce31b bad=0
+LSU_PROBE request=5 mode=barrier_dirty M=8 L=32 rounds=4096 start=5985 end=890365 cycles=884380 checksum=0x24d9cdfb bad=0
+LSU_PROBE request=6 mode=barrier_dirty M=8 L=32 rounds=4096 start=5958 end=890802 cycles=884844 checksum=0x5ffdfa27 bad=0
+LSU_PROBE request=7 mode=barrier_dirty M=8 L=32 rounds=4096 start=5962 end=891950 cycles=885988 checksum=0xcd1a5313 bad=0
+LSU_PROBE_BATCH mode=barrier_dirty M=8 L=32 rounds=4096 start=5941 end=891950 makespan=886009 min=882618 max=885988 sum=7074395 bad=0
+PERF: instrs=590648, cycles=893769, IPC=0.661
+PASSED!

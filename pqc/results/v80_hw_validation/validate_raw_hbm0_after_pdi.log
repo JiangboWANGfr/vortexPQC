@@ -1,0 +1,6 @@
+Raw transfer mode skips reset; continuing without VRTD reset.
+Warning: SLASH raw transfer mode usually needs root or udev-granted access to QDMA device nodes/sysfs.
+Using raw QDMA device /dev/slash_qdma_ctl0...
+Channel allocation: auto (mm-channel = qid&1, linear addressing)
+MM channel: auto (all buffers)
+SMI execution failed: Failed to open QDMA device /dev/slash_qdma_ctl0: Permission denied

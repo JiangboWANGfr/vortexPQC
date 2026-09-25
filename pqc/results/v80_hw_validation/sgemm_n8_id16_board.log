@@ -1,0 +1,3 @@
+sgemm vortex2: 8x8
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+matrix size 8 must divide block 32x8

@@ -1,0 +1,94 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+[VXDRV] fence: seq=0 cmpl_addr=0x0 region=MISSING shadow_cmpl=0
+SCHEDULING: requests=8 workers=8 waves=1
+[VXCP] resuming at Q_SEQNUM=0 (tail=0x0)
+[VXDRV] staged alloc: cp_addr=0x4020000000 size=65536
+[VXDRV] staged alloc: cp_addr=0x4020010000 size=64
+[VXDRV] staged alloc: cp_addr=0x4020011000 size=128
+[VXDRV] staged alloc: cp_addr=0x4020012000 size=512
+[VXCP] seq=1 MEM_WRITE    flags=0x00 arg0=0x40 arg1=0x4020012000
+[VXDRV] fence: seq=1 cmpl_addr=0x4020011000 region=found shadow_cmpl=0
+[VXDRV] staged park: 0x4020012000 size=512 seq64=1
+[VXDRV] staged alloc: cp_addr=0x4020013000 size=256
+[VXCP] seq=2 MEM_WRITE    flags=0x00 arg0=0x8240 arg1=0x4020013000
+[VXDRV] staged stamp: 0x4020012000 watermark=2
+[VXDRV] fence: seq=2 cmpl_addr=0x4020011000 region=found shadow_cmpl=1
+[VXDRV] staged release: 0x4020012000 watermark=2 seq64=2
+[VXDRV] staged park: 0x4020013000 size=256 seq64=2
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[VXDRV] staged alloc: cp_addr=0x4020018000 size=32768
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+[VXCP] seq=3 MEM_WRITE    flags=0x00 arg0=0x80000000 arg1=0x4020018000
+[VXDRV] staged stamp: 0x4020013000 watermark=3
+[VXDRV] fence: seq=3 cmpl_addr=0x4020011000 region=found shadow_cmpl=2
+[VXDRV] staged release: 0x4020013000 watermark=3 seq64=3
+[VXDRV] staged park: 0x4020018000 size=32768 seq64=3
+[VXDRV] staged alloc: cp_addr=0x4020040000 size=206912
+[VXCP] seq=4 MEM_WRITE    flags=0x00 arg0=0x80008000 arg1=0x4020040000
+[VXDRV] staged stamp: 0x4020018000 watermark=4
+[VXDRV] fence: seq=4 cmpl_addr=0x4020011000 region=found shadow_cmpl=3
+[VXDRV] staged release: 0x4020018000 watermark=4 seq64=4
+[VXDRV] staged park: 0x4020040000 size=206912 seq64=4
+[VXDRV] staged alloc: cp_addr=0x4020020000 size=39936
+[VXCP] seq=5 MEM_WRITE    flags=0x00 arg0=0x10000 arg1=0x4020020000
+[VXDRV] staged stamp: 0x4020040000 watermark=5
+[VXDRV] fence: seq=5 cmpl_addr=0x4020011000 region=found shadow_cmpl=4
+[VXDRV] staged release: 0x4020040000 watermark=5 seq64=5
+[VXDRV] staged park: 0x4020020000 size=39936 seq64=5
+[VXDRV] staged alloc: cp_addr=0x4020012000 size=64
+[VXCP] seq=6 MEM_WRITE    flags=0x00 arg0=0x1a000 arg1=0x4020012000
+[VXDRV] staged stamp: 0x4020020000 watermark=6
+[VXDRV] fence: seq=6 cmpl_addr=0x4020011000 region=found shadow_cmpl=5
+[VXDRV] staged release: 0x4020020000 watermark=6 seq64=6
+[VXDRV] staged park: 0x4020012000 size=64 seq64=6
+[VXCP] seq=7 DCR_WRITE    flags=0x00 arg0=0x10 arg1=0x80000000
+[VXDRV] staged stamp: 0x4020012000 watermark=7
+[VXDRV] fence: seq=7 cmpl_addr=0x4020011000 region=found shadow_cmpl=6
+[VXDRV] staged release: 0x4020012000 watermark=7 seq64=7
+[VXCP] seq=8 DCR_WRITE    flags=0x00 arg0=0x11 arg1=0x0
+[VXDRV] fence: seq=8 cmpl_addr=0x4020011000 region=found shadow_cmpl=7
+[VXCP] seq=9 DCR_WRITE    flags=0x00 arg0=0x12 arg1=0x800066a8
+[VXDRV] fence: seq=9 cmpl_addr=0x4020011000 region=found shadow_cmpl=8
+[VXCP] seq=10 DCR_WRITE    flags=0x00 arg0=0x13 arg1=0x0
+[VXDRV] fence: seq=10 cmpl_addr=0x4020011000 region=found shadow_cmpl=9
+[VXCP] seq=11 DCR_WRITE    flags=0x00 arg0=0x14 arg1=0x1a000
+[VXDRV] fence: seq=11 cmpl_addr=0x4020011000 region=found shadow_cmpl=10
+[VXCP] seq=12 DCR_WRITE    flags=0x00 arg0=0x15 arg1=0x0
+[VXDRV] fence: seq=12 cmpl_addr=0x4020011000 region=found shadow_cmpl=11
+[VXCP] seq=13 DCR_WRITE    flags=0x00 arg0=0x16 arg1=0x20
+[VXDRV] fence: seq=13 cmpl_addr=0x4020011000 region=found shadow_cmpl=12
+[VXCP] seq=14 DCR_WRITE    flags=0x00 arg0=0x17 arg1=0x1
+[VXDRV] fence: seq=14 cmpl_addr=0x4020011000 region=found shadow_cmpl=13
+[VXCP] seq=15 DCR_WRITE    flags=0x00 arg0=0x18 arg1=0x1
+[VXDRV] fence: seq=15 cmpl_addr=0x4020011000 region=found shadow_cmpl=14
+[VXCP] seq=16 DCR_WRITE    flags=0x00 arg0=0x19 arg1=0x8
+[VXDRV] fence: seq=16 cmpl_addr=0x4020011000 region=found shadow_cmpl=15
+[VXCP] seq=17 DCR_WRITE    flags=0x00 arg0=0x1a arg1=0x1
+[VXDRV] fence: seq=17 cmpl_addr=0x4020011000 region=found shadow_cmpl=16
+[VXCP] seq=18 DCR_WRITE    flags=0x00 arg0=0x1b arg1=0x1
+[VXDRV] fence: seq=18 cmpl_addr=0x4020011000 region=found shadow_cmpl=17
+[VXCP] seq=19 DCR_WRITE    flags=0x00 arg0=0x1c arg1=0x0
+[VXDRV] fence: seq=19 cmpl_addr=0x4020011000 region=found shadow_cmpl=18
+[VXCP] seq=20 DCR_WRITE    flags=0x00 arg0=0x1d arg1=0x20
+[VXDRV] fence: seq=20 cmpl_addr=0x4020011000 region=found shadow_cmpl=19
+[VXCP] seq=21 DCR_WRITE    flags=0x00 arg0=0x1e arg1=0x0
+[VXDRV] fence: seq=21 cmpl_addr=0x4020011000 region=found shadow_cmpl=20
+[VXCP] seq=22 DCR_WRITE    flags=0x00 arg0=0x1f arg1=0x0
+[VXDRV] fence: seq=22 cmpl_addr=0x4020011000 region=found shadow_cmpl=21
+[VXCP] seq=23 DCR_WRITE    flags=0x00 arg0=0x20 arg1=0x0
+[VXDRV] fence: seq=23 cmpl_addr=0x4020011000 region=found shadow_cmpl=22
+[VXCP] seq=24 DCR_WRITE    flags=0x00 arg0=0x21 arg1=0x1
+[VXDRV] fence: seq=24 cmpl_addr=0x4020011000 region=found shadow_cmpl=23
+[VXCP] seq=25 DCR_WRITE    flags=0x00 arg0=0x22 arg1=0x1
+[VXDRV] fence: seq=25 cmpl_addr=0x4020011000 region=found shadow_cmpl=24
+[VXCP] seq=26 DCR_WRITE    flags=0x00 arg0=0x23 arg1=0x1
+[VXDRV] fence: seq=26 cmpl_addr=0x4020011000 region=found shadow_cmpl=25
+[VXCP] seq=27 LAUNCH       flags=0x00 arg0=0x0 arg1=0x0
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=26 target=27 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x0000004020000000 HEAD_ADDR=0x0000004020010000 CMPL_ADDR=0x0000004020011000
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x00000000000006c0
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+[VXDRV] Error: CP poll timed out after 10s (Q_SEQNUM=26 target=27)
+FAIL /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/tests/pqc/mlkem_profile/main.cpp:184: 'vx_event_wait_value(e1, 1, VX_TIMEOUT_INFINITE)' returned VX_ERR_DEVICE_LOST

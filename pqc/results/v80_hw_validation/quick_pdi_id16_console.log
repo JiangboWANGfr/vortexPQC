@@ -1,0 +1,422 @@
+
+****** Vivado v2025.1 (64-bit)
+  **** SW Build 6140274 on Wed May 21 22:58:25 MDT 2025
+  **** IP Build 6138677 on Thu May 22 03:10:11 MDT 2025
+  **** SharedData Build 6139179 on Tue May 20 17:58:58 MDT 2025
+  **** Start of session at: Thu Sep 24 23:17:44 2026
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+
+source /tmp/quick_v80_pdi_id16.tcl
+# set_param general.maxThreads 8
+# set base {/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj}
+# open_checkpoint [file join $base slash_rm slash_vortex_afu.runs impl_1 top_wrapper_routed.dcp]
+Command: open_checkpoint /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/slash_rm/slash_vortex_afu.runs/impl_1/top_wrapper_routed.dcp
+
+Starting open_checkpoint Task
+
+Time (s): cpu = 00:00:00.01 ; elapsed = 00:00:00.02 . Memory (MB): peak = 1534.766 ; gain = 0.000 ; free physical = 24243 ; free virtual = 87112
+INFO: [Device 21-403] Loading part xcv80-lsva4737-2MHP-e-S
+Netlist sorting complete. Time (s): cpu = 00:00:03 ; elapsed = 00:00:03 . Memory (MB): peak = 4941.863 ; gain = 0.000 ; free physical = 20834 ; free virtual = 83701
+INFO: [IP_Flow 19-234] Refreshing IP repositories
+INFO: [IP_Flow 19-1704] No user IP repositories specified
+INFO: [IP_Flow 19-2313] Loaded Vivado IP repository '/data/Xilinx/2025.1/Vivado/data/ip'.
+INFO: [Project 1-479] Netlist was created with Vivado 2025.1
+INFO: [Constraints 18-5720] The default GCLK Deskew mode is Off.
+INFO: [Device 21-9335] Optimized delay calculation is enabled for this device.
+INFO: [Constraints 18-13227] Created floorplan with Advanced Flow Feature Set
+INFO: [Project 1-570] Preparing netlist for logic optimization
+Read ShapeDB Complete: Time (s): cpu = 00:00:00.27 ; elapsed = 00:00:00.28 . Memory (MB): peak = 6080.246 ; gain = 20.461 ; free physical = 19688 ; free virtual = 82599
+Reading Traffic File '/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/slash_rm/slash_vortex_afu.runs/impl_1/top_wrapper_routed/top_wrapper.nts'
+INFO: [Ipconfig 75-709] Read and Merge Traffic Stats:  Before Read: 0 insts (0 INI), 0 paths (0 INI). Read In: 114 insts (1 INI), 425 paths (0 INI). After Merge: 114 insts (1 INI), 425 paths (0 INI). Noc Frequency: 1000 0 error slaves
+Reading NOC Solution File '/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/slash_rm/slash_vortex_afu.runs/impl_1/top_wrapper_routed/top_wrapper.ncr'
+INFO: [Constraints 18-5158] Loading Memory Image Database: /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/slash_rm/slash_vortex_afu.runs/impl_1/top_wrapper_routed/top_wrapper_mem_image.db
+INFO: [Timing 38-478] Restoring timing data from binary archive.
+INFO: [Timing 38-479] Binary timing data restore complete.
+INFO: [Project 1-856] Restoring constraints from binary archive.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_0.PL_CLK_0_BUFG' is LOCed to site 'BUFG_PS_X1Y6'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_1.PL_CLK_1_BUFG' is LOCed to site 'BUFG_PS_X1Y7'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_2.PL_CLK_2_BUFG' is LOCed to site 'BUFG_PS_X1Y8'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG' is LOCed to site 'BUFG_PS_X1Y9'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/BUFG_clkout1_inst' is LOCed to site 'BUFGCE_X9Y22'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1_BUFG_inst' is LOCed to site 'BUFGCE_X8Y0'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+INFO: [Project 1-853] Binary constraint restore complete.
+INFO: [Designutils 20-5722] Start Reading Physical Databases.
+Reading placement.
+Read Netlist Cache: Time (s): cpu = 00:00:00.2 ; elapsed = 00:00:00.25 . Memory (MB): peak = 8377.082 ; gain = 130.680 ; free physical = 17512 ; free virtual = 80425
+Reading placer database...
+Read Device Cache: Time (s): cpu = 00:00:00.22 ; elapsed = 00:00:00.27 . Memory (MB): peak = 8593.051 ; gain = 215.969 ; free physical = 17291 ; free virtual = 80204
+Read PlaceDB: Time (s): cpu = 00:00:14 ; elapsed = 00:00:14 . Memory (MB): peak = 9292.520 ; gain = 697.086 ; free physical = 16634 ; free virtual = 79546
+Read PartitionPinStorage: Time (s): cpu = 00:00:00.04 ; elapsed = 00:00:00.05 . Memory (MB): peak = 9310.520 ; gain = 0.000 ; free physical = 16616 ; free virtual = 79528
+Read PulsedLatchDB: Time (s): cpu = 00:00:00 ; elapsed = 00:00:00 . Memory (MB): peak = 9310.520 ; gain = 0.000 ; free physical = 16616 ; free virtual = 79528
+Reading routing.
+Read RouteStorage: Time (s): cpu = 00:00:16 ; elapsed = 00:00:16 . Memory (MB): peak = 10727.832 ; gain = 1417.312 ; free physical = 15230 ; free virtual = 78141
+Read DFXDB: Time (s): cpu = 00:00:00.22 ; elapsed = 00:00:00.22 . Memory (MB): peak = 10727.832 ; gain = 0.000 ; free physical = 15230 ; free virtual = 78141
+Read Physdb Files: Time (s): cpu = 00:00:31 ; elapsed = 00:00:31 . Memory (MB): peak = 10727.832 ; gain = 2481.430 ; free physical = 15228 ; free virtual = 78139
+Restored from archive | CPU: 32.330000 secs | Memory: 1880.605591 MB |
+Finished XDEF File Restore: Time (s): cpu = 00:00:32 ; elapsed = 00:00:32 . Memory (MB): peak = 10727.832 ; gain = 2484.398 ; free physical = 15196 ; free virtual = 78108
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_0.PL_CLK_0_BUFG' is LOCed to site 'BUFG_PS_X1Y6'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_1.PL_CLK_1_BUFG' is LOCed to site 'BUFG_PS_X1Y7'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_2.PL_CLK_2_BUFG' is LOCed to site 'BUFG_PS_X1Y8'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/aved/cips/inst/pspmc_0/inst/buffer_pl_clk_3.PL_CLK_3_BUFG' is LOCed to site 'BUFG_PS_X1Y9'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/clk_rst_shell/clk_wizard_slash/inst/clock_primitive_inst/BUFG_clkout1_inst' is LOCed to site 'BUFGCE_X9Y22'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+WARNING: [Constraints 18-4434] Global Clock Buffer 'top_i/static_region/clk_wizard_0/inst/clock_primitive_inst/clk_out1_BUFG_inst' is LOCed to site 'BUFGCE_X8Y0'. Using a LOC constraint to assign the placement of a Global Clock Buffer can result in sub-optimal placement results.
+Resolution: Remove the LOC constraint and use the CLOCK_REGION constraint to assign a Global Clock Buffer to a CLOCK_REGION.
+INFO: [Ipconfig 75-709] Read and Merge Traffic Stats:  Before Read: 0 insts (0 INI), 0 paths (0 INI). Read In: 114 insts (1 INI), 425 paths (0 INI). After Merge: 114 insts (1 INI), 425 paths (0 INI). Noc Frequency: 1000 0 error slaves
+INFO: [Ipconfig 75-709] Read and Merge Traffic Stats:  Before Read: 114 insts (1 INI), 425 paths (0 INI). Read In: 6 insts (0 INI), 6 paths (0 INI). After Merge: 118 insts (1 INI), 427 paths (0 INI). Noc Frequency: 1000 0 error slaves
+INFO: [Ipconfig 75-869] Added 4 boot config paths to traffic out of a total of 6
+Netlist sorting complete. Time (s): cpu = 00:00:00.09 ; elapsed = 00:00:00.09 . Memory (MB): peak = 11444.488 ; gain = 0.000 ; free physical = 14489 ; free virtual = 77401
+INFO: [Project 1-111] Unisim Transformation Summary:
+  A total of 1216 instances were transformed.
+  DSP58C => DSP58C (DSP_ALUADD, DSP_ALUMUX, DSP_ALUREG, DSP_A_B_DATA58, DSP_C_DATA58, DSP_MULTIPLIER58, DSP_M_DATA58, DSP_OUTPUT58, DSP_PATDET, DSP_PREADD58, DSP_PREADD_DATA58, DSP_SRCMX_OPTINV): 106 instances
+  RAMD64E => RAMD64E (RAMD64E5, VCC): 1110 instances
+
+INFO: [Project 1-604] Checkpoint was created with Vivado v2025.1 (64-bit) build 6140274
+WARNING: [Vivado 12-23575] Critical violations of the methodology design rules detected. Critical violations may contribute to timing failures or cause functional issues in hardware. Run report_methodology for more information.
+open_checkpoint: Time (s): cpu = 00:02:22 ; elapsed = 00:01:47 . Memory (MB): peak = 11444.523 ; gain = 9909.758 ; free physical = 14458 ; free virtual = 77385
+# report_timing_summary -delay_type min_max -max_paths 10 -file [file join $base report_timing_vortex_afu.txt]
+INFO: [Timing 38-91] UpdateTimingParams: Speed grade: -2MHP, Temperature grade: E, Delay Type: min_max.
+INFO: [Timing 38-191] Multithreading enabled for timing update using a maximum of 8 CPUs
+WARNING: [Timing 38-436] There are set_bus_skew constraint(s) in this design. Please run report_bus_skew to ensure that bus skew requirements are met.
+report_timing_summary: Time (s): cpu = 00:01:31 ; elapsed = 00:00:21 . Memory (MB): peak = 12021.277 ; gain = 576.754 ; free physical = 13860 ; free virtual = 76787
+# report_route_status -file [file join $base report_route_status_vortex_afu.txt]
+# report_drc -file [file join $base report_drc_vortex_afu.txt]
+Command: report_drc -file /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/report_drc_vortex_afu.txt
+INFO: [IP_Flow 19-1839] IP Catalog is up to date.
+INFO: [DRC 23-27] Running DRC with 8 threads
+WARNING: [DRC 23-814] Not all possible (connectivity based) DRCs may have been run because this design is seen as Abstract Shell.
+INFO: [Vivado_Tcl 2-168] The results of DRC are in file /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/report_drc_vortex_afu.txt.
+report_drc completed successfully
+report_drc: Time (s): cpu = 00:01:43 ; elapsed = 00:00:29 . Memory (MB): peak = 13329.391 ; gain = 1308.113 ; free physical = 12821 ; free virtual = 75748
+# report_utilization -hierarchical -hierarchical_percentages -file [file join $base report_utilization_vortex_afu.txt]
+report_utilization: Time (s): cpu = 00:00:53 ; elapsed = 00:00:53 . Memory (MB): peak = 13329.391 ; gain = 0.000 ; free physical = 12841 ; free virtual = 75770
+# set images [file join $base images]
+# file mkdir $images
+# write_device_image -cell top_i/slash -force [file join $images top_i_slash_slash_vortex_afu_inst_0_partial.pdi]
+Command: write_device_image -cell top_i/slash -force /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial.pdi
+Attempting to get a license for feature 'Implementation' and/or device 'xcv80'
+INFO: [Common 17-349] Got license for feature 'Implementation' and/or device 'xcv80'
+INFO: [Ipconfig 75-709] Read and Merge Traffic Stats:  Before Read: 0 insts (0 INI), 0 paths (0 INI). Read In: 114 insts (1 INI), 425 paths (0 INI). After Merge: 114 insts (1 INI), 425 paths (0 INI). Noc Frequency: 1000 0 error slaves
+INFO: [Ipconfig 75-709] Read and Merge Traffic Stats:  Before Read: 114 insts (1 INI), 425 paths (0 INI). Read In: 6 insts (0 INI), 6 paths (0 INI). After Merge: 118 insts (1 INI), 427 paths (0 INI). Noc Frequency: 1000 0 error slaves
+INFO: [Ipconfig 75-869] Added 4 boot config paths to traffic out of a total of 6
+Running DRC as a precondition to command write_device_image
+INFO: [IP_Flow 19-1839] IP Catalog is up to date.
+INFO: [DRC 23-27] Running DRC with 8 threads
+WARNING: [DRC 23-814] Not all possible (connectivity based) DRCs may have been run because this design is seen as Abstract Shell.
+INFO: [Vivado 12-3199] DRC finished with 0 Errors
+INFO: [Vivado 12-3200] Please refer to the DRC report (report_drc) for more information.
+Integrating Hard IP ELF/MEM with the PDI.
+INFO: [Constraints 18-5160] Reading Static MEM File '_mem_tmp.mem' for cell 'top_i/static_region/noc/axi_noc_mc_ddr4_0/inst/MC0_ddrc/inst/noc_ddr4_phy/inst/u_ddrmc_main'
+INFO: [Constraints 18-5160] Reading Static MEM File '_mem_tmp.mem' for cell 'top_i/static_region/noc/axi_noc_mc_ddr4_1/inst/MC0_ddrc/inst/noc_ddr4_phy/inst/u_ddrmc_main'
+Partition "pblock_slash" Reconfigurable Module "top_i/slash"
+INFO: [Vivado 12-8266] No full design pdi will be created with the use of the -cell option.
+Process Partition "pblock_slash"
+Generating PS PMC files.
+INFO: [Designutils 20-5748] Running write_device_image with 8 threads.
+Loading data files...
+Loading site data...
+Loading route data...
+Processing options...
+INFO: [Designutils 20-5003] Per-Frame CRC checking will be used for DFX bitstreams.
+Creating bitmap...
+INFO: [Bitstream 40-812] Reading NPI Startup sequence definitions
+INFO: [Bitstream 40-811] Reading NPI Shutdown sequence definitions
+INFO: [Bitstream 40-810] Reading NPI Preconfig sequence definitions
+Creating bitstream...
+Partial bitstream contains 760630400 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_2.rcdo...
+Partial bitstream contains 741481088 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_1.rcdo...
+Partial bitstream contains 951120000 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_0.rcdo...
+Creating bitstream...
+Partial bitstream contains 760630400 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_2.rnpi...
+Partial bitstream contains 741481088 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_1.rnpi...
+Partial bitstream contains 951120000 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_0.rnpi...
+Creating bitstream...
+Partial bitstream contains 2600064 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_mask_2.rcdo...
+Partial bitstream contains 2786432 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_mask_1.rcdo...
+Partial bitstream contains 1876096 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_mask_0.rcdo...
+Creating bitstream...
+Partial bitstream contains 2600064 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_mask_2.rnpi...
+Partial bitstream contains 2786432 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_mask_1.rnpi...
+Partial bitstream contains 1876096 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_mask_0.rnpi...
+Creating bitstream...
+Partial bitstream contains 2600064 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_2.rcdo...
+Partial bitstream contains 2786432 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_1.rcdo...
+Partial bitstream contains 1876096 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_0.rcdo...
+Creating bitstream...
+Partial bitstream contains 2600064 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_2.rnpi...
+Partial bitstream contains 2786432 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_1.rnpi...
+Partial bitstream contains 1876096 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_0.rnpi...
+Creating bitstream...
+Partial bitstream contains 12448896 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_clear_2.rcdo...
+Partial bitstream contains 1625216 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_clear_1.rcdo...
+Partial bitstream contains 36260992 bits.
+Writing CDO partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_clear_0.rcdo...
+Creating bitstream...
+Partial bitstream contains 12448896 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_shutdown_2.rnpi...
+Partial bitstream contains 1625216 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_shutdown_1.rnpi...
+Partial bitstream contains 36260992 bits.
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_shutdown_0.rnpi...
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_combined_0.rcdo...
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_combined_1.rcdo...
+Writing NPI partition /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_combined_2.rcdo...
+Generating bif file /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial.bif for partial pdi
+Generating Hard Block Files
+INFO: [Project 1-5214] Generating the Versal_PLM application.
+WARNING: [Hsi 55-2054] Skipping slash_base_inst_0.hwh file as it is either empty or doesn't exist
+INFO: [Hsi 55-2053] elapsed time for repository (/data/Xilinx/2025.1/Vivado/data/embeddedsw) loading 0 seconds
+INFO: [Hsi 55-2199] Creating sw design for static_region_aved_cips_pspmc_0_psv_pmc_0 
+INFO: [Hsi 55-2200] Generating BSP start.
+/data/Xilinx/2025.1/Vivado/gnu/microblaze/lin
+INFO: [PLM-1] versal_plm application compilation started
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cframe_v1_8/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cfupmc_v1_9/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/clk_wiz_v1_9/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/coresightps_dcc_v1_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cpu_v2_18/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/csudma_v1_17/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ddrpsv_v1_7/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/gpiops_v3_14/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/gpio_v4_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/iicps_v3_21/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/iomodule_v2_18/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ipipsu_v2_17/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ospipsv_v1_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/rtcpsu_v1_15/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/sdps_v4_4/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/spips_v3_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/standalone_v9_3/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/sysmonpsv_v5_1/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/tmr_inject_v1_7/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/tmr_manager_v1_7/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/trngpsv_v1_6/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ttcps_v3_21/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/uartlite_v3_11/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/uartpsv_v1_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilcert_v1_4/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilffs_v5_4/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilloader_v2_2/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilnvm_v3_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilocp_v1_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpdi_v1_11/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilplmi_v2_2/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpm_v6_0/src
+Include files for this library have already been copied.
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpuf_v2_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilsecure_v5_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilsem_v1_11/src
+Include files for this library have already been copied.
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xiltpm_v1_0/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/zdma_v1_20/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpm_v6_0/src
+Compiling XilPM Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilsem_v1_11/src
+Finished building libraries sequentially.
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cframe_v1_8/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cfupmc_v1_9/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/clk_wiz_v1_9/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/coresightps_dcc_v1_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cpu_v2_18/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/csudma_v1_17/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ddrpsv_v1_7/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/gpiops_v3_14/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/gpio_v4_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/iicps_v3_21/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/iomodule_v2_18/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ipipsu_v2_17/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ospipsv_v1_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/rtcpsu_v1_15/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/sdps_v4_4/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/spips_v3_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/standalone_v9_3/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/sysmonpsv_v5_1/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/tmr_inject_v1_7/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/tmr_manager_v1_7/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/trngpsv_v1_6/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ttcps_v3_21/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/uartlite_v3_11/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/uartpsv_v1_12/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilcert_v1_4/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilffs_v5_4/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilloader_v2_2/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilnvm_v3_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilocp_v1_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpdi_v1_11/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilplmi_v2_2/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpm_v6_0/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpuf_v2_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilsecure_v5_5/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilsem_v1_11/src
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xiltpm_v1_0/src
+Include files for this library have already been copied.
+Running Make include in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/zdma_v1_20/src
+Include files for this library have already been copied.
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cframe_v1_8/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cfupmc_v1_9/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/clk_wiz_v1_9/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/coresightps_dcc_v1_12/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/cpu_v2_18/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/csudma_v1_17/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ddrpsv_v1_7/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/gpiops_v3_14/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/iicps_v3_21/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/gpio_v4_12/src
+xcoresightpsdcc.c:42:2: warning: #warning "The driver is supported only for ARM architecture" [-Wcpp]
+   42 | #warning "The driver is supported only for ARM architecture"
+      |  ^~~~~~~
+In file included from xclk_wiz_g.c:16:
+../../../include/xparameters.h:297:70: warning: unsigned conversion from 'long long int' to 'unsigned int' changes value from '2216203190272' to '65536' [-Woverflow]
+  297 | #define XPAR_STATIC_REGION_CLK_RST_SHELL_CLK_WIZARD_SERVICE_BASEADDR 0x20400010000
+      |                                                                      ^~~~~~~~~~~~~
+xclk_wiz_g.c:27:17: note: in expansion of macro 'XPAR_STATIC_REGION_CLK_RST_SHELL_CLK_WIZARD_SERVICE_BASEADDR'
+   27 |                 XPAR_STATIC_REGION_CLK_RST_SHELL_CLK_WIZARD_SERVICE_BASEADDR,
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../../../include/xparameters.h:318:68: warning: unsigned conversion from 'long long int' to 'unsigned int' changes value from '2216203124736' to '0' [-Woverflow]
+  318 | #define XPAR_STATIC_REGION_CLK_RST_SHELL_CLK_WIZARD_SLASH_BASEADDR 0x20400000000
+      |                                                                    ^~~~~~~~~~~~~
+xclk_wiz_g.c:46:17: note: in expansion of macro 'XPAR_STATIC_REGION_CLK_RST_SHELL_CLK_WIZARD_SLASH_BASEADDR'
+   46 |                 XPAR_STATIC_REGION_CLK_RST_SHELL_CLK_WIZARD_SLASH_BASEADDR,
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from xgpio_g.c:16:
+../../../include/xparameters.h:1252:99: warning: unsigned conversion from 'long long int' to 'unsigned int' changes value from '2203335262208' to '17039360' [-Woverflow]
+ 1252 | #define XPAR_STATIC_REGION_AVED_CLOCK_RESET_PCIE_MGMT_PDI_RESET_PCIE_MGMT_PDI_RESET_GPIO_BASEADDR 0x20101040000
+      |                                                                                                   ^~~~~~~~~~~~~
+xgpio_g.c:27:17: note: in expansion of macro 'XPAR_STATIC_REGION_AVED_CLOCK_RESET_PCIE_MGMT_PDI_RESET_PCIE_MGMT_PDI_RESET_GPIO_BASEADDR'
+   27 |                 XPAR_STATIC_REGION_AVED_CLOCK_RESET_PCIE_MGMT_PDI_RESET_PCIE_MGMT_PDI_RESET_GPIO_BASEADDR,
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/iomodule_v2_18/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ipipsu_v2_17/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ospipsv_v1_12/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/rtcpsu_v1_15/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/sdps_v4_4/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/spips_v3_12/src
+In file included from xiomodule_g.c:16:
+../../../include/xparameters.h:1419:77: warning: conversion from 'long long unsigned int' to 'unsigned int' changes value from '18446744073709551615' to '4294967295' [-Woverflow]
+ 1419 | #define XPAR_STATIC_REGION_AVED_CIPS_PSPMC_0_PSV_PMC_IOMODULE_0_IO_BASEADDR 0xFFFFFFFFFFFFFFFFU
+      |                                                                             ^~~~~~~~~~~~~~~~~~~
+xiomodule_g.c:30:17: note: in expansion of macro 'XPAR_STATIC_REGION_AVED_CIPS_PSPMC_0_PSV_PMC_IOMODULE_0_IO_BASEADDR'
+   30 |                 XPAR_STATIC_REGION_AVED_CIPS_PSPMC_0_PSV_PMC_IOMODULE_0_IO_BASEADDR,
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/standalone_v9_3/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/sysmonpsv_v5_1/src
+Compiling xsysmonpsv
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/tmr_inject_v1_7/src
+microblaze_sleep.c:83:9: note: '#pragma message: For the sleep routines, assembly instructions are used'
+   83 | #pragma message ("For the sleep routines, assembly instructions are used")
+      |         ^~~~~~~
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/tmr_manager_v1_7/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/trngpsv_v1_6/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/ttcps_v3_21/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/uartlite_v3_11/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/uartpsv_v1_12/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilcert_v1_4/src
+Compiling XilCert Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilffs_v5_4/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilloader_v2_2/src
+Compiling XilLoader Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilnvm_v3_5/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilocp_v1_5/src
+Compiling XilNVM Library
+Compiling XilOCP Library
+ff.c: In function 'get_ldnumber':
+ff.c:4000:13: warning: unused variable 'vol' [-Wunused-variable]
+ 4000 |         int vol = -1;
+      |             ^~~
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpdi_v1_11/src
+Compiling XilPDI Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilplmi_v2_2/src
+Compiling XilPLMI Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilpuf_v2_5/src
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xilsecure_v5_5/src
+Compiling XilPuf Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/xiltpm_v1_0/src
+Compiling XilSecure Library
+Compiling XilTpm Library
+Running Make libs in static_region_aved_cips_pspmc_0_psv_pmc_0/libsrc/zdma_v1_20/src
+xnvm_efuse.c: In function 'XNvm_EfuseValidateAdditionalPpkWriteReq':
+xnvm_efuse.c:6066:13: warning: unused variable 'Index' [-Wunused-variable]
+ 6066 |         u32 Index = 0U;
+      |             ^~~~~
+DEBUG NON_LTO_OBJECTS is ../../../lib/microblaze_interrupt_handler.o
+Finished building libraries parallelly.
+/data/Xilinx/2025.1/gnu/microblaze/lin/x86_64-oesdk-linux/usr/bin/microblaze-xilinx-elf/microblaze-xilinx-elf-ar.real: creating static_region_aved_cips_pspmc_0_psv_pmc_0/lib/libxil.a
+Finished building libraries
+INFO: [Hsi 55-2198] BSP generatation completed successfully.
+INFO: [Hsi 55-2197] Application generation start.
+APU IPIs are not enabled. Linux boot would not work.
+Keyword not found in the file.
+INFO: [PLM-1] Libraries compilation started
+lto-wrapper.real: warning: using serial compilation of 5 LTRANS jobs
+lto-wrapper.real: note: see the '-flto' option documentation for more information
+INFO: [Hsi 55-2196] Application generation completed successfully.
+INFO: [Hsi 55-2202] App generation using legacy HSI flow took time: Wall-26.270000 s, User-31.480000 s, System-5.070000 s
+INFO: [Project 1-5217] Successfully generated the Versal_PLM application.
+INFO: [Project 1-5216] Starting the SSIT BIF Generation process.
+INFO: [Project 1-1179] Generating /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial.bif file ...
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_1_markers.rcdo generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_1_markers.rcdo generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_1_markers.rnpi generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_1_markers.rcdo generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_1_markers.rcdo generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_1_markers.rnpi generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_2_markers.rcdo generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_unmask_2_markers.rcdo generated successfully.
+INFO: [Project 1-5212] File /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial_2_markers.rnpi generated successfully.
+INFO: [Project 1-5218] The SSIT BIF Generation process completed successfully.
+INFO: [Bootgen-1] Starting bootgen to generate PDI.
+Running bootgen.
+Found bootgen at /data/Xilinx/2025.1/Vivado/bin/bootgen
+Running '/data/Xilinx/2025.1/Vivado/bin/bootgen -arch versal -image /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial.bif -w -o /home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial.pdi'
+
+
+****** Bootgen v2025.1
+  **** Build date : May 21 2025-14:51:08
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+
+
+[INFO]   : Bootimage generated successfully
+
+Bootgen Completed Successfully.
+INFO: [Bootgen-2] Bootgen finished and PDI generated successfully.
+INFO: [Vivado 12-1842] Bitgen Completed Successfully.
+INFO: [Common 17-83] Releasing license: Implementation
+43 Infos, 2 Warnings, 0 Critical Warnings and 0 Errors encountered.
+write_device_image completed successfully
+write_device_image: Time (s): cpu = 00:12:08 ; elapsed = 00:05:27 . Memory (MB): peak = 18626.383 ; gain = 5296.992 ; free physical = 7182 ; free virtual = 70502
+# puts "QUICK_PDI_ID16_COMPLETE"
+QUICK_PDI_ID16_COMPLETE
+# exit
+INFO: [Common 17-206] Exiting Vivado at Thu Sep 24 23:26:44 2026...

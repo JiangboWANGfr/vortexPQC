@@ -1,0 +1,65 @@
+SCHEDULING: requests=2 workers=2 waves=1
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234004184 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+CODEC_ARM: id=0 polybytes=warp compress=warp
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=warp multi=scalar
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=0
+STATUS: id=0 keypair=0 encaps=0 decaps=-5
+*** request 0: KEM step 2 returned -5
+*** request 0: pk differs from known-answer vector
+*** request 0: sk differs from known-answer vector
+*** request 0: ct differs from known-answer vector
+*** request 0: ss_enc differs from known-answer vector
+*** request 0: ss_dec differs from known-answer vector
+COUNTERS: id=0 keccak_x1=96 keccak_x4=0 ntt=9 intt=4 rej_uniform=18 mulcache=6 basemul=7 poly_reduce=13
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1            96       14570592
+keccak_f1600_x4             0              -
+poly_ntt                    9        1441980
+poly_invntt                 4         998284
+rej_uniform                18              -
+mulcache                    6              -
+basemul                     7              -
+poly_reduce                13              -
+reference estimate total: 17010856
+REQUEST: id=0 arm=234004184 keypair=678647 encaps=859851 decaps=44305 total=1582803 start=3019 end=1585822
+ARM: id=1 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234004184 unroll=1
+SAMPLER_ARM: id=1 matrix=warp
+CODEC_ARM: id=1 polybytes=warp compress=warp
+NOISE_ARM: id=1 cbd=warp
+LINEAR_ARM: id=1 poly=warp
+ZEROIZE_ARM: id=1 single=warp multi=scalar
+ARITH_ARM: id=1 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=0
+STATUS: id=1 keypair=0 encaps=0 decaps=0
+KAT: id=1 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=1 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+*** request 1: keccak_f1600_x1 count differs from request 0
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+*** request 1: poly_ntt count differs from request 0
+poly_invntt                 9        2246139
+*** request 1: poly_invntt count differs from request 0
+rej_uniform                27              -
+*** request 1: rej_uniform count differs from request 0
+mulcache                   12              -
+*** request 1: mulcache count differs from request 0
+basemul                    12              -
+*** request 1: basemul count differs from request 0
+poly_reduce                18              -
+*** request 1: poly_reduce count differs from request 0
+reference estimate total: 25898219
+REQUEST: id=1 arm=234004184 keypair=677584 encaps=860910 decaps=827312 total=2365806 start=3021 end=2368827
+BATCH: requests=2 start=3019 end=2368827 makespan=2365808
+PERF: instrs=246195, cycles=2369908, IPC=0.104
+FAILED!

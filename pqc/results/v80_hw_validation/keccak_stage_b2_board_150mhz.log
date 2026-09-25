@@ -1,0 +1,10 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+Host reference: 17 permutations and 4 SHAKE KATs passed
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=2 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+THETA: states=53 rounds=1 word_checks=11872 bad_bytes=0
+RHOPI: states=53 rounds=1 word_checks=11872 bad_bytes=0
+CHII: states=8 rounds=24 word_checks=9216 bad_bytes=0
+TRACE: states=17 rounds=24 word_checks=10200 bad_bytes=0
+SHAKE: cases=204 output_bytes=27808 checked_bytes_with_guards=37804 bad_bytes=0
+PERF: instrs=254941, cycles=7860559, IPC=0.032
+PASSED!

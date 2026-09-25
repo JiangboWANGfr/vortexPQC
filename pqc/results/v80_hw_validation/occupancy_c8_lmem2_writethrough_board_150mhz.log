@@ -1,0 +1,8 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+num_cores=1 num_warps=8 num_threads=32
+local_mem_size=16384 lmem_size=8192 lmem_words=2048
+num_ctas=8 ctas_per_core=8 max_concurrent=2
+start device
+PERF: instrs=229636, cycles=1345261, IPC=0.171
+PASSED

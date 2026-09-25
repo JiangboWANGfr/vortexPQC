@@ -1,0 +1,14 @@
+attempting to launch hw_server
+
+****** Xilinx hw_server v2025.1
+  **** Build date : May  6 2025 at 15:14:51
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+
+INFO: hw_server application started
+INFO: Use Ctrl-C to exit hw_server application
+
+INFO: To connect to this hw_server instance use url: TCP:127.0.0.1:3121
+
+PROGRAMMING_PARTIAL_PDI=/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_250_id16_aved_hw/bin/vortex_afu.vbin.prj/images/top_i_slash_slash_vortex_afu_inst_0_partial.pdi
+PARTIAL_PDI_OK

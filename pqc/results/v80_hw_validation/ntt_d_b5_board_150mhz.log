@@ -1,0 +1,234 @@
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=5 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+*** forward sample=0 request=0 [192] coop=-26116259 ref=-20428103
+*** forward sample=0 request=0 [193] coop=-21458617 ref=-20533599
+*** forward sample=0 request=0 [194] coop=-21492421 ref=-25578622
+*** forward sample=0 request=0 [195] coop=-17728807 ref=-20255780
+*** forward sample=0 request=0 mismatch=16 device_mismatch=16
+NTT_REQUEST implementation=hardware direction=forward M=5 L=32 request=0 coop_start=156513 coop_end=178450 ref_start=757419 ref_end=1036464 stack=272/8144 mismatch=16
+*** forward sample=0 request=1 [0] coop=-6657431 ref=-10845011
+*** forward sample=0 request=1 [1] coop=-12794597 ref=-14032371
+*** forward sample=0 request=1 [2] coop=-10027629 ref=-13751008
+*** forward sample=0 request=1 [3] coop=-14506899 ref=-5358166
+*** forward sample=0 request=1 mismatch=112 device_mismatch=112
+NTT_REQUEST implementation=hardware direction=forward M=5 L=32 request=1 coop_start=156515 coop_end=178452 ref_start=757421 ref_end=1036483 stack=272/8144 mismatch=112
+*** forward sample=0 request=2 [32] coop=-13880739 ref=-20794299
+*** forward sample=0 request=2 [33] coop=-15977127 ref=-16415073
+*** forward sample=0 request=2 [34] coop=-16509127 ref=-20510865
+*** forward sample=0 request=2 [35] coop=-15950611 ref=-18192539
+*** forward sample=0 request=2 mismatch=80 device_mismatch=80
+NTT_REQUEST implementation=hardware direction=forward M=5 L=32 request=2 coop_start=156517 coop_end=178454 ref_start=757423 ref_end=1036985 stack=272/8144 mismatch=80
+*** forward sample=0 request=3 [64] coop=-15221021 ref=-4993096
+*** forward sample=0 request=3 [65] coop=-10488353 ref=-11123514
+*** forward sample=0 request=3 [66] coop=-5645311 ref=-5280486
+*** forward sample=0 request=3 [67] coop=-10983767 ref=-10051344
+*** forward sample=0 request=3 mismatch=192 device_mismatch=192
+NTT_REQUEST implementation=hardware direction=forward M=5 L=32 request=3 coop_start=156521 coop_end=178469 ref_start=757427 ref_end=1042217 stack=272/8144 mismatch=192
+*** forward sample=0 request=4 [0] coop=-11909545 ref=-5886895
+*** forward sample=0 request=4 [1] coop=-12135245 ref=-14052181
+*** forward sample=0 request=4 [2] coop=-5983470 ref=-13911871
+*** forward sample=0 request=4 [3] coop=-9330044 ref=-8963813
+*** forward sample=0 request=4 mismatch=256 device_mismatch=256
+NTT_REQUEST implementation=hardware direction=forward M=5 L=32 request=4 coop_start=156534 coop_end=178460 ref_start=757440 ref_end=1038825 stack=272/8144 mismatch=256
+NTT_BATCH implementation=hardware direction=forward M=5 L=32 sample=0 coop=21956 ref=284798 speedup=12.971 checked=1280 mismatch=656
+*** forward sample=1 request=0 [0] coop=-4601574 ref=-6358728
+*** forward sample=1 request=0 [1] coop=-86000 ref=-1843154
+*** forward sample=1 request=0 [2] coop=178754 ref=-1578400
+*** forward sample=1 request=0 [3] coop=2059744 ref=302590
+*** forward sample=1 request=0 mismatch=80 device_mismatch=80
+*** forward sample=1 request=1 [0] coop=12162764 ref=14805356
+*** forward sample=1 request=1 [1] coop=16671326 ref=15569964
+*** forward sample=1 request=1 [2] coop=21449163 ref=19749937
+*** forward sample=1 request=1 [3] coop=14310999 ref=14468995
+*** forward sample=1 request=1 mismatch=144 device_mismatch=144
+*** forward sample=1 request=2 [0] coop=9924859 ref=12402563
+*** forward sample=1 request=2 [1] coop=14440433 ref=18979495
+*** forward sample=1 request=2 [2] coop=19173985 ref=9066837
+*** forward sample=1 request=2 [3] coop=21054975 ref=2550725
+*** forward sample=1 request=2 mismatch=64 device_mismatch=64
+*** forward sample=1 request=4 [0] coop=10983277 ref=14089964
+*** forward sample=1 request=4 [1] coop=15498851 ref=18605538
+*** forward sample=1 request=4 [2] coop=15763605 ref=12656918
+*** forward sample=1 request=4 [3] coop=17644595 ref=14537908
+*** forward sample=1 request=4 mismatch=64 device_mismatch=64
+NTT_BATCH implementation=hardware direction=forward M=5 L=32 sample=1 coop=22480 ref=279838 speedup=12.448 checked=1280 mismatch=352
+*** forward sample=2 request=0 [0] coop=-8294416 ref=2139211366
+*** forward sample=2 request=0 [1] coop=-3778842 ref=2143726940
+*** forward sample=2 request=0 [2] coop=-10440160 ref=2137065622
+*** forward sample=2 request=0 [3] coop=-8559170 ref=2138946612
+*** forward sample=2 request=0 mismatch=176 device_mismatch=176
+*** forward sample=2 request=1 [0] coop=-16673079 ref=-21583512
+*** forward sample=2 request=1 [1] coop=-12161011 ref=-13707056
+*** forward sample=2 request=1 [2] coop=-20755996 ref=-19385528
+*** forward sample=2 request=1 [3] coop=-15004166 ref=-14821884
+*** forward sample=2 request=1 mismatch=96 device_mismatch=96
+*** forward sample=2 request=2 [32] coop=3130196 ref=-363855
+*** forward sample=2 request=2 [33] coop=1028434 ref=-2465617
+*** forward sample=2 request=2 [34] coop=-6044131 ref=-2550080
+*** forward sample=2 request=2 [35] coop=1251785 ref=4745836
+*** forward sample=2 request=2 mismatch=96 device_mismatch=96
+*** forward sample=2 request=3 [96] coop=-14883368 ref=-10082062
+*** forward sample=2 request=3 [97] coop=-15311152 ref=-5692122
+*** forward sample=2 request=3 [98] coop=-13311837 ref=-10176851
+*** forward sample=2 request=3 [99] coop=-9046747 ref=-8947009
+*** forward sample=2 request=3 mismatch=96 device_mismatch=96
+*** forward sample=2 request=4 [32] coop=-8010840 ref=-4469550
+*** forward sample=2 request=4 [33] coop=-10112602 ref=-6571312
+*** forward sample=2 request=4 [34] coop=-5442293 ref=-8983583
+*** forward sample=2 request=4 [35] coop=1853623 ref=-1687667
+*** forward sample=2 request=4 mismatch=80 device_mismatch=80
+NTT_BATCH implementation=hardware direction=forward M=5 L=32 sample=2 coop=22000 ref=283852 speedup=12.902 checked=1280 mismatch=544
+*** forward sample=3 request=1 [0] coop=1753 ref=-3715193
+*** forward sample=3 request=1 [1] coop=-1753 ref=3715193
+*** forward sample=3 request=1 [2] coop=-1935420 ref=1349495
+*** forward sample=3 request=1 [3] coop=1935420 ref=-1349495
+*** forward sample=3 request=1 mismatch=32 device_mismatch=32
+*** forward sample=3 request=2 [0] coop=3073009 ref=-1149320
+*** forward sample=3 request=2 [1] coop=3073009 ref=-1149320
+*** forward sample=3 request=2 [2] coop=-3073009 ref=1149320
+*** forward sample=3 request=2 [3] coop=-3073009 ref=1149320
+*** forward sample=3 request=2 mismatch=32 device_mismatch=32
+*** forward sample=3 request=3 [0] coop=-1623354 ref=1294671
+*** forward sample=3 request=3 [1] coop=1623354 ref=1400899
+*** forward sample=3 request=3 [2] coop=-2105286 ref=-158147
+*** forward sample=3 request=3 [3] coop=2105286 ref=2853717
+*** forward sample=3 request=3 mismatch=32 device_mismatch=32
+NTT_BATCH implementation=hardware direction=forward M=5 L=32 sample=3 coop=22521 ref=284219 speedup=12.620 checked=1280 mismatch=96
+*** forward sample=4 request=0 [32] coop=11917829 ref=12008623
+*** forward sample=4 request=0 [33] coop=14019591 ref=18208241
+*** forward sample=4 request=0 [34] coop=23884054 ref=11876200
+*** forward sample=4 request=0 [35] coop=16588138 ref=13663036
+*** forward sample=4 request=0 mismatch=112 device_mismatch=112
+*** forward sample=4 request=1 [0] coop=-12162764 ref=-10958378
+*** forward sample=4 request=1 [1] coop=-16671326 ref=-15466940
+*** forward sample=4 request=1 [2] coop=-21449163 ref=-22653549
+*** forward sample=4 request=1 [3] coop=-14310999 ref=-15515385
+*** forward sample=4 request=1 mismatch=128 device_mismatch=128
+*** forward sample=4 request=2 [32] coop=-1480546 ref=-4138816
+*** forward sample=4 request=2 [33] coop=621216 ref=-2037054
+*** forward sample=4 request=2 [34] coop=3760765 ref=1102495
+*** forward sample=4 request=2 [35] coop=-3535151 ref=-6193421
+*** forward sample=4 request=2 mismatch=96 device_mismatch=96
+*** forward sample=4 request=3 [0] coop=-17292967 ref=-17803928
+*** forward sample=4 request=3 [1] coop=-11541123 ref=-12052084
+*** forward sample=4 request=3 [2] coop=-21109431 ref=-20598470
+*** forward sample=4 request=3 [3] coop=-14650731 ref=-14139770
+*** forward sample=4 request=3 mismatch=80 device_mismatch=80
+*** forward sample=4 request=4 [192] coop=-11223312 ref=-9114586
+*** forward sample=4 request=4 [193] coop=-8931752 ref=-12160814
+*** forward sample=4 request=4 [194] coop=-8360376 ref=-11496524
+*** forward sample=4 request=4 [195] coop=-13490632 ref=-9234148
+*** forward sample=4 request=4 mismatch=64 device_mismatch=64
+NTT_BATCH implementation=hardware direction=forward M=5 L=32 sample=4 coop=22426 ref=281868 speedup=12.569 checked=1280 mismatch=480
+*** inverse sample=0 request=0 [14] coop=2150964 ref=-418962
+*** inverse sample=0 request=0 [15] coop=1790677 ref=-3238597
+*** inverse sample=0 request=0 [18] coop=-2002742 ref=2966233
+*** inverse sample=0 request=0 [19] coop=-1574019 ref=3732601
+*** inverse sample=0 request=0 mismatch=64 device_mismatch=64
+NTT_REQUEST implementation=hardware direction=inverse M=5 L=32 request=0 coop_start=7027462 coop_end=7051638 ref_start=7636117 ref_end=7993310 stack=280/8144 mismatch=64
+*** inverse sample=0 request=1 [15] coop=1790677 ref=3321370
+*** inverse sample=0 request=1 [31] coop=-3243720 ref=-4132573
+*** inverse sample=0 request=1 [47] coop=-3558635 ref=-510308
+*** inverse sample=0 request=1 [63] coop=3553997 ref=-1676558
+*** inverse sample=0 request=1 mismatch=16 device_mismatch=16
+NTT_REQUEST implementation=hardware direction=inverse M=5 L=32 request=1 coop_start=7027464 coop_end=7051640 ref_start=7636119 ref_end=7993379 stack=280/8144 mismatch=16
+*** inverse sample=0 request=2 [9] coop=523947 ref=-1930597
+*** inverse sample=0 request=2 [10] coop=3084860 ref=-4136863
+*** inverse sample=0 request=2 [11] coop=1816357 ref=2994836
+*** inverse sample=0 request=2 [16] coop=1085224 ref=1693498
+*** inverse sample=0 request=2 mismatch=96 device_mismatch=96
+NTT_REQUEST implementation=hardware direction=inverse M=5 L=32 request=2 coop_start=7027466 coop_end=7051642 ref_start=7636121 ref_end=7993381 stack=280/8144 mismatch=96
+*** inverse sample=0 request=3 [12] coop=3680642 ref=-4124357
+*** inverse sample=0 request=3 [13] coop=-1925867 ref=243724
+*** inverse sample=0 request=3 [14] coop=2150964 ref=3147195
+*** inverse sample=0 request=3 [15] coop=1790677 ref=-965595
+*** inverse sample=0 request=3 mismatch=160 device_mismatch=160
+NTT_REQUEST implementation=hardware direction=inverse M=5 L=32 request=3 coop_start=7027470 coop_end=7051657 ref_start=7636125 ref_end=7993423 stack=280/8144 mismatch=160
+*** inverse sample=0 request=4 [11] coop=1816357 ref=1379162
+*** inverse sample=0 request=4 [12] coop=3680642 ref=-1428494
+*** inverse sample=0 request=4 [13] coop=-1925867 ref=1893187
+*** inverse sample=0 request=4 [14] coop=2150964 ref=-553089
+*** inverse sample=0 request=4 mismatch=80 device_mismatch=80
+NTT_REQUEST implementation=hardware direction=inverse M=5 L=32 request=4 coop_start=7027483 coop_end=7051648 ref_start=7636138 ref_end=7993445 stack=280/8144 mismatch=80
+NTT_BATCH implementation=hardware direction=inverse M=5 L=32 sample=0 coop=24195 ref=357328 speedup=14.769 checked=1280 mismatch=416
+*** inverse sample=1 request=0 [21] coop=2562841 ref=-3285451
+*** inverse sample=1 request=0 [22] coop=608600 ref=3492250
+*** inverse sample=1 request=0 [23] coop=-257806 ref=-2477356
+*** inverse sample=1 request=0 [30] coop=3875233 ref=3042582
+*** inverse sample=1 request=0 mismatch=40 device_mismatch=40
+*** inverse sample=1 request=2 [6] coop=1952985 ref=-1316248
+*** inverse sample=1 request=2 [7] coop=-1184501 ref=-3342829
+*** inverse sample=1 request=2 [8] coop=-3865036 ref=-3899848
+*** inverse sample=1 request=2 [9] coop=-2485900 ref=1982290
+*** inverse sample=1 request=2 mismatch=72 device_mismatch=72
+*** inverse sample=1 request=3 [16] coop=2532470 ref=2008246
+*** inverse sample=1 request=3 [48] coop=-49129 ref=4170720
+*** inverse sample=1 request=3 [80] coop=611786 ref=3033002
+*** inverse sample=1 request=3 [112] coop=2796910 ref=2687379
+*** inverse sample=1 request=3 mismatch=8 device_mismatch=8
+*** inverse sample=1 request=4 [0] coop=-4161028 ref=-3636804
+*** inverse sample=1 request=4 [8] coop=-3865036 ref=-2736726
+*** inverse sample=1 request=4 [20] coop=-756761 ref=-773143
+*** inverse sample=1 request=4 [21] coop=-1545007 ref=-1561389
+*** inverse sample=1 request=4 mismatch=48 device_mismatch=48
+NTT_BATCH implementation=hardware direction=inverse M=5 L=32 sample=1 coop=24490 ref=359803 speedup=14.692 checked=1280 mismatch=168
+*** inverse sample=2 request=0 [11] coop=516868 ref=-850005
+*** inverse sample=2 request=0 [13] coop=292768 ref=-2002760
+*** inverse sample=2 request=0 [15] coop=2635320 ref=2545220
+*** inverse sample=2 request=0 [25] coop=2852004 ref=-3532097
+*** inverse sample=2 request=0 mismatch=80 device_mismatch=80
+*** inverse sample=2 request=1 [9] coop=-2872113 ref=-3052315
+*** inverse sample=2 request=1 [11] coop=516868 ref=2662910
+*** inverse sample=2 request=1 [12] coop=3046555 ref=-3351640
+*** inverse sample=2 request=1 [13] coop=292768 ref=3022420
+*** inverse sample=2 request=1 mismatch=136 device_mismatch=136
+*** inverse sample=2 request=2 [9] coop=-2825419 ref=-1663324
+*** inverse sample=2 request=2 [11] coop=-2936359 ref=-2897451
+*** inverse sample=2 request=2 [13] coop=2634099 ref=-769261
+*** inverse sample=2 request=2 [15] coop=-4025674 ref=-3335582
+*** inverse sample=2 request=2 mismatch=96 device_mismatch=96
+*** inverse sample=2 request=3 [0] coop=16382 ref=385759
+*** inverse sample=2 request=3 [1] coop=2226750 ref=2803957
+*** inverse sample=2 request=3 [2] coop=1291704 ref=-3482513
+*** inverse sample=2 request=3 [3] coop=-708788 ref=2881855
+*** inverse sample=2 request=3 mismatch=252 device_mismatch=252
+*** inverse sample=2 request=4 [9] coop=2638198 ref=-1179833
+*** inverse sample=2 request=4 [11] coop=1901387 ref=1314706
+*** inverse sample=2 request=4 [13] coop=1926134 ref=-1075868
+*** inverse sample=2 request=4 [15] coop=-1594135 ref=3198624
+*** inverse sample=2 request=4 mismatch=104 device_mismatch=104
+NTT_BATCH implementation=hardware direction=inverse M=5 L=32 sample=2 coop=24050 ref=362304 speedup=15.065 checked=1280 mismatch=668
+*** inverse sample=3 request=1 [0] coop=16382 ref=1282617
+*** inverse sample=3 request=1 [1] coop=1644522 ref=-3901713
+*** inverse sample=3 request=1 [2] coop=-1291704 ref=3482513
+*** inverse sample=3 request=1 [3] coop=-3608627 ref=-666492
+*** inverse sample=3 request=1 mismatch=240 device_mismatch=240
+*** inverse sample=3 request=4 [7] coop=-4105895 ref=-3854182
+*** inverse sample=3 request=4 [8] coop=-1932518 ref=-9989406
+*** inverse sample=3 request=4 [9] coop=1673850 ref=-15254906
+*** inverse sample=3 request=4 [21] coop=3417705 ref=2417389
+*** inverse sample=3 request=4 mismatch=51 device_mismatch=48
+NTT_BATCH implementation=hardware direction=inverse M=5 L=32 sample=3 coop=1474977 ref=362566 speedup=0.246 checked=1280 mismatch=291
+*** inverse sample=4 request=0 [16] coop=-2532470 ref=-2008246
+*** inverse sample=4 request=0 [19] coop=-2496147 ref=-721048
+*** inverse sample=4 request=0 [20] coop=-756761 ref=3601108
+*** inverse sample=4 request=0 [21] coop=-2562841 ref=3732659
+*** inverse sample=4 request=0 mismatch=32 device_mismatch=32
+*** inverse sample=4 request=1 [7] coop=-4031172 ref=0
+*** inverse sample=4 request=1 [8] coop=3865036 ref=0
+*** inverse sample=4 request=1 [9] coop=-2392512 ref=0
+*** inverse sample=4 request=1 [16] coop=-2532470 ref=1689988
+*** inverse sample=4 request=1 mismatch=64 device_mismatch=64
+*** inverse sample=4 request=2 [16] coop=-2532470 ref=-2008246
+*** inverse sample=4 request=2 [48] coop=49129 ref=-4170720
+*** inverse sample=4 request=2 [80] coop=-611786 ref=-3033002
+*** inverse sample=4 request=2 [112] coop=-2796910 ref=-2687379
+*** inverse sample=4 request=2 mismatch=8 device_mismatch=8
+*** inverse sample=4 request=4 [25] coop=778040 ref=504425
+*** inverse sample=4 request=4 [57] coop=-3704374 ref=113101
+*** inverse sample=4 request=4 [89] coop=1650220 ref=637528
+*** inverse sample=4 request=4 [121] coop=-1344702 ref=987192
+*** inverse sample=4 request=4 mismatch=8 device_mismatch=8
+NTT_BATCH implementation=hardware direction=inverse M=5 L=32 sample=4 coop=2924161 ref=359741 speedup=0.123 checked=1280 mismatch=112
+PERF: instrs=5427585, cycles=14141536, IPC=0.384
+FAILED!

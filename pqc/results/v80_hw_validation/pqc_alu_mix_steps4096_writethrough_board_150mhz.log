@@ -1,0 +1,6 @@
+Warning: BDF '0000:02:00.0' contains a PF function number; stripping .0 — use board address instead
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+CONFIG: driver=aved clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PQC_ALU_MIX: warps=8 steps=4096 checked=1048576 mismatches=0
+PERF: instrs=663808, cycles=1586765, IPC=0.418
+PASSED!

@@ -1,0 +1,3 @@
+LSU_RANDOM_READ threads=256 words=65536 rounds=4096 loads=1048576 bad=0
+PERF: instrs=328008, cycles=1510685, IPC=0.217
+PASSED!

@@ -1,0 +1,12 @@
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+LSU_PROBE request=0 mode=barrier_dirty M=8 L=32 rounds=64 start=932 end=85173 cycles=84241 checksum=0x850a2db6 bad=0
+LSU_PROBE request=1 mode=barrier_dirty M=8 L=32 rounds=64 start=937 end=84358 cycles=83421 checksum=0xed844590 bad=0
+LSU_PROBE request=2 mode=barrier_dirty M=8 L=32 rounds=64 start=942 end=84577 cycles=83635 checksum=0xa48e4e55 bad=0
+LSU_PROBE request=3 mode=barrier_dirty M=8 L=32 rounds=64 start=944 end=84808 cycles=83864 checksum=0xc3b6690c bad=0
+LSU_PROBE request=4 mode=barrier_dirty M=8 L=32 rounds=64 start=949 end=84916 cycles=83967 checksum=0x00fb6ab9 bad=0
+LSU_PROBE request=5 mode=barrier_dirty M=8 L=32 rounds=64 start=954 end=85210 cycles=84256 checksum=0x2401b0d2 bad=0
+LSU_PROBE request=6 mode=barrier_dirty M=8 L=32 rounds=64 start=956 end=85495 cycles=84539 checksum=0x6323e5d5 bad=0
+LSU_PROBE request=7 mode=barrier_dirty M=8 L=32 rounds=64 start=962 end=85928 cycles=84966 checksum=0x93bc65f6 bad=0
+LSU_PROBE_BATCH mode=barrier_dirty M=8 L=32 rounds=64 start=932 end=85928 makespan=84996 min=83421 max=84966 sum=672889 bad=0
+PERF: instrs=51088, cycles=86622, IPC=0.590
+PASSED!

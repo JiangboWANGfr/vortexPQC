@@ -1,0 +1,26 @@
+open device connection
+[VXDRV] m_axi_host targets device memory; staging CP memory there (HBM port 1)
+number of points: 65536
+addr buffer size: 262172 bytes
+src buffer size: 262144 bytes
+dst buffer size: 262144 bytes
+allocate device memory
+dev_addr=0x10000
+dev_src=0x51000
+dev_dst=0x91000
+allocate host buffers
+upload address buffer
+upload source buffer
+load kernel module
+start device
+download destination buffer
+wait for completion
+verify result
+*** almost_equal_ulp: a=-2.44758e-36, b=0, ulp=7bafc852, ia=845037ae, ib=0
+error at result #8191: actual -2.44758e-36, expected 0
+*** almost_equal_ulp: a=-1.01824e+21, b=0, ulp=497235058, ia=e25ccb8e, ib=0
+error at result #33023: actual -1.01824e+21, expected 0
+cleanup
+PERF: instrs=1202408, cycles=33590216, IPC=0.036
+Found 2 errors!
+FAILED!

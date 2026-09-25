@@ -1,0 +1,26 @@
+open device connection
+CONFIGS: num_threads=32, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0xffff0000, num_barriers=8
+number of points: 16384
+addr buffer size: 65564 bytes
+src buffer size: 65536 bytes
+dst buffer size: 65536 bytes
+allocate device memory
+dev_addr=0x10000
+dev_src=0x21000
+dev_dst=0x31000
+allocate host buffers
+upload address buffer
+upload source buffer
+load kernel module
+start device
+download destination buffer
+wait for completion
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=26 target=27 CP_CTRL=0x00000001 CP_STATUS=0x00000001 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x00005861576f7e80 HEAD_ADDR=0x0000586157707f40 CMPL_ADDR=0x0000586157708040
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x00000000000006c0
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+verify result
+cleanup
+PERF: instrs=300776, cycles=13393190, IPC=0.022
+PASSED!

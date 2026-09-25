@@ -1,0 +1,17 @@
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=8 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=27 target=28 CP_CTRL=0x00000001 CP_STATUS=0x00000001 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x00005e054269fdc0 HEAD_ADDR=0x00005e05426afe40 CMPL_ADDR=0x00005e05426aff40
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000700
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+LSU_PROBE request=0 mode=barrier_dirty M=8 L=32 rounds=64 start=876 end=44566912 cycles=44566036 checksum=0x850a2db6 bad=0
+LSU_PROBE request=1 mode=barrier_dirty M=8 L=32 rounds=64 start=880 end=44566966 cycles=44566086 checksum=0xed844590 bad=0
+LSU_PROBE request=2 mode=barrier_dirty M=8 L=32 rounds=64 start=881 end=44566870 cycles=44565989 checksum=0xa48e4e55 bad=0
+LSU_PROBE request=3 mode=barrier_dirty M=8 L=32 rounds=64 start=882 end=44566863 cycles=44565981 checksum=0xc3b6690c bad=0
+LSU_PROBE request=4 mode=barrier_dirty M=8 L=32 rounds=64 start=886 end=44566875 cycles=44565989 checksum=0x00fb6ab9 bad=0
+LSU_PROBE request=5 mode=barrier_dirty M=8 L=32 rounds=64 start=887 end=44566962 cycles=44566075 checksum=0x2401b0d2 bad=0
+LSU_PROBE request=6 mode=barrier_dirty M=8 L=32 rounds=64 start=888 end=44567004 cycles=44566116 checksum=0x6323e5d5 bad=0
+LSU_PROBE request=7 mode=barrier_dirty M=8 L=32 rounds=64 start=892 end=44566978 cycles=44566086 checksum=0x93bc65f6 bad=0
+LSU_PROBE_BATCH mode=barrier_dirty M=8 L=32 rounds=64 start=876 end=44567004 makespan=44566128 min=44565981 max=44566116 sum=356528358 bad=0
+PERF: instrs=840560, cycles=44567756, IPC=0.019
+PASSED!
