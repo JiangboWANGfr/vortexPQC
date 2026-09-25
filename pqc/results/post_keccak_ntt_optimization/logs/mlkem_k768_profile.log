@@ -1,0 +1,49 @@
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234266584 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+CODEC_ARM: id=0 polybytes=warp compress=warp
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=warp multi=scalar
+PHASE_ARM: id=0 direct_intervals=1
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=1
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+ARITH_PROFILE: id=0 primitive=mulcache calls=12 cycles=61851 per_request_elapsed_pct=2.250
+ARITH_PROFILE: id=0 primitive=basemul calls=12 cycles=88653 per_request_elapsed_pct=3.225
+ARITH_PROFILE: id=0 primitive=poly_reduce calls=18 cycles=111310 per_request_elapsed_pct=4.049
+PHASE_PROFILE: id=0 phase=keccak_permute cycles=222839 pct=8.105
+PHASE_PROFILE: id=0 phase=keccak_absorb cycles=411965 pct=14.985
+PHASE_PROFILE: id=0 phase=keccak_squeeze cycles=229648 pct=8.353
+PHASE_PROFILE: id=0 phase=ntt cycles=68093 pct=2.477
+PHASE_PROFILE: id=0 phase=intt cycles=63634 pct=2.315
+PHASE_PROFILE: id=0 phase=rejection cycles=374929 pct=13.638
+PHASE_PROFILE: id=0 phase=codec cycles=90248 pct=3.283
+PHASE_PROFILE: id=0 phase=noise cycles=24322 pct=0.885
+PHASE_PROFILE: id=0 phase=linear cycles=47578 pct=1.731
+PHASE_PROFILE: id=0 phase=zeroize cycles=116133 pct=4.224
+PHASE_PROFILE: id=0 phase=mulcache cycles=61851 pct=2.250
+PHASE_PROFILE: id=0 phase=basemul cycles=88653 pct=3.225
+PHASE_PROFILE: id=0 phase=reduce cycles=111310 pct=4.049
+PHASE_PROFILE: id=0 phase=other cycles=838039 pct=30.483
+PHASE_SUM: id=0 measured=1911203 other=838039 total=2749242
+REQUEST: id=0 arm=234266584 keypair=768246 encaps=936010 decaps=1044986 total=2749242 start=2907 end=2752149
+CYCLES: keypair=768246 encaps=936010 decaps=1044986 total=2749242
+BATCH: requests=1 start=2907 end=2752149 makespan=2749242
+PERF: instrs=149312, cycles=2753855, IPC=0.054
+PASSED!

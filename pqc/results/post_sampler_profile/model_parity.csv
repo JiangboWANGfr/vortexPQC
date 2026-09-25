@@ -1,0 +1,4 @@
+arm,parameter,input_start,requests,workers,simx_instrs,xrt_instrs,simx_request_cycles,xrt_request_cycles,request_delta_pct_of_xrt,simx_perf_cycles,xrt_perf_cycles,perf_delta_pct_of_xrt
+warp_sampler_extract,65,3,1,1,1510539,1510539,18092872,17954231,0.772191,18332808,18182492,0.826707
+warp_sampler_extract,65,3,8,8,20219488,20219488,71289780,71775799,0.677135,71583757,72053891,0.652476
+warp_sampler,65,3,8,8,23716844,23716844,76416219,76954694,0.699730,76701846,77231877,0.686285

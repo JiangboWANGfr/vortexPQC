@@ -1,0 +1,42 @@
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+#0: KDETAIL: matrix_total=1267012 matrix_nonshake=782900 rej_total=1220427 rej_nonshake=736315 noise_total=811083 noise_nonshake=557838 pack=625230
+#0: KCORE: 0
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=3579864 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+PHASE_ARM: id=0 direct_intervals=1
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=1
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+ARITH_PROFILE: id=0 primitive=mulcache calls=12 cycles=62855 per_request_elapsed_pct=1.439
+ARITH_PROFILE: id=0 primitive=basemul calls=12 cycles=89771 per_request_elapsed_pct=2.055
+ARITH_PROFILE: id=0 primitive=poly_reduce calls=18 cycles=112592 per_request_elapsed_pct=2.578
+PHASE_PROFILE: id=0 phase=keccak_permute cycles=225281 pct=5.157
+PHASE_PROFILE: id=0 phase=keccak_absorb cycles=445022 pct=10.188
+PHASE_PROFILE: id=0 phase=keccak_squeeze cycles=259718 pct=5.946
+PHASE_PROFILE: id=0 phase=ntt cycles=68145 pct=1.560
+PHASE_PROFILE: id=0 phase=intt cycles=63591 pct=1.456
+PHASE_PROFILE: id=0 phase=mulcache cycles=62855 pct=1.439
+PHASE_PROFILE: id=0 phase=basemul cycles=89771 pct=2.055
+PHASE_PROFILE: id=0 phase=reduce cycles=112592 pct=2.578
+PHASE_PROFILE: id=0 phase=other cycles=3041106 pct=69.621
+PHASE_SUM: id=0 measured=1326975 other=3041106 total=4368081
+REQUEST: id=0 arm=3579864 keypair=1154494 encaps=1503875 decaps=1709712 total=4368081 start=5087 end=4373168
+CYCLES: keypair=1154494 encaps=1503875 decaps=1709712 total=4368081
+BATCH: requests=1 start=5087 end=4373168 makespan=4368081
+PERF: instrs=362834, cycles=4857132, IPC=0.075
+PASSED!

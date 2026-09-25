@@ -1,0 +1,43 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIGS: num_threads=32, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0xffff0000, num_barriers=8
+CONFIG: driver=xrt clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=29 target=30 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x00005e271ab4fe00 HEAD_ADDR=0x00005e271ab5fe80 CMPL_ADDR=0x00005e271ab5ff40
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000780
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+#0: DBOT: p=0 a=298557 s=1765993 m=2498401 u=2475904
+#0: DBOT: p=1 a=290020 s=2063549 m=2497983 u=2475587
+#0: DBOT: p=2 a=313189 s=1583681 m=2498269 u=2475807
+#0: DATT: n=2 t=7641625
+[mldsa] verify
+REQUEST: id=0 input=3
+REFERENCE: pk/sk/signature match portable C byte-for-byte
+STACK: peak=5200 of 7760 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           582
+keccak_f1600_x4           121
+poly_ntt                   46
+poly_invntt                49
+rej_uniform                 0
+poly_pointwise             31
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+CYCLES: keypair=7798759 sign=13266104 verify=7322410 total=28387273
+POINTWISE: phase=keypair simple=0 l5=85398 share=1.10%
+DETAIL: phase=keypair permute=788111 ntt=43164 intt=56624 pointwise=85398 residual=6825462 total=7798759
+POINTWISE: phase=sign simple=229160 l5=169322 share=3.00%
+DETAIL: phase=sign permute=911835 ntt=243785 intt=338279 pointwise=398482 residual=11373723 total=13266104
+POINTWISE: phase=verify simple=56733 l5=85540 share=1.94%
+DETAIL: phase=verify permute=723526 ntt=102554 intt=54653 pointwise=142273 residual=6299404 total=7322410
+BATCH: requests=1 first_input=3 makespan=28387273
+PERF: instrs=2556316, cycles=29532026, IPC=0.087
+PASSED!

@@ -1,0 +1,5 @@
+scheme,parameter_set,input,requests,driver,status,elapsed,notes,log
+ML-KEM,768,kat,1,xrt,pass,about_30_seconds,exact_instruction_match_and_1.568868_pct_cycle_gap,logs/mlkem_k768_m1_xrt.log
+ML-KEM,768,kat,8,xrt,pass,about_3_minutes,exact_instruction_match_and_3.001956_pct_cycle_gap,logs/mlkem_k768_m8_xrt.log
+ML-DSA,65,3,1,xrt,invalid_stale_runtime,2h02m,old_xrtsim_missing_pqc_enable_and_two_lane_ntt_config,logs/mldsa_d65_s3_m1_xrt_incomplete.log
+ML-DSA,65,3,1,xrt,pass,about_16_minutes,exact_instruction_match_and_0.493011_pct_simx_cycle_gap,logs/rtl_phase/mldsa_d65_full_xrt.log

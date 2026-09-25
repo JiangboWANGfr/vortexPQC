@@ -1,0 +1,11 @@
+scheme,parameter_set,input,requests,workers,profile,baseline_cycles,cycles,speedup,cycle_reduction_pct,kat,log
+ML-KEM,512,kat,1,1,latency_zeroize_word_io,1806504,1349431,1.338715,25.301522,pass,logs/mlkem_k512_m1.log
+ML-KEM,768,kat,1,1,latency_zeroize_word_io,2902389,2275149,1.275692,21.611162,pass,logs/mlkem_k768_m1.log
+ML-KEM,1024,kat,1,1,latency_zeroize_word_io,4359040,3554536,1.226332,18.455990,pass,logs/mlkem_k1024_m1.log
+ML-KEM,512,kat,8,8,throughput_linear_word_io,6607141,5919098,1.116241,10.413627,pass,logs/mlkem_k512_m8_linear.log
+ML-KEM,768,kat,8,8,throughput_linear_word_io,11362196,10484183,1.083746,7.727494,pass,logs/mlkem_k768_m8_linear.log
+ML-KEM,1024,kat,8,8,throughput_linear_word_io,18068617,17072892,1.058322,5.510798,pass,logs/mlkem_k1024_m8_linear.log
+ML-DSA,44,3,1,1,latency_zeroize,21049117,19571258,1.075512,7.021002,pass,logs/mldsa_d44_s3_m1.log
+ML-DSA,65,3,1,1,latency_zeroize,14668803,13539316,1.083423,7.699926,pass,logs/mldsa_d65_s3_m1.log
+ML-DSA,87,3,1,1,latency_zeroize,18431109,16654146,1.106698,9.641107,pass,logs/mldsa_d87_s3_m1.log
+ML-DSA,65,3-10,8,8,throughput_scalar_zeroize,65669303,65669303,1.000000,0.000000,pass,logs/mldsa_d65_s3_m8.log

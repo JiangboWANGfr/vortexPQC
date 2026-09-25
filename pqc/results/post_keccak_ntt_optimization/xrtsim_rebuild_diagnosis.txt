@@ -1,0 +1,26 @@
+ML-DSA XRT/xrtsim stale-runtime diagnosis (2026-09-24)
+
+The first ML-DSA-65/input-3 XRT runs loaded build32_im/sw/runtime/libxrtsim.so
+from 2026-09-16 16:41:26 (SHA-256
+70a085bb6676e341a0596b91b09205bf0d8df3637322d0ea603cdd8bdca2f2c3).
+Its xrtsim_config.stamp did not contain VX_CFG_EXT_PQC_ENABLE or
+VX_CFG_NTT_MUL_LANES=2.  The matching rtlsim_config.stamp contained both.
+
+The stale XRT keypair run first differed from the portable reference at public
+key byte 32 and secret key byte 64.  It retired 315,739 instructions instead
+of the 313,879 retired by SimX and rtlsim.  Disabling cooperative zeroization
+produced the same two first mismatches, excluding zeroization as the cause.
+
+The XRT/xrtsim runtime was cleaned and rebuilt with the fixed CONFIGS recorded
+in run_config.txt.  The resulting libxrtsim.so has SHA-256
+94f8627dbf1852ac5a704c86c395b38c22cbd136b252d158d224d10766f77dd5,
+and its configuration stamp is archived as xrtsim_config_final.stamp.
+
+After the rebuild, keypair output matched the portable C reference byte for
+byte.  SimX, rtlsim, and XRT all retired exactly 313,879 instructions; their
+cycles were 4,104,788, 4,061,879, and 4,062,137, respectively.
+
+The keypair-plus-sign scope also passed with 802,126 instructions on all three
+paths and 10,878,558, 10,807,886, and 10,815,131 cycles.  The complete request
+passed with 1,005,355 instructions and 13,772,331, 13,689,233, and 13,704,765
+cycles.  No RTL source changed, so synthesis was not repeated.

@@ -1,0 +1,47 @@
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIGS: num_threads=32, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0xffff0000, num_barriers=8
+CONFIG: driver=xrt clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-768
+MAPPING: KEM_lanes=1 NTT_lanes=32
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=26 target=27 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x0000623591e81e00 HEAD_ADDR=0x0000623591e91e80 CMPL_ADDR=0x0000623591e91f40
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x00000000000006c0
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+#0: KDETAIL: matrix_total=2534378 matrix_nonshake=2059155 rej_total=2488634 rej_nonshake=2013411 noise_total=809257 noise_nonshake=562811 pack=617851
+#0: KCORE: 1620256
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=1482712 unroll=1
+PHASE_ARM: id=0 direct_intervals=1
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=1
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=140 keccak_x4=0 ntt=15 intt=9 rej_uniform=27 mulcache=12 basemul=12 poly_reduce=18
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1           140       21248780
+keccak_f1600_x4             0              -
+poly_ntt                   15        2403300
+poly_invntt                 9        2246139
+rej_uniform                27              -
+mulcache                   12              -
+basemul                    12              -
+poly_reduce                18              -
+reference estimate total: 25898219
+ARITH_PROFILE: id=0 primitive=mulcache calls=12 cycles=62753 per_request_elapsed_pct=1.115
+ARITH_PROFILE: id=0 primitive=basemul calls=12 cycles=89624 per_request_elapsed_pct=1.593
+ARITH_PROFILE: id=0 primitive=poly_reduce calls=18 cycles=111783 per_request_elapsed_pct=1.987
+PHASE_PROFILE: id=0 phase=keccak_permute cycles=224820 pct=3.996
+PHASE_PROFILE: id=0 phase=keccak_absorb cycles=427574 pct=7.599
+PHASE_PROFILE: id=0 phase=keccak_squeeze cycles=258500 pct=4.594
+PHASE_PROFILE: id=0 phase=ntt cycles=71810 pct=1.276
+PHASE_PROFILE: id=0 phase=intt cycles=64195 pct=1.141
+PHASE_PROFILE: id=0 phase=mulcache cycles=62753 pct=1.115
+PHASE_PROFILE: id=0 phase=basemul cycles=89624 pct=1.593
+PHASE_PROFILE: id=0 phase=reduce cycles=111783 pct=1.987
+PHASE_PROFILE: id=0 phase=other cycles=4315627 pct=76.699
+PHASE_SUM: id=0 measured=1311059 other=4315627 total=5626686
+REQUEST: id=0 arm=1482712 keypair=1581707 encaps=1917399 decaps=2127580 total=5626686 start=5077 end=5631763
+CYCLES: keypair=1581707 encaps=1917399 decaps=2127580 total=5626686
+BATCH: requests=1 start=5077 end=5631763 makespan=5626686
+PERF: instrs=501570, cycles=6212412, IPC=0.081
+PASSED!

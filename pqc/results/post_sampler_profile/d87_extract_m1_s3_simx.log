@@ -1,0 +1,37 @@
+ML-DSA-87  pk=2592 sk=4896 sig=4627
+[mldsa] device_open
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=29 target=30 CP_CTRL=0x00000001 CP_STATUS=0x00000001 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x00005fd0901e5e00 HEAD_ADDR=0x00005fd0901f5e80 CMPL_ADDR=0x00005fd0901f5f80
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000780
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+[mldsa] verify
+REQUEST: id=0 input=3
+REFERENCE: pk/sk/signature match portable C byte-for-byte
+STACK: peak=5072 of 7776 paintable (slab 8192)   ARENA: peak=106816 of 163840 fail=0
+primitive               calls
+keccak_f1600_x1           968
+keccak_f1600_x4           226
+poly_ntt                   54
+poly_invntt                47
+rej_uniform                 0
+poly_pointwise             31
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp
+SHAKE_EXTRACT_ARM: x4=warp
+CYCLES: keypair=6165714 sign=9401189 verify=6063361 total=21630264
+POINTWISE: phase=keypair simple=0 l5=261671 share=4.24%
+POINTWISE: phase=sign simple=208781 l5=262053 share=5.01%
+POINTWISE: phase=verify simple=73079 l5=260837 share=5.51%
+BATCH: requests=1 first_input=3 makespan=21630264
+PERF: instrs=1759579, cycles=21871440, IPC=0.080
+PASSED!

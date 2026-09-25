@@ -1,0 +1,30 @@
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+PARAMETER_SET: ML-KEM-512
+MAPPING: KEM_lanes=1 NTT_lanes=32
+ARM: id=0 keccak=sg25 fips202=serial ablate=none ntt=reg32 nttmul=k nttbf=sg2 flags=234004184 unroll=1
+SAMPLER_ARM: id=0 matrix=warp
+CODEC_ARM: id=0 polybytes=warp compress=warp
+NOISE_ARM: id=0 cbd=warp
+LINEAR_ARM: id=0 poly=warp
+ZEROIZE_ARM: id=0 single=warp multi=scalar
+ARITH_ARM: id=0 mulcache=w32 basemul=w32 reduce=w32 mul=ise profile=0
+STATUS: id=0 keypair=0 encaps=0 decaps=0
+KAT: id=0 pk/sk/ct/ss_enc/ss_dec match byte-for-byte
+COUNTERS: id=0 keccak_x1=85 keccak_x4=0 ntt=10 intt=7 rej_uniform=12 mulcache=8 basemul=9 poly_reduce=13
+REFERENCE C MICROBENCH ESTIMATES (not measured attribution):
+primitive               calls     est_cycles
+keccak_f1600_x1            85       12901045
+keccak_f1600_x4             0              -
+poly_ntt                   10        1602200
+poly_invntt                 7        1746997
+rej_uniform                12              -
+mulcache                    8              -
+basemul                     9              -
+poly_reduce                13              -
+reference estimate total: 16250242
+REQUEST: id=0 arm=234004184 keypair=347921 encaps=460594 decaps=537098 total=1345613 start=2754 end=1348367
+CYCLES: keypair=347921 encaps=460594 decaps=537098 total=1345613
+BATCH: requests=1 start=2754 end=1348367 makespan=1345613
+PERF: instrs=79681, cycles=1349431, IPC=0.059
+PASSED!

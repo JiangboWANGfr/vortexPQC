@@ -1,0 +1,42 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=29 target=30 CP_CTRL=0x00000001 CP_STATUS=0x00000001 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x0000634395538e00 HEAD_ADDR=0x0000634395548e80 CMPL_ADDR=0x0000634395548f80
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000780
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+#0: DBOT: p=0 a=294778 s=1772825 m=2549125 u=2526515
+#0: DBOT: p=1 a=286454 s=2077088 m=2548880 u=2526364
+#0: DBOT: p=2 a=309247 s=1591126 m=2549074 u=2526492
+#0: DATT: n=2 t=7686623
+[mldsa] verify
+REQUEST: id=0 input=3
+REFERENCE: pk/sk/signature match portable C byte-for-byte
+STACK: peak=5200 of 7760 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           582
+keccak_f1600_x4           121
+poly_ntt                   46
+poly_invntt                49
+rej_uniform                 0
+poly_pointwise             31
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+CYCLES: keypair=7878027 sign=13377297 verify=7386359 total=28641683
+POINTWISE: phase=keypair simple=0 l5=85095 share=1.08%
+DETAIL: phase=keypair permute=796219 ntt=42082 intt=55594 pointwise=85095 residual=6899037 total=7878027
+POINTWISE: phase=sign simple=226847 l5=169799 share=2.97%
+DETAIL: phase=sign permute=917576 ntt=241761 intt=336938 pointwise=396646 residual=11484376 total=13377297
+POINTWISE: phase=verify simple=56138 l5=85403 share=1.92%
+DETAIL: phase=verify permute=728591 ntt=101690 intt=54593 pointwise=141541 residual=6359944 total=7386359
+BATCH: requests=1 first_input=3 makespan=28641683
+PERF: instrs=2556316, cycles=29793639, IPC=0.086
+PASSED!

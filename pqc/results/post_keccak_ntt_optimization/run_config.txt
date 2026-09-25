@@ -1,0 +1,15 @@
+Repository head: 24a74cdb8
+Build directory: build32_im
+Configure: ../configure --xlen=32 --tooldir=/home/jiangbowang/tools-pqc-v3.0.1
+Toolchain libc: /home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libc32
+Toolchain libcrt: /home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libcrt32
+CONFIGS: -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2
+ML-KEM common: KECCAK=sg25 UNROLL=1 SERIAL=1 NTT=reg32 NTTMUL=ise NTTBF=ise ARITH=all ARITH_MUL=ise SAMPLER=warp CODEC=all NOISE=warp LINEAR=warp
+ML-KEM latency: ZEROIZE=warp
+ML-KEM throughput: ZEROIZE unset
+ML-DSA common: KECCAK=sg25 UNROLL=1 NTT=reg32 NTTMUL=ise NTTBF=ise SAMPLER=warp SHAKE_EXTRACT=warp SIGN_ARITH=warp POINTWISE=ise POINTWISE_L5=w32 MLDSA_RAM=full
+ML-DSA latency: ZEROIZE=warp
+ML-DSA throughput: ZEROIZE unset
+XRT/xrtsim rebuild: make -C build32_im/sw/runtime/xrt clean; make -C build32_im/sw/runtime/xrt -j8 with CONFIGS above
+XRT/xrtsim SHA-256: 94f8627dbf1852ac5a704c86c395b38c22cbd136b252d158d224d10766f77dd5
+ML-DSA phase bisection: STOP_AFTER=keypair or STOP_AFTER=sign

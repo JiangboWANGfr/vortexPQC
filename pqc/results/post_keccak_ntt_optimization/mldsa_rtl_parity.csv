@@ -1,0 +1,4 @@
+scope,simx_instructions,rtlsim_instructions,xrt_instructions,simx_cycles,rtlsim_cycles,xrt_cycles,simx_rtlsim_gap_pct,simx_xrt_gap_pct,rtlsim_xrt_gap_pct,kat
+keypair,313879,313879,313879,4104788,4061879,4062137,1.056383,1.049965,0.006351,pass
+keypair_sign,802126,802126,802126,10878558,10807886,10815131,0.653893,0.586465,0.066989,pass
+full,1005355,1005355,1005355,13772331,13689233,13704765,0.607032,0.493011,0.113333,pass

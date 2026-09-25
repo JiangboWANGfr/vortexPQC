@@ -1,0 +1,41 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIG: driver=simx clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=29 target=30 CP_CTRL=0x00000001 CP_STATUS=0x00000001 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x000059856499bdc0 HEAD_ADDR=0x00005985649abe00 CMPL_ADDR=0x00005985649abf00
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000780
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+[mldsa] verify
+REQUEST: id=0 input=3
+REFERENCE: pk/sk/signature match portable C byte-for-byte
+STACK: peak=5104 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           582
+keccak_f1600_x4           121
+poly_ntt                   46
+poly_invntt                49
+rej_uniform                 0
+poly_pointwise             31
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=3903954 sign=6928647 verify=2934257 total=13766858
+POINTWISE: phase=keypair simple=0 l5=85398 share=2.19%
+DETAIL: phase=keypair permute=779692 ntt=42558 intt=55762 zeroize=87071 pointwise=85398 residual=2853473 total=3903954
+POINTWISE: phase=sign simple=227694 l5=170375 share=5.75%
+DETAIL: phase=sign permute=903557 ntt=241125 intt=336105 zeroize=141070 pointwise=398069 residual=4908721 total=6928647
+POINTWISE: phase=verify simple=55192 l5=85284 share=4.79%
+DETAIL: phase=verify permute=717917 ntt=100476 intt=55554 zeroize=81041 pointwise=140476 residual=1838793 total=2934257
+BATCH: requests=1 first_input=3 makespan=13766858
+PASSED!

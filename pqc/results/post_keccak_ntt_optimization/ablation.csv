@@ -1,0 +1,5 @@
+scheme,parameter_set,requests,change,before_cycles,after_cycles,speedup,decision,log
+ML-KEM,768,1,aligned_sg25_word_io,2307429,2275149,1.014188,keep,logs/mlkem_k768_m1.log
+ML-KEM,768,8,aligned_sg25_word_io,10960487,10484183,1.045432,keep,logs/mlkem_k768_m8_linear.log
+ML-KEM,768,8,compile_zeroize_hook,10484183,10516315,0.996945,disable_for_throughput,logs/mlkem_k768_m8_zeroize.log
+ML-DSA,65,1,x4_extract_word_io,13539316,13795042,0.981463,revert,logs/mldsa_d65_s3_word_io_reverted.log

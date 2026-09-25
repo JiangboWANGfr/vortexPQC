@@ -1,0 +1,45 @@
+ML-DSA-65  pk=1952 sk=4032 sig=3309
+[mldsa] device_open
+SCHEDULING: requests=1 workers=1 waves=1
+CONFIGS: num_threads=32, num_warps=8, num_cores=1, num_clusters=1, socket_size=1, local_mem_base=0xffff0000, num_barriers=8
+CONFIG: driver=xrt clusters=1 cores=1 warps=8 threads=32 M=1 L=32 l2=0 l3=0 lmem=16384B line=64B isa=0x303340901100
+[mldsa] buffer_create
+[mldsa] module_load
+[mldsa] upload inputs
+[mldsa] launch
+[mldsa] readback
+[mldsa] wait
+[VXDRV] Warning: CP has not retired a command in 10s.
+[VXDRV]   Q_SEQNUM=29 target=30 CP_CTRL=0x00000001 CP_STATUS=0x00000000 Q_ERROR=0x00000000
+[VXDRV]   RING_BASE=0x000059d1798e2dc0 HEAD_ADDR=0x000059d1798f2e00 CMPL_ADDR=0x000059d1798ddf80
+[VXDRV]   RING_SIZE_LOG2=16 Q_CONTROL=0x00000001 Q_TAIL=0x0000000000000780
+[VXDRV]   The ring was accepted but nothing is executing. Set VORTEX_CP_POLL_TIMEOUT_S=<sec> to abort instead of spinning.
+[mldsa] verify
+REQUEST: id=0 input=3
+REFERENCE: pk/sk/signature match portable C byte-for-byte
+STACK: peak=5312 of 7792 paintable (slab 8192)   ARENA: peak=67648 of 90112 fail=0
+primitive               calls
+keccak_f1600_x1           582
+keccak_f1600_x4           121
+poly_ntt                   46
+poly_invntt                49
+rej_uniform                 0
+poly_pointwise             31
+pointwise_acc_l5           24
+ARM: keccak=sg25 unroll=1 ntt=reg32 nttmul=d nttbf=d pointwise=ise l5=w32 ablate=none
+SAMPLER_ARM: matrix=warp eta=scalar
+SHAKE_EXTRACT_ARM: x4=warp
+SIGN_ARITH_ARM: decompose=warp hint=warp chknorm=warp caddq=warp zunpack=warp
+ZEROIZE_ARM: single=warp multi=scalar
+CYCLES: keypair=3836906 sign=6750123 verify=2896159 total=13483188
+POINTWISE: phase=keypair simple=0 l5=85533 share=2.23%
+POINTWISE: phase=sign simple=228118 l5=170067 share=5.90%
+POINTWISE: phase=verify simple=56087 l5=85213 share=4.88%
+BATCH: requests=1 first_input=3 makespan=13483188
+PERF: scheduler: idle=0%, occupancy=0.0 (0%), simt_util=0.0 (0%)
+PERF: stalls: fetch=0%, ibuf=0%, scrb=0%, opds=0%, alu=0%, lsu=0%, sfu=0%
+PERF: inst_mix: alu=0%, lsu=0%, sfu=0%
+PERF: branches: total=0, divergent=0 (rate=0%)
+PERF: memory: ifetch_lat=0.00, load_lat=0.00, loads=0, stores=0
+PERF: instrs=1005355, cycles=13704765, IPC=0.073
+PASSED!
