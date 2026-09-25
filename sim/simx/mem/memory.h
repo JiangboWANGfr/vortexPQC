@@ -26,6 +26,7 @@ public:
 		uint32_t num_ports;
 		uint32_t block_size;
 		float clock_ratio;
+		uint32_t max_pending_writes;
 	};
 
 	struct PerfStats {
@@ -59,6 +60,7 @@ public:
 	void set_pre_send_hook(PreSendHook hook);
 
 	const PerfStats& perf_stats() const;
+	bool pending_writes() const;
 
 protected:
 	void on_reset();

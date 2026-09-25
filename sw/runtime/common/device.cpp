@@ -95,6 +95,17 @@ constexpr uint8_t  CP_OPCODE_LAUNCH_QMD = 0x0B;
 constexpr uint8_t  CP_OPCODE_DRAW       = 0x0C;
 constexpr std::size_t CP_CL_BYTES    = 64;
 
+bool cp_dma_window(uint64_t addr, uint64_t size, uint64_t* base,
+                   uint64_t* span, uint64_t* head) {
+    *head = addr & (CACHE_BLOCK_SIZE - 1);
+    if (size > UINT64_MAX - *head - (CACHE_BLOCK_SIZE - 1))
+        return false;
+    *base = addr - *head;
+    *span = (*head + size + CACHE_BLOCK_SIZE - 1)
+          & ~uint64_t(CACHE_BLOCK_SIZE - 1);
+    return true;
+}
+
 // CMD_EVENT_WAIT comparison operations (encoded in arg2[1:0]).
 // Mirrors hw/rtl/cp/VX_cp_pkg.sv:wait_op_e.
 constexpr uint8_t  CP_WAIT_OP_EQ = 0;
@@ -967,31 +978,56 @@ vx_result_t Device::cp_submit_mem_(uint8_t opcode, uint64_t arg0,
 vx_result_t Device::cp_submit_mem_copy(uint64_t dst, uint64_t src,
                                        uint64_t size) {
     if (size == 0 || dst == src) return VX_SUCCESS;
-    return cp_submit_mem_(CP_OPCODE_MEM_COPY, dst, src, size);
+    if (is_aligned(dst, CACHE_BLOCK_SIZE)
+     && is_aligned(src, CACHE_BLOCK_SIZE)
+     && is_aligned(size, CACHE_BLOCK_SIZE)) {
+        return cp_submit_mem_(CP_OPCODE_MEM_COPY, dst, src, size);
+    }
+    std::vector<uint8_t> staging(size);
+    auto r = cp_submit_mem_read(staging.data(), src, size);
+    return r == VX_SUCCESS
+         ? cp_submit_mem_write(dst, staging.data(), size)
+         : r;
 }
 
 vx_result_t Device::cp_submit_mem_write(uint64_t dev_dst, const void* host_src,
                                         uint64_t size, bool physical) {
     if (size == 0)  return VX_SUCCESS;
     if (!host_src)  return VX_ERR_INVALID_VALUE;
+    uint64_t base, span, head;
+    if (!cp_dma_window(dev_dst, size, &base, &span, &head))
+        return VX_ERR_INVALID_VALUE;
+    const bool partial = head != 0 || size != span;
+    std::unique_lock<std::mutex> rmw_lock(cp_dma_rmw_mu_, std::defer_lock);
+    if (partial)
+        rmw_lock.lock();
     // Stage the payload into CP-visible host memory (a plain memcpy through
     // the host pointer), then have the CP DMA it to device memory. `physical`
     // (set for page-table writes) tells the CP DMA to skip VM translation.
     HostMem staging;
-    auto r = host_alloc(size, &staging);
+    auto r = host_alloc(span, &staging);
     if (r != VX_SUCCESS) return r;
-    std::memcpy(staging.host_ptr, host_src, size);
+    if (partial) {
+        r = cp_submit_mem_(CP_OPCODE_MEM_READ, staging.cp_addr, base, span,
+                           physical);
+        if (r == VX_SUCCESS)
+            r = platform()->host_mem_pull(staging.cp_addr);
+    }
+    if (r == VX_SUCCESS)
+        std::memcpy(static_cast<uint8_t*>(staging.host_ptr) + head,
+                    host_src, size);
     // Make the fill visible to the CP before the command that reads it can
     // be fetched. On shadowing backends this is the ONLY push of this
     // region: the backend's doorbell publish deliberately does not touch
     // generic regions (a blanket publish can push a half-filled or stale
     // shadow over device bytes another agent owns).
-    r = platform()->host_mem_push(staging.cp_addr);
+    if (r == VX_SUCCESS)
+        r = platform()->host_mem_push(staging.cp_addr);
     if (r != VX_SUCCESS) {
         host_free(staging.cp_addr);
         return r;
     }
-    r = cp_submit_mem_(CP_OPCODE_MEM_WRITE, dev_dst, staging.cp_addr, size,
+    r = cp_submit_mem_(CP_OPCODE_MEM_WRITE, base, staging.cp_addr, span,
                        physical);
     host_free(staging.cp_addr);
     return r;
@@ -1001,12 +1037,15 @@ vx_result_t Device::cp_submit_mem_read(void* host_dst, uint64_t dev_src,
                                        uint64_t size, bool physical) {
     if (size == 0)  return VX_SUCCESS;
     if (!host_dst)  return VX_ERR_INVALID_VALUE;
+    uint64_t base, span, head;
+    if (!cp_dma_window(dev_src, size, &base, &span, &head))
+        return VX_ERR_INVALID_VALUE;
     // Have the CP DMA device->host into a CP-visible host staging buffer,
     // then memcpy it back to the caller's pointer.
     HostMem staging;
-    auto r = host_alloc(size, &staging);
+    auto r = host_alloc(span, &staging);
     if (r != VX_SUCCESS) return r;
-    r = cp_submit_mem_(CP_OPCODE_MEM_READ, staging.cp_addr, dev_src, size,
+    r = cp_submit_mem_(CP_OPCODE_MEM_READ, staging.cp_addr, base, span,
                        physical);
     if (r == VX_SUCCESS) {
         // The CP wrote the staging region; on a backend that shadows CP
@@ -1016,7 +1055,8 @@ vx_result_t Device::cp_submit_mem_read(void* host_dst, uint64_t dev_src,
         r = platform()->host_mem_pull(staging.cp_addr);
     }
     if (r == VX_SUCCESS)
-        std::memcpy(host_dst, staging.host_ptr, size);
+        std::memcpy(host_dst,
+                    static_cast<uint8_t*>(staging.host_ptr) + head, size);
     host_free(staging.cp_addr);
     return r;
 }

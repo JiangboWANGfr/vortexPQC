@@ -5,6 +5,11 @@
 
 override CONFIGS += -DPLATFORM_MEMORY_DATA_WIDTH=512
 
+# The V80 HBM VNOC exposes a 16-bit AXI ID at its S00 interface. Keep the AFU
+# at that width so the bank-0 arbiter's top-bit source tag survives the NoC
+# boundary and write/read responses return to the requesting master.
+override CONFIGS += -DPLATFORM_MEMORY_ID_WIDTH=16
+
 # The V80 exposes its HBM stacks through the linker's HBM connectivity tags.
 # A single wide master fanned across the channels avoids the per-bank base
 # address problem: the linker assigns each memory range independently, and

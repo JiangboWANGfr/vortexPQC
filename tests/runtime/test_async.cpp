@@ -22,6 +22,7 @@
 
 #include <vortex2.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -463,6 +464,127 @@ int test_concurrent_queues(vx_device_h dev) {
     return 0;
 }
 
+// ---------------------------------------------------------------------------
+// Transfers whose device offset or byte count is not a cache-line multiple.
+// ---------------------------------------------------------------------------
+int test_unaligned_transfers(vx_device_h dev) {
+    constexpr uint64_t bytes = 256;
+
+    vx_queue_info_t qi = {};
+    qi.struct_size = sizeof(qi);
+    vx_queue_h q = nullptr;
+    CHECK_VX(vx_queue_create(dev, &qi, &q));
+
+    vx_buffer_h src = nullptr, dst = nullptr;
+    CHECK_VX(vx_buffer_create(dev, bytes, VX_MEM_READ_WRITE, &src));
+    CHECK_VX(vx_buffer_create(dev, bytes, VX_MEM_READ_WRITE, &dst));
+
+    std::vector<uint8_t> source(bytes), expected(bytes), out(bytes);
+    for (uint64_t i = 0; i < bytes; ++i)
+        source[i] = static_cast<uint8_t>((i * 37 + 11) & 0xff);
+
+    vx_event_h event = nullptr;
+    CHECK_VX(vx_enqueue_write(q, src, 0, source.data(), bytes,
+                              0, nullptr, &event));
+    CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    CHECK_VX(vx_event_release(event));
+
+    struct ReadCase { uint64_t offset, size; };
+    const ReadCase reads[] = {
+        {1, 1}, {31, 17}, {32, 64}, {63, 65}, {65, 95},
+    };
+    for (const auto& test : reads) {
+        std::vector<uint8_t> slice(test.size, 0);
+        event = nullptr;
+        CHECK_VX(vx_enqueue_read(q, slice.data(), src, test.offset, test.size,
+                                 0, nullptr, &event));
+        CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+        CHECK_VX(vx_event_release(event));
+        if (std::memcmp(slice.data(), source.data() + test.offset,
+                        test.size) != 0) {
+            fprintf(stderr, "FAILED: unaligned read offset=%lu size=%lu\n",
+                    test.offset, test.size);
+            return 1;
+        }
+    }
+
+    expected = source;
+    std::vector<uint8_t> patch(91);
+    for (uint64_t i = 0; i < patch.size(); ++i)
+        patch[i] = static_cast<uint8_t>(0xd0 + (i & 0x1f));
+    std::memcpy(expected.data() + 29, patch.data(), patch.size());
+    event = nullptr;
+    CHECK_VX(vx_enqueue_write(q, src, 29, patch.data(), patch.size(),
+                              0, nullptr, &event));
+    CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    CHECK_VX(vx_event_release(event));
+    event = nullptr;
+    CHECK_VX(vx_enqueue_read(q, out.data(), src, 0, bytes,
+                             0, nullptr, &event));
+    CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    CHECK_VX(vx_event_release(event));
+    EXPECT(out == expected, "unaligned write changed the wrong bytes");
+
+    const std::vector<uint8_t> source_after_write = expected;
+    std::vector<uint8_t> dst_initial(bytes, 0x5a);
+    expected = dst_initial;
+    std::memcpy(expected.data() + 35, source_after_write.data() + 7, 101);
+    event = nullptr;
+    CHECK_VX(vx_enqueue_write(q, dst, 0, dst_initial.data(), bytes,
+                              0, nullptr, &event));
+    CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    CHECK_VX(vx_event_release(event));
+    event = nullptr;
+    CHECK_VX(vx_enqueue_copy(q, dst, 35, src, 7, 101,
+                             0, nullptr, &event));
+    CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    CHECK_VX(vx_event_release(event));
+    event = nullptr;
+    CHECK_VX(vx_enqueue_read(q, out.data(), dst, 0, bytes,
+                             0, nullptr, &event));
+    CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+    CHECK_VX(vx_event_release(event));
+    EXPECT(out == expected, "unaligned copy changed the wrong bytes");
+
+    vx_queue_h q2 = nullptr;
+    CHECK_VX(vx_queue_create(dev, &qi, &q2));
+    std::vector<uint8_t> left(32, 0xa5), right(32, 0x3c);
+    expected.assign(bytes, 0);
+    std::copy(left.begin(), left.end(), expected.begin());
+    std::copy(right.begin(), right.end(), expected.begin() + left.size());
+    for (int round = 0; round < 16; ++round) {
+        std::fill(out.begin(), out.end(), 0);
+        event = nullptr;
+        CHECK_VX(vx_enqueue_write(q, dst, 0, out.data(), bytes,
+                                  0, nullptr, &event));
+        CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+        CHECK_VX(vx_event_release(event));
+
+        vx_event_h left_event = nullptr, right_event = nullptr;
+        CHECK_VX(vx_enqueue_write(q, dst, 0, left.data(), left.size(),
+                                  0, nullptr, &left_event));
+        CHECK_VX(vx_enqueue_write(q2, dst, left.size(), right.data(),
+                                  right.size(), 0, nullptr, &right_event));
+        CHECK_VX(vx_event_wait_value(left_event, 1, VX_TIMEOUT_INFINITE));
+        CHECK_VX(vx_event_wait_value(right_event, 1, VX_TIMEOUT_INFINITE));
+        CHECK_VX(vx_event_release(left_event));
+        CHECK_VX(vx_event_release(right_event));
+
+        event = nullptr;
+        CHECK_VX(vx_enqueue_read(q, out.data(), dst, 0, bytes,
+                                 0, nullptr, &event));
+        CHECK_VX(vx_event_wait_value(event, 1, VX_TIMEOUT_INFINITE));
+        CHECK_VX(vx_event_release(event));
+        EXPECT(out == expected, "concurrent partial writes lost bytes");
+    }
+
+    CHECK_VX(vx_buffer_release(src));
+    CHECK_VX(vx_buffer_release(dst));
+    CHECK_VX(vx_queue_release(q2));
+    CHECK_VX(vx_queue_release(q));
+    return 0;
+}
+
 } // namespace
 
 int main() {
@@ -478,6 +600,7 @@ int main() {
         { "profiling",                 test_profiling                 },
         { "map_unmap",                 test_map_unmap                 },
         { "queue_finish",              test_queue_finish              },
+        { "unaligned_transfers",       test_unaligned_transfers       },
         { "concurrent_queues",         test_concurrent_queues         },
     };
 

@@ -224,11 +224,13 @@ module VX_mem_scheduler #(
     // can accept another request?
     assign core_req_ready = reqq_ready_in && ibuf_ready;
 
-    // request queue status. `coalescer_empty` (1 when no coalescer) keeps a
-    // store still buffered in the coalescer from prematurely signalling empty.
+    // Include a request offered at the registered queue input. Before its
+    // accepting edge, reqq_valid is still low; reporting empty in that cycle
+    // lets a cache flush overtake the request.
     wire coalescer_empty;
     assign req_queue_rw_notify = reqq_valid && reqq_ready && reqq_rw;
-    assign req_queue_empty = !reqq_valid && ibuf_empty && coalescer_empty;
+    assign req_queue_empty = !core_req_valid && !reqq_valid
+                          && ibuf_empty && coalescer_empty;
 
     // Index buffer ///////////////////////////////////////////////////////////
 

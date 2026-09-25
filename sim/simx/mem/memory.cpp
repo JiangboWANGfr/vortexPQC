@@ -20,6 +20,8 @@
 #include <iostream>
 #include <stdlib.h>
 #include <dram_sim.h>
+#include <algorithm>
+#include <cassert>
 
 #include "mem_block_pool.h"
 #include "constants.h"
@@ -50,6 +52,7 @@ private:
 		bool ready;
 	};
 	std::vector<std::queue<std::shared_ptr<DramCallbackArgs>>> pending_reqs_;
+	std::vector<uint32_t> pending_writes_;
 
 public:
 	Impl(Memory* simobject, const Config& config)
@@ -58,6 +61,7 @@ public:
 		, dram_sim_(config.num_banks, config.block_size, config.clock_ratio)
 		, ram_(nullptr)
 		, pending_reqs_(config.num_banks)
+		, pending_writes_(config.num_banks, 0)
 	{
 		char sname[100];
 		snprintf(sname, 100, "%s-xbar", simobject->name().c_str());
@@ -79,11 +83,20 @@ public:
 		return perf_stats_;
 	}
 
+	bool pending_writes() const {
+		for (auto count : pending_writes_) {
+			if (count != 0)
+				return true;
+		}
+		return false;
+	}
+
 	void reset() {
 		dram_sim_.reset();
 		for (auto& queue : pending_reqs_) {
 			queue = {};
 		}
+		std::fill(pending_writes_.begin(), pending_writes_.end(), 0);
 	}
 
 	void tick() {
@@ -103,6 +116,9 @@ public:
 					continue;
 				}
 				DT(3, simobject_->name() << " mem-rsp" << i << ": " << mem_rsp);
+			} else {
+				assert(pending_writes_.at(i) != 0);
+				--pending_writes_.at(i);
 			}
 			queue.pop();
 		}
@@ -112,6 +128,12 @@ public:
 				continue;
 
 			auto& mem_req = mem_xbar_->ReqOut.at(i).peek();
+			if (mem_req.is_write()) {
+				if (pending_writes_.at(i) == config_.max_pending_writes)
+					continue;
+			} else if (pending_writes_.at(i) != 0) {
+				continue;
+			}
 
 			std::shared_ptr<mem_block_t> rsp_data;
 			if (ram_) {
@@ -149,6 +171,7 @@ public:
 			// enqueue the request to the memory system
 			auto req_args = std::make_shared<DramCallbackArgs>(DramCallbackArgs{mem_req, rsp_data, false});
 			pending_reqs_.at(i).push(req_args);
+			pending_writes_.at(i) += mem_req.is_write();
 			dram_sim_.send_request(
 				mem_req.addr,
 				mem_req.is_write(),
@@ -204,4 +227,8 @@ void Memory::set_pre_send_hook(PreSendHook hook) {
 
 const Memory::PerfStats &Memory::perf_stats() const {
 	return impl_->perf_stats();
+}
+
+bool Memory::pending_writes() const {
+	return impl_->pending_writes();
 }

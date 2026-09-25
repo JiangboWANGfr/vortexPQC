@@ -458,6 +458,7 @@ private:
     uint64_t                       cp_expected_seqnum_ = 0;
     uint64_t                       cp_num_cores_       = 0; // cached VX_CAPS_NUM_CORES, used for CMD_CACHE_FLUSH
     std::mutex                     cp_mu_;             // serialize ring writes
+    std::mutex                     cp_dma_rmw_mu_;     // make partial-line writes atomic
     // Seqnum the last command appended to the open batch will reach;
     // cp_batch_end polls for it once. Touched only by the batch owner, which
     // holds cp_mu_ from cp_batch_begin to cp_batch_end. Whether a batch is

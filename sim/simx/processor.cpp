@@ -52,7 +52,8 @@ ProcessorImpl::ProcessorImpl()
     VX_CFG_PLATFORM_MEMORY_NUM_BANKS,
     VX_CFG_L3_MEM_PORTS,
     VX_CFG_MEM_BLOCK_SIZE,
-    MEM_CLOCK_RATIO
+    MEM_CLOCK_RATIO,
+    16
   });
 
   char sname[100];
@@ -268,11 +269,11 @@ int ProcessorImpl::run() {
     // fetch) would stall forever: end the launch as soon as a fault is
     // latched and the fabric is quiet, and let the host read the report.
     bool faulted = this->mmu_fault_pending();
-    // Stop only when cores are idle AND the platform holds no undelivered
-    // work: cache pipelines wrap a SimChannel inside TFifo, so cache-pipe
-    // state (and any in-flight cache→memory writethrough) shows up in
-    // idle(), as do launch-lane CTAs and barrier hops between domains.
-    done = (!any_running || faulted) && SimPlatform::instance().idle();
+    // Stop only after cores, channel traffic, and posted DRAM writes drain.
+    // Writes have no response channel, so platform idle cannot observe them.
+    done = (!any_running || faulted)
+        && SimPlatform::instance().idle()
+        && !memsim_->pending_writes();
     perf_mem_latency_ += perf_mem_pending_reads_;
   } while (!done);
 
@@ -414,7 +415,7 @@ bool ProcessorImpl::any_running() const {
   for (auto& cluster : clusters_) {
     if (cluster->running()) return true;
   }
-  return !SimPlatform::instance().idle();
+  return !SimPlatform::instance().idle() || memsim_->pending_writes();
 }
 
 ProcessorImpl::PerfStats ProcessorImpl::perf_stats() const {

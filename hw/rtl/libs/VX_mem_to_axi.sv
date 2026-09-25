@@ -239,7 +239,7 @@ module VX_mem_to_axi #(
 
         // AXi request handshake
 
-        wire m_axi_aw_ack, m_axi_w_ack, axi_write_ready;
+        wire m_axi_aw_ack, m_axi_w_ack, axi_write_issued;
 
         VX_axi_write_ack axi_write_ack (
             .clk    (clk),
@@ -250,15 +250,36 @@ module VX_mem_to_axi #(
             .wready (m_axi_wready[i]),
             .aw_ack (m_axi_aw_ack),
             .w_ack  (m_axi_w_ack),
-            .tx_rdy (axi_write_ready),
-            `UNUSED_PIN (tx_ack)
+            .tx_ack (axi_write_issued),
+            `UNUSED_PIN (tx_rdy)
         );
 
-        assign req_xbar_ready_out[i] = xbar_rw_out ? axi_write_ready : m_axi_arready[i];
+        localparam WRITE_COUNT_WIDTH = `CLOG2(TAG_BUFFER_SIZE + 1);
+        reg [WRITE_COUNT_WIDTH-1:0] axi_write_count;
+        wire axi_write_rsp_fire = m_axi_bvalid[i] && m_axi_bready[i];
+        wire axi_write_full = axi_write_count == WRITE_COUNT_WIDTH'(TAG_BUFFER_SIZE);
+        wire axi_write_enable = ~axi_write_full || axi_write_rsp_fire;
+        wire axi_read_enable = axi_write_count == 0;
+
+        always @(posedge clk) begin
+            if (reset) begin
+                axi_write_count <= '0;
+            end else begin
+                case ({axi_write_issued, axi_write_rsp_fire})
+                    2'b10: axi_write_count <= axi_write_count + 1'b1;
+                    2'b01: axi_write_count <= axi_write_count - 1'b1;
+                    default:;
+                endcase
+            end
+        end
+
+        assign req_xbar_ready_out[i] = xbar_rw_out ? axi_write_issued
+                                                    : m_axi_arready[i] && axi_read_enable;
 
         // AXI write address channel
 
-        assign m_axi_awvalid[i] = req_xbar_valid_out[i] && xbar_rw_out && ~m_axi_aw_ack;
+        assign m_axi_awvalid[i] = req_xbar_valid_out[i] && xbar_rw_out
+                               && ~m_axi_aw_ack && axi_write_enable;
 
     if (INTERLEAVE) begin : g_m_axi_awaddr_i
         assign m_axi_awaddr[i]  = (ADDR_WIDTH_OUT'(xbar_addr_out) << (BANK_SEL_BITS + LOG2_DATA_SIZE)) | (ADDR_WIDTH_OUT'(i) << LOG2_DATA_SIZE);
@@ -266,7 +287,9 @@ module VX_mem_to_axi #(
         assign m_axi_awaddr[i]  = (ADDR_WIDTH_OUT'(xbar_addr_out) << LOG2_DATA_SIZE) | (ADDR_WIDTH_OUT'(i) << (BANK_ADDR_WIDTH + LOG2_DATA_SIZE));
     end
 
-        assign m_axi_awid[i]    = TAG_WIDTH_OUT'(xbar_tag_out);
+        // AXI orders writes sharing an ID. Stores have no Vortex response, so
+        // one ID preserves their per-bank order without consuming tag state.
+        assign m_axi_awid[i]    = '0;
         assign m_axi_awlen[i]   = 8'b00000000;
         assign m_axi_awsize[i]  = 3'(LOG2_DATA_SIZE);
         assign m_axi_awburst[i] = 2'b01;
@@ -278,7 +301,8 @@ module VX_mem_to_axi #(
 
         // AXI write data channel
 
-        assign m_axi_wvalid[i]  = req_xbar_valid_out[i] && xbar_rw_out && ~m_axi_w_ack;
+        assign m_axi_wvalid[i]  = req_xbar_valid_out[i] && xbar_rw_out
+                               && ~m_axi_w_ack && axi_write_enable;
         assign m_axi_wstrb[i]   = xbar_byteen_out;
         assign m_axi_wdata[i]   = xbar_data_out;
         assign m_axi_wlast[i]   = 1'b1;
@@ -293,7 +317,13 @@ module VX_mem_to_axi #(
             assign xbar_tag_r_out = READ_TAG_WIDTH'(xbar_tag_out);
         end
 
-        assign m_axi_arvalid[i] = req_xbar_valid_out[i] && ~xbar_rw_out;
+        // A BRESP is the first point at which a posted write is guaranteed to
+        // be visible. Delay later reads from this bank until all writes drain.
+        assign m_axi_arvalid[i] = req_xbar_valid_out[i] && ~xbar_rw_out
+                               && axi_read_enable;
+
+        `RUNTIME_ASSERT(~axi_write_rsp_fire || axi_write_count != 0 || axi_write_issued,
+            ("*** AXI write response without an outstanding request"))
 
         // convert address to byte-addressable space
     if (INTERLEAVE) begin : g_m_axi_araddr_i
@@ -315,9 +345,7 @@ module VX_mem_to_axi #(
     // AXI write response channel (ignore)
 
     for (genvar i = 0; i < NUM_BANKS_OUT; ++i) begin : g_axi_write_rsp
-        `UNUSED_VAR (m_axi_bvalid[i])
         `UNUSED_VAR (m_axi_bid[i])
-        `UNUSED_VAR (m_axi_bresp[i])
         assign m_axi_bready[i] = 1'b1;
         `RUNTIME_ASSERT(~m_axi_bvalid[i] || m_axi_bresp[i] == 0, ("*** AXI response error"))
     end

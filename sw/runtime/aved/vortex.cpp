@@ -262,8 +262,13 @@ public:
     // fail mid-write and take the AMC to NO_AMC. Write the shell to flash
     // (v80-smi write-static-shell --flash, BOTH boot partitions) before using
     // this driver; `v80-smi list` must report Shell: compute.
+    // A JTAG-loaded AFU can be opened without another design write. This is
+    // explicit so the caller must also supply the matching vbin metadata.
+    const char* no_program = getenv("VORTEX_AVED_NO_PROGRAM");
+    const bool program = (no_program == nullptr || no_program[0] == '\0'
+                          || no_program[0] == '0');
     VRT_TRY()
-      vrtDevice_ = vrt::Device(bdf, vbin_path, /*program=*/true);
+      vrtDevice_ = vrt::Device(bdf, vbin_path, program);
       // Only the hardware platform has a slave bridge, so anything else needs
       // the explicit host-memory sync in cp_reg_write/cp_reg_read.
       sim_mode_  = (vrtDevice_.getPlatform() != vrt::Platform::HARDWARE);
@@ -613,6 +618,7 @@ public:
       // the CP only ever touches the leading bytes, the rest is slack, and a
       // DMA staging buffer of any size then allocates by the same rule.
       const uint64_t dsize = std::max<uint64_t>(asize, STAGED_MIN_ALLOC);
+      std::lock_guard<std::mutex> g(staged_mu_);
       VRT_TRY()
         auto buf = std::make_shared<vrt::Buffer<uint8_t>>(
             vrtDevice_, dsize, *staged_cfg_);
@@ -622,32 +628,29 @@ public:
         // full allocation, so leaving the rounding slack uninitialised would
         // push indeterminate bytes to the device on every publish.
         std::memset(hp, 0, dsize);
-        {
-          std::lock_guard<std::mutex> g(staged_mu_);
-          // Overlap audit: a fresh allocation must not intersect any region
-          // still alive (live, unstamped, or parked pending retire) -- if it
-          // does, VRT's buddy allocator double-served a block whose previous
-          // owner we are deliberately keeping alive.
-          auto overlaps = [&](uint64_t base, uint64_t sz, const char* kind) {
-            const uint64_t osz = std::max<uint64_t>(sz, STAGED_MIN_ALLOC);
-            if (dev < base + osz && base < dev + dsize) {
-              fprintf(stderr,
-                      "[VXDRV] error: staged alloc 0x%lx(+%lu) overlaps %s "
-                      "region 0x%lx(+%lu) still alive\n",
-                      dev, dsize, kind, base, osz);
-            }
-          };
-          for (const auto& kv : staged_regions_) {
-            overlaps(kv.first, kv.second.size, "live");
+        // Overlap audit: a fresh allocation must not intersect any region
+        // still alive (live, unstamped, or parked pending retire) -- if it
+        // does, VRT's buddy allocator double-served a block whose previous
+        // owner we are deliberately keeping alive.
+        auto overlaps = [&](uint64_t base, uint64_t sz, const char* kind) {
+          const uint64_t osz = std::max<uint64_t>(sz, STAGED_MIN_ALLOC);
+          if (dev < base + osz && base < dev + dsize) {
+            fprintf(stderr,
+                    "[VXDRV] error: staged alloc 0x%lx(+%lu) overlaps %s "
+                    "region 0x%lx(+%lu) still alive\n",
+                    dev, dsize, kind, base, osz);
           }
-          for (const auto& r : staged_unstamped_) {
-            overlaps(r.buf->getPhysAddr(), r.size, "unstamped");
-          }
-          for (const auto& p : staged_pending_) {
-            overlaps(p.region.buf->getPhysAddr(), p.region.size, "pending");
-          }
-          staged_regions_.emplace(dev, staged_region_t{buf, asize});
+        };
+        for (const auto& kv : staged_regions_) {
+          overlaps(kv.first, kv.second.size, "live");
         }
+        for (const auto& r : staged_unstamped_) {
+          overlaps(r.buf->getPhysAddr(), r.size, "unstamped");
+        }
+        for (const auto& p : staged_pending_) {
+          overlaps(p.region.buf->getPhysAddr(), p.region.size, "pending");
+        }
+        staged_regions_.emplace(dev, staged_region_t{buf, asize});
         if (getenv("VORTEX_AVED_FENCE_DEBUG")) {
           fprintf(stderr, "[VXDRV] staged alloc: cp_addr=0x%lx size=%lu\n",
                   dev, asize);
