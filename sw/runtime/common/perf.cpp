@@ -506,8 +506,8 @@ extern "C" vx_result_t vx_device_dump_perf(vx_device_h hdevice, FILE *stream) {
         CHECK_ERR(vx_device_mpm_query(hdevice, mpm_class, VX_CSR_MPM_DCACHE_EVICTS, rep_core, &ev), { return err; });
         CHECK_ERR(vx_device_mpm_query(hdevice, mpm_class, VX_CSR_MPM_DCACHE_BANK_ST, rep_core, &bst), { return err; });
         CHECK_ERR(vx_device_mpm_query(hdevice, mpm_class, VX_CSR_MPM_DCACHE_MSHR_ST, rep_core, &mst), { return err; });
-        perf_print_core(stream, rep_core, "dcache: reqs=%" PRIu64 ", miss_r=%" PRIu64 " (hit=%d%%), miss_w=%" PRIu64 " (hit=%d%%), evicts=%" PRIu64 ", bank_st=%" PRIu64 " (utility=%d%%)",
-                        r + w, mr, calc_ratio(mr, r), mw, calc_ratio(mw, w), ev, bst, calc_utility(r + w, bst));
+        perf_print_core(stream, rep_core, "dcache: reqs=%" PRIu64 ", miss_r=%" PRIu64 " (hit=%d%%), miss_w=%" PRIu64 " (hit=%d%%), evicts=%" PRIu64 ", bank_st=%" PRIu64 ", mshr_st=%" PRIu64 " (utility=%d%%)",
+                        r + w, mr, calc_ratio(mr, r), mw, calc_ratio(mw, w), ev, bst, mst, calc_utility(r + w, bst));
       }
     } else {
       perf_print(stream, "dcache: disabled");
