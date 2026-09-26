@@ -25,3 +25,12 @@ VRT metadata cannot independently attest its PDI identity. The local
 `.log` and per-run `.json` files are archived in
 `parameter_board_sources.zip` rather than tracked individually. The archive
 also contains the runner, application binaries, and build manifest.
+All 24 one/eight-request board cases have the same retired instruction
+counts as the corresponding XRT runs, across all five board repetitions.
+
+Regenerate the two plots with:
+
+```sh
+python3 pqc/results/plot_pqc_parameters.py \
+  pqc/results/v80_hw_validation/parameter_board_200mhz --driver aved
+```

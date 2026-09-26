@@ -36,8 +36,6 @@ assert len({r["xrtsim_sha256"] for r in kem}) == 1
 backends = ["sg1_serial", "pqrv_asm", "sg25_sw", "sg25_stages", "kround25", "pointer_keccakf"]
 cycles = {(b, m): int(one(kem, backend=b, requests=m)["device_cycles"])
           for b in backends for m in (1, 8)}
-table("kem.dat", ["index", "mone", "meight"],
-      [(i, cycles[b, 1] / 1e6, cycles[b, 8] / 1e6) for i, b in enumerate(backends)])
 
 shared = rows("shared_ntt_xrt.csv")
 assert len(shared) == 8 and all(r["result"] == "PASS" for r in shared)
@@ -60,7 +58,98 @@ for scheme in ["K", "D"]:
         parity_gaps.append(100 * abs(int(model["launch_cycles"]) - int(rtl["launch_cycles"]))
                            / int(rtl["launch_cycles"]))
 assert max(parity_gaps) < 5
-table("shared_ntt.dat", ["index", "reduction"], list(enumerate(shared_reduction)))
+
+board_kem = json.loads((DATA / "mlkem768_board_200mhz.json").read_text())
+board_dsa = json.loads((DATA / "mldsa65_board_200mhz.json").read_text())
+board_resources = json.loads((DATA / "aved_resources_200mhz.json").read_text())
+assert board_kem["configuration"]["board_clock_hz"] == 200_000_000
+assert board_dsa["clock_hz_before"] == board_dsa["clock_hz_after"] == 200_000_000
+assert board_resources["clock_mhz"] == 200 and board_resources["wns_ns"] >= 0
+assert board_kem["image"]["sha256"] == board_dsa["vbin_sha256"] == board_resources["vbin_sha256"]
+assert len(board_dsa["runs"]) == 50
+for batch in (1, 8):
+    for arm in "ABCD":
+        assert board_kem["measurements"][f"M{batch}"][arm]["all_kat_pass"]
+    for arm in "ABCDE":
+        assert sorted(r["repeat"] for r in board_dsa["runs"]
+                      if r["batch"] == batch and r["arm"] == arm) == [1, 2, 3, 4, 5]
+board_numbers = {}
+for batch, suffix in ((1, "One"), (8, "Eight")):
+    kem = board_kem["measurements"][f"M{batch}"]
+    dsa = board_dsa["medians"][str(batch)]
+    board_numbers.update({
+        "BoardKemStage" + suffix: kem["A"]["median_makespan_cycles"] /
+                                   kem["B"]["median_makespan_cycles"],
+        "BoardKemNtt" + suffix: kem["B"]["median_makespan_cycles"] /
+                                 kem["D"]["median_makespan_cycles"],
+        "BoardKem" + suffix: kem["A"]["median_makespan_cycles"] /
+                              kem["D"]["median_makespan_cycles"],
+        "BoardDsaStage" + suffix: dsa["A"] / dsa["B"],
+        "BoardDsaNtt" + suffix: dsa["B"] / dsa["D"],
+        "BoardDsaPointwise" + suffix: dsa["D"] / dsa["E"],
+        "BoardDsaHardware" + suffix: dsa["A"] / dsa["D"],
+        "BoardDsaFinal" + suffix: dsa["A"] / dsa["E"],
+    })
+table("board_kem.dat", ["index", "one", "eight"],
+      [(i, board_kem["measurements"]["M1"]["A"]["median_makespan_cycles"] /
+        board_kem["measurements"]["M1"][arm]["median_makespan_cycles"],
+        board_kem["measurements"]["M8"]["A"]["median_makespan_cycles"] /
+        board_kem["measurements"]["M8"][arm]["median_makespan_cycles"])
+       for i, arm in enumerate("ABCD")])
+table("board_dsa.dat", ["index", "one", "eight"],
+      [(i, board_dsa["medians"]["1"]["A"] / board_dsa["medians"]["1"][arm],
+        board_dsa["medians"]["8"]["A"] / board_dsa["medians"]["8"][arm])
+       for i, arm in enumerate("ABCDE")])
+board_numbers["BoardCoreLuts"] = board_resources["resources"]["vortex_core"]["luts"]
+board_numbers["BoardCoreFfs"] = board_resources["resources"]["vortex_core"]["ffs"]
+board_numbers["BoardCoreDsps"] = board_resources["resources"]["vortex_core"]["dsps"]
+board_numbers["BoardAfuLuts"] = board_resources["resources"]["reconfigurable_afu"]["luts"]
+board_numbers["BoardAfuFfs"] = board_resources["resources"]["reconfigurable_afu"]["ffs"]
+board_numbers["BoardAfuDsps"] = board_resources["resources"]["reconfigurable_afu"]["dsps"]
+board_numbers["BoardWns"] = board_resources["wns_ns"]
+
+parameter_board = rows("parameter_board_200mhz.csv")
+parameter_summary = json.loads((DATA / "parameter_board_summary_200mhz.json").read_text())
+assert parameter_summary["board_clock_hz_before"] == parameter_summary["board_clock_hz_after"] == 200_000_000
+assert parameter_summary["image_sha256"] == board_resources["vbin_sha256"]
+assert parameter_summary["repetitions"] == 5 and parameter_summary["warmups"] == 1
+assert parameter_summary["cells"] == len(parameter_board) == 120
+assert len(parameter_summary["call_count_sha256"]) == 60
+assert {r["parameter"] for r in parameter_board} == {
+    "K512", "K768", "K1024", "D44", "D65", "D87"}
+assert all(r["driver"] == "aved" and r["input_start"] == "1" for r in parameter_board)
+
+
+def parameter_cycles(parameter, arm, batch, workers):
+    return int(one(parameter_board, parameter=parameter, arm=arm,
+                   requests=batch, resident=workers)["cycles"])
+
+
+parameter_numbers = {}
+parameter_plot = []
+for index, parameter in enumerate(("K512", "K768", "K1024", "D44", "D65", "D87")):
+    parameter_plot.append((index,
+                           parameter_cycles(parameter, "A", 1, 1) /
+                           parameter_cycles(parameter, "E", 1, 1),
+                           parameter_cycles(parameter, "A", 8, 8) /
+                           parameter_cycles(parameter, "E", 8, 8)))
+table("parameter_speedup.dat", ["index", "one", "eight"], parameter_plot)
+for batch, suffix in ((1, "One"), (8, "Eight")):
+    speedups = [parameter_cycles(parameter, "A", batch, batch) /
+                parameter_cycles(parameter, "E", batch, batch)
+                for parameter in ("K512", "K768", "K1024", "D44", "D65", "D87")]
+    parameter_numbers["ParameterMin" + suffix] = min(speedups)
+    parameter_numbers["ParameterMax" + suffix] = max(speedups)
+occupancy = [parameter_cycles(parameter, "E", 8, 1) /
+             parameter_cycles(parameter, "E", 8, 8)
+             for parameter in ("K512", "K768", "K1024", "D44", "D65", "D87")]
+batch_throughput = [8 * parameter_cycles(parameter, "E", 8, 8) /
+                    parameter_cycles(parameter, "E", 64, 8)
+                    for parameter in ("K512", "K768", "K1024", "D44", "D65", "D87")]
+parameter_numbers.update(ParameterOccupancyMin=min(occupancy),
+                         ParameterOccupancyMax=max(occupancy),
+                         ParameterBatchMin=min(batch_throughput),
+                         ParameterBatchMax=max(batch_throughput))
 
 pointwise = rows("mldsa_pointwise.csv")
 assert all(r["result"] == "PASS" for r in pointwise)
@@ -167,40 +256,42 @@ for backend in ["stage", "whole_round", "pointer"]:
         phase_pct[name + "PermPct"] = 100 * parts[0] / total
         phase_pct[name + "SpongePct"] = 100 * (parts[1] + parts[2]) / total
 
-ppa = rows("rv32im_rv64im_keccak_ppa.csv")
-shared_ppa = rows("shared_ntt_ppa.csv")
-assert len(shared_ppa) == 2
-for r in shared_ppa:
-    assert r["xlen"] == "32" and r["warps"] == "8" and r["threads"] == "32"
-    assert r["target_mhz"] == "250" and r["f_enabled"] == r["d_enabled"] == "0"
-    assert r["routing_errors"] == "0" and r["status"] == "met"
+ppa = rows("core_ppa_200mhz.csv")
+assert len(ppa) == 9
+assert all(r["target_mhz"] == "200" and r["dcache_writeback"] == "0"
+           and r["routing_errors"] == r["drc_errors"] == "0" and r["status"] == "met"
+           and float(r["wns_ns"]) >= 0 and float(r["whs_ns"]) >= 0 for r in ppa)
+assert {(int(r["multipliers"]), r["keccak"]) for r in ppa} == {
+    (16, "base"), (16, "stage"), (16, "round"), (16, "pointer"), (8, "base"),
+    (4, "base"), (2, "base"), (1, "base"), (2, "stage")}
 
 bank_nttbf = rows("ntt_multiplier_bank_nttbf.csv")
-bank_ppa = rows("ntt_multiplier_bank_ppa.csv")
 bank_perf = rows("ntt_multiplier_bank_performance.csv")
 bank_order = [16, 8, 4, 2, 1]
 assert [int(r["multipliers"]) for r in bank_nttbf] == bank_order
-assert [int(r["multipliers"]) for r in bank_ppa] == bank_order
 assert len(bank_perf) == 40 and all(r["result"] == "PASS" for r in bank_perf)
 assert all(r["instructions"] == "59534" and r["result"] == "PASS"
            for r in bank_nttbf)
-assert all(r["status"] == "met" and r["routing_errors"] == "0"
-           and r["target_mhz"] == "250" for r in bank_ppa)
 nttbf_base = int(bank_nttbf[0]["rtl_cycles"])
-ppa_base = bank_ppa[0]
+ppa_base = one(ppa, multipliers=16, keccak="base")
 table("ntt_bank.dat",
       ["bank", "cycles", "nttlut", "nttff", "nttdsp"],
       [(bank,
         100 * int(one(bank_nttbf, multipliers=bank)["rtl_cycles"]) / nttbf_base,
-        100 * int(one(bank_ppa, multipliers=bank)["ntt_luts"]) / int(ppa_base["ntt_luts"]),
-        100 * int(one(bank_ppa, multipliers=bank)["ntt_ffs"]) / int(ppa_base["ntt_ffs"]),
-        100 * int(one(bank_ppa, multipliers=bank)["ntt_dsps"]) / int(ppa_base["ntt_dsps"]))
+        100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_luts"]) / int(ppa_base["ntt_luts"]),
+        100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_ffs"]) / int(ppa_base["ntt_ffs"]),
+        100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_dsps"]) / int(ppa_base["ntt_dsps"]))
        for bank in bank_order])
-bank_two_ppa = one(bank_ppa, multipliers=2)
+bank_two_ppa = one(ppa, multipliers=2, keccak="base")
 bank_two_perf = [r for r in bank_perf
                  if r["multipliers"] == "2" and r["driver"] == "xrt"]
 assert len(bank_two_perf) == 4
 bank_numbers = {
+    "BankTwoDspPct": 100 * int(bank_two_ppa["ntt_dsps"]) / int(ppa_base["ntt_dsps"]),
+    "BankTwoCyclesPct": 100 * int(one(bank_nttbf, multipliers=2)["rtl_cycles"]) / nttbf_base,
+    "BankOneDspPct": 100 * int(one(ppa, multipliers=1, keccak="base")["ntt_dsps"]) /
+                     int(ppa_base["ntt_dsps"]),
+    "BankOneCyclesPct": 100 * int(one(bank_nttbf, multipliers=1)["rtl_cycles"]) / nttbf_base,
     "BankEightNttPenalty": float(one(bank_nttbf, multipliers=8)["change_vs16_pct"]),
     "BankFourNttPenalty": float(one(bank_nttbf, multipliers=4)["change_vs16_pct"]),
     "BankTwoNttPenalty": float(one(bank_nttbf, multipliers=2)["change_vs16_pct"]),
@@ -220,34 +311,25 @@ bank_numbers = {
     "BankTwoEndToEndMax": max(float(r["change_vs16_pct"]) for r in bank_two_perf),
     "BankParityMax": max(float(r["model_gap_pct"]) for r in bank_nttbf),
 }
-ppa_lines = []
-for variant, label in [("ntt_only", "K-only NTT"), ("ntt_stage", "K + Stage"),
-                       ("ntt_kround", "K + Round")]:
-    r = one(ppa, xlen=32, variant=variant)
-    ppa_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & {r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")
-for variant, label in [("shared_ntt", "Shared K/D"),
-                       ("shared_ntt_stage", "Shared + Stage")]:
-    r = one(shared_ppa, variant=variant)
-    ppa_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & {r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")
-(OUT / "ppa_rows.tex").write_text("\n".join(ppa_lines) + "\n")
 cost_lines = []
-for variant, label in [("ntt_only", "K-only base"),
-                       ("ntt_stage", "+ Stage"),
-                       ("ntt_kround", "+ Round")]:
-    r = one(ppa, xlen=32, variant=variant)
+for bank, keccak, label in [(16, "base", "M16 base"),
+                            (16, "stage", "M16 + Stage"),
+                            (16, "round", "M16 + Round"),
+                            (16, "pointer", "M16 + Pointer")]:
+    r = one(ppa, multipliers=bank, keccak=keccak)
     cost_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & "
                       f"{r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")
 cost_lines.append(r"\midrule")
-for multipliers, label in [(16, "K/D M16"), (2, "K/D M2")]:
-    r = one(bank_ppa, multipliers=multipliers)
+for keccak, label in [("base", "M2 base"), ("stage", "M2 + Stage")]:
+    r = one(ppa, multipliers=2, keccak=keccak)
     cost_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & "
                       f"{r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")
 (OUT / "cost_rows.tex").write_text("\n".join(cost_lines) + "\n")
-base = one(ppa, xlen=32, variant="ntt_only")
-stage = one(ppa, xlen=32, variant="ntt_stage")
-round_unit = one(ppa, xlen=32, variant="ntt_kround")
-shared_base = one(shared_ppa, variant="shared_ntt")
-shared_stage = one(shared_ppa, variant="shared_ntt_stage")
+base = ppa_base
+stage = one(ppa, multipliers=16, keccak="stage")
+round_unit = one(ppa, multipliers=16, keccak="round")
+pointer_unit = one(ppa, multipliers=16, keccak="pointer")
+joint_stage = one(ppa, multipliers=2, keccak="stage")
 kem_controls = rows("mlkem_w32_controls.csv")
 numbers = {
     "StageVsShuffleOne": cycles["sg25_sw", 1] / cycles["sg25_stages", 1],
@@ -260,12 +342,12 @@ numbers = {
     "PointerVsRoundEight": cycles["kround25", 8] / cycles["pointer_keccakf", 8],
     "StageLutPct": 100 * (int(stage["total_luts"]) / int(base["total_luts"]) - 1),
     "RoundLutPct": 100 * (int(round_unit["total_luts"]) / int(base["total_luts"]) - 1),
+    "PointerLutPct": 100 * (int(pointer_unit["total_luts"]) / int(base["total_luts"]) - 1),
     "StageFfPct": 100 * (int(stage["ffs"]) / int(base["ffs"]) - 1),
     "RoundFfPct": 100 * (int(round_unit["ffs"]) / int(base["ffs"]) - 1),
-    "SharedLutPct": 100 * (int(shared_base["total_luts"]) / int(base["total_luts"]) - 1),
-    "SharedFfPct": 100 * (int(shared_base["ffs"]) / int(base["ffs"]) - 1),
-    "SharedStageLutPct": 100 * (int(shared_stage["total_luts"]) / int(shared_base["total_luts"]) - 1),
-    "SharedStageFfPct": 100 * (int(shared_stage["ffs"]) / int(shared_base["ffs"]) - 1),
+    "PointerFfPct": 100 * (int(pointer_unit["ffs"]) / int(base["ffs"]) - 1),
+    "JointStageLutPct": 100 * (int(joint_stage["total_luts"]) / int(bank_two_ppa["total_luts"]) - 1),
+    "JointStageFfPct": 100 * (int(joint_stage["ffs"]) / int(bank_two_ppa["ffs"]) - 1),
     "AllStageOne": stage_cost["000", 1] / stage_cost["111", 1],
     "AllStageEight": stage_cost["000", 8] / stage_cost["111", 8],
     "FusionOne": fusion["stage_unrolled", 1] / fusion["kround", 1],
@@ -275,6 +357,8 @@ numbers.update(phase_pct)
 numbers.update(pointwise_numbers)
 numbers.update(final_phase_numbers)
 numbers.update(bank_numbers)
+numbers.update(board_numbers)
+numbers.update(parameter_numbers)
 numbers.update({
     "KemNttSaved": shared_reduction[3],
     "DsaNttSaved": shared_reduction[7],
@@ -287,9 +371,16 @@ for m, name in [(1, "One"), (8, "Eight")]:
 table("fusion_gain.dat", ["index", "perm", "kem"],
       [(i, numbers["Fusion" + name], numbers["FusionKem" + name])
        for i, name in enumerate(["One", "Eight"])])
-(OUT / "numbers.tex").write_text("\n".join(f"\\newcommand{{\\{k}}}{{{v:.3f}}}" for k, v in numbers.items()) + "\n")
+def latex_number(key, value):
+    return f"{value:,}" if key.startswith(("BoardCore", "BoardAfu")) else f"{value:.3f}"
+
+
+(OUT / "numbers.tex").write_text("\n".join(
+    f"\\newcommand{{\\{key}}}{{{latex_number(key, value)}}}"
+    for key, value in numbers.items()) + "\n")
 (OUT / "source_manifest.json").write_text(json.dumps({
     "mlkem_native_commit": "1d7b486c4db3bbc620b009d05e4f69eca9e68d22",
-    "measurements": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(DATA.glob("*.csv"))},
+    "measurements": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                     for p in sorted(DATA.iterdir()) if p.suffix in (".csv", ".json")},
     "derived_numbers": numbers,
 }, indent=2) + "\n")

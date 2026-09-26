@@ -1,0 +1,18 @@
+\begin{tikzpicture}
+\begin{axis}[
+ width=.95\columnwidth,height=52mm,
+ axis lines*=left,
+ tick label style={font=\scriptsize},
+ label style={font=\scriptsize},
+ grid=major,grid style={black!8},
+ ymin=0,ymax=2.1,ytick={0,1,2},ylabel={Speedup vs. A},
+ xtick={0,1,2,3,4,5},
+ xticklabels={K512,K768,K1024,D44,D65,D87},
+ x tick label style={font=\scriptsize},
+ ybar,bar width=3pt]
+\addplot[draw=cBlue!85!black,fill=cBlue!27]
+ table[x=index,y=one]{assets/parameter_speedup.dat};
+\addplot[draw=cTeal!85!black,fill=cTeal!30]
+ table[x=index,y=eight]{assets/parameter_speedup.dat};
+\end{axis}
+\end{tikzpicture}

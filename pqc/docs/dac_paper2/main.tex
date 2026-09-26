@@ -3,6 +3,9 @@
 \usepackage{amsmath,amssymb,booktabs,array,cite,xcolor}
 \usepackage{tikz,pgfplots,pgfplotstable}
 \pgfplotsset{compat=1.18}
+\setcounter{dbltopnumber}{2}
+\renewcommand{\dbltopfraction}{0.8}
+\renewcommand{\textfraction}{0.1}
 \usepgfplotslibrary{groupplots}
 \usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing}
 \usepackage[hidelinks]{hyperref}
@@ -36,10 +39,11 @@ that keep both states in ordinary lane registers of an RV32 RISC-V GPU. The
 instructions are stateless, use standard source vectors and single-destination
 writeback, and implement fixed Keccak neighborhoods or paired NTT butterflies.
 A serialized modular unit shares its routing and multiplier bank across the
-16-bit ML-KEM and 32-bit ML-DSA datapaths. In Vortex RTL, Keccak stages improve
-complete ML-KEM over the same shuffle mapping by
-\StageVsShuffleOne{}--\StageVsShuffleEight{}$\times$. The shared NTT reduces
-complete ML-KEM and ML-DSA cycles by \KemNttSaved{}\% and \DsaNttSaved{}\%.
+16-bit ML-KEM and 32-bit ML-DSA datapaths. On a 200-MHz V80, Stage plus shared
+NTT speeds complete ML-KEM-768 by \BoardKemOne{}$\times$ at one request and
+\BoardKemEight{}$\times$ at eight relative to matched cooperative software.
+Full-RAM ML-DSA-65 reaches \BoardDsaFinalOne{}$\times$ and
+\BoardDsaFinalEight{}$\times$ with the same units and mapped pointwise work.
 A matched five-point sweep selects two multipliers: it removes
 \BankTwoNttDspSaved{}\% of NTT-hierarchy DSPs at a
 \BankTwoNttPenalty{}\% standalone-cycle and at most
@@ -60,7 +64,7 @@ of the standards. A programmable SIMT processor is attractive because a warp
 can cooperate within one primitive and different warps can execute independent
 requests. The challenge is data movement inside the warp.
 
-The two dominant primitives expose different graphs. An NTT level contains
+The two shared primitives expose different graphs. An NTT level contains
 128 independent butterflies, but its partner distance changes at every level.
 Keccak-f[1600] instead applies column reductions, a fixed word permutation,
 and row-neighbor logic to 25 tightly coupled 64-bit words. Generic lane
@@ -191,15 +195,12 @@ These rules are simple enough to assert in simulation and allow a stalled
 collective to carry the same warp ID, mask, and destination metadata as the
 existing variable-latency units.
 
-The evaluation boundary follows from the same constraints. We compare scalar
-code, a register-resident shuffle mapping, fixed-stage collectives, a fused
-round, and pointer offload while preserving the library API and request input.
-For NTT arithmetic, multiplier count changes only internal beat scheduling;
-the opcode, register layout, and binary remain fixed. A useful design must
-therefore improve complete requests for both schemes, close timing as a full
-core, and agree with the timing model without relaxing its parity bound.
-
-\clearpage
+The evaluation follows the same contract. We compare scalar code,
+register-resident shuffles, stage collectives, a fused round, and pointer
+offload while preserving the library API and request input. For NTT, changing
+multiplier count changes only internal scheduling; the opcode, layout, and
+binary remain fixed. A useful choice must improve complete requests for both
+schemes, close full-core timing, and preserve model parity.
 
 \section{Design and Implementation}
 \subsection{Collective contract and core integration}
@@ -363,14 +364,9 @@ collective from observing a partially active pair. The compiler intrinsics
 name every source and destination, so the existing scoreboard orders a later
 consumer exactly as it does for an integer ALU result.
 
-The register layout also defines the memory behavior. A one-shot sponge loads
-or initializes its 25 words once and executes all 24 rounds in GPRs before
-absorb or squeeze crosses the byte interface. A polynomial is loaded as eight
-coalesced coefficients per lane, remains distributed for all seven or eight
-layers, and is stored once. Thus the collectives remove communication issues
-without adding scratchpad traffic. The pointer Keccak engine is retained as a
-deliberately different boundary: it transfers the 200-byte state through the
-LSU and can overlap that private work with ALU execution from another warp.
+One-shot sponges and transforms keep state in GPRs between initial load and
+final store. Pointer Keccak instead transfers the 200-byte state through the
+LSU, allowing independent ALU work from another warp.
 
 The full-RAM ML-DSA-65 configuration owns an 88-KiB request arena. Leader-only
 allocation and reverse-order release reclaim temporaries after rejected
@@ -390,16 +386,10 @@ applications. We require identical retired instruction counts for matched
 SimX/XRT binaries and keep timing gaps below the pre-defined 5\% parity bound;
 we do not widen the bound to accommodate a new unit.
 
-Verification expands outward from the execution units. Unit testbenches check
-all five XOR distances, both transform directions and moduli, masked and
-backpressured requests, and consecutive warp metadata. Instruction tests then
-compare every lane against scalar Montgomery and butterfly references.
-Transform tests cover forward/inverse boundary vectors before complete
-ML-KEM-768 and ML-DSA-65 known-answer runs. Finally, independent post-route
-cores measure each hardware choice. This sequence distinguishes an arithmetic
-error, an integration hazard, a timing-model mismatch, and a physical-design
-tradeoff instead of allowing one complete-request checksum to hide their
-causes.
+Unit testbenches cover all five XOR distances, both directions and moduli,
+masks, backpressure, and consecutive warp metadata. Instruction tests compare
+every lane with scalar references; transform boundary vectors precede complete
+library KATs. Independent post-route cores measure each hardware choice.
 
 \section{Evaluation}
 \subsection{Methodology}
@@ -408,8 +398,12 @@ warps, 16-KiB instruction/data caches and local memory, no L2/L3, and F/D
 disabled. XRT exercises the processor RTL and accelerator interface; SimX is
 used for controlled ablations. Matched binaries retire identical instruction
 counts, and the reported parity cases remain within their 5\% cycle bound.
-Post-route results use Vivado~2025.1 OPT3 for Alveo V80 at 250 MHz. One request
-measures latency; eight independent requests measure batch makespan.
+Independent core implementations and the complete AVED image use
+Vivado~2025.1 OPT3 and a 200-MHz target. The board clock is read back at
+200 MHz; one request measures latency and eight independent requests measure
+batch makespan, with fixed eight-warp batches extending to 64 requests. A
+complete request includes keypair, encapsulation, and decapsulation for KEM
+or keypair, signing, and verification for DSA.
 
 \begin{table}[t]
 \caption{Primary experimental configuration.}
@@ -421,58 +415,64 @@ Processor & RV32IM, one core, F/D disabled\\
 Warp organization & 8 resident warps, 32 lanes\\
 On-core memory & 16 KiB I\$, D\$, and local memory\\
 Workloads & ML-KEM-768; full-RAM ML-DSA-65\\
-Timing & XRT RTL integration; SimX controls\\
-Physical flow & Alveo V80, 250 MHz, Vivado 2025.1\\
+Timing & XRT RTL integration; SimX controls; V80 silicon\\
+Physical flow & Alveo V80, 200 MHz, Vivado 2025.1\\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure*}[t]
 \centering\input{figures/eval_requests.tex}
-\caption{Complete-request results. C/PQ/Sh/St/Rd/Ptr denote scalar C, optimized
-PQRV, shuffle, Stage, Round, and pointer Keccak. Panels (a,b) fix the NTT and
-polynomial path. Panel (c) fixes pointer Keccak and compares shared NTT against
-register-shuffle software; PW separately compares mapped DSA pointwise work
-at one/eight requests. Lower is better in (a,b), higher in (c).}
+\caption{200-MHz V80 complete-request speedups over matched cooperative
+software (A). B enables Keccak Stage; C enables shared NTT; D enables both;
+E also maps DSA pointwise arithmetic. Blue and teal bars show one and eight
+requests, respectively. Speedups divide five-run median makespans.}
 \label{fig:requests}
 \end{figure*}
 
 \subsection{Communication collectives improve complete requests}
-Figure~\ref{fig:requests}(a,b) first isolates Keccak. The cooperative Shuffle
-arm already reduces one-request cycles from 24.67 million for optimized PQRV
-to 7.91 million, so it is the relevant instruction baseline. Stage reduces
-complete KEM cycles by \StageVsShuffleOne{}$\times$ at one request and
-\StageVsShuffleEight{}$\times$ at eight; Round reaches
-\RoundVsShuffleOne{}$\times$/\RoundVsShuffleEight{}$\times$. The preferred
-execution boundary changes with load: Round is \RoundVsPointerOne{}$\times$
-faster than Pointer at one request, whereas Pointer is
-\PointerVsRoundEight{}$\times$ faster at eight. The latter can overlap a
-private permutation with other warps; a 25-lane register mapping occupies the
-shared datapath even when its arithmetic is fused.
+Figure~\ref{fig:requests} reports five-run medians from one resident board
+image. Holding KEM's arithmetic mapping fixed, Stage gives
+\BoardKemStageOne{}/\BoardKemStageEight{}$\times$ at one/eight requests; shared
+NTT then adds \BoardKemNttOne{}/\BoardKemNttEight{}$\times$, for
+\BoardKemOne{}/\BoardKemEight{}$\times$ overall. For full-RAM DSA, Stage gives
+\BoardDsaStageOne{}/\BoardDsaStageEight{}$\times$, shared NTT adds
+\BoardDsaNttOne{}/\BoardDsaNttEight{}$\times$, and mapped pointwise work adds
+\BoardDsaPointwiseOne{}/\BoardDsaPointwiseEight{}$\times$, reaching
+\BoardDsaFinalOne{}/\BoardDsaFinalEight{}$\times$ overall. Every board arm
+passes byte-exact known-answer checks. These ratios use matched board controls,
+and all arms select software paths within the same hardware image.
 
-The result also separates instruction count from concurrency. The fused Round
-backend retires fewer instructions than Pointer at eight requests, but still
-finishes later. Pointer moves the permutation off the 32-wide ALU path, allowing
-other warps to issue absorb, squeeze, and polynomial work while the engine is
-busy. Shuffle, Stage, and Round all keep this surrounding work cooperative and
-therefore contend for the same issue, LSU, and cache resources. We report the
-observed crossover without assigning it to a single scheduler or cache event,
-because the present counters do not isolate those effects.
+Controlled XRT runs isolate the Keccak boundaries. A cooperative Shuffle arm
+reduces one-request KEM cycles from 24.67 million for optimized PQRV to 7.91
+million. Relative to Shuffle, Stage reaches \StageVsShuffleOne{}$\times$ at one
+request and \StageVsShuffleEight{}$\times$ at eight; Round reaches
+\RoundVsShuffleOne{}$\times$/\RoundVsShuffleEight{}$\times$. Round is
+\RoundVsPointerOne{}$\times$ faster than Pointer at one request, whereas Pointer
+is \PointerVsRoundEight{}$\times$ faster at eight. The counters do not separate
+scheduler from cache effects, so we do not assign this crossover a single
+cause.
 
-With Pointer fixed, shared K/D NTT instructions save \KemNttSaved{}\% of the
-complete KEM round trip and \DsaNttSaved{}\% of the DSA round trip over matched
-W32 register-shuffle NTTs. Reusing \code{NTTMUL.D} and distributing the
-five-term sum reduces DSA cycles by \DsaPointwiseXrtSaved{}\% at one request
-and \DsaPointwiseEightSaved{}\% at eight, with no additional RTL. These bars
-use separate matched denominators and are not additive.
+With Pointer fixed in a separate XRT cohort, shared K/D NTT instructions save
+\KemNttSaved{}\% of the complete KEM round trip and \DsaNttSaved{}\% of the DSA
+round trip over matched W32 register-shuffle NTTs. Reusing \code{NTTMUL.D} and
+distributing the five-term sum reduces DSA cycles by \DsaPointwiseXrtSaved{}\%
+at one request and \DsaPointwiseEightSaved{}\% at eight, with no additional
+RTL. These gains use separate matched denominators and are not additive.
 
-The two schemes also stress different parts of the shared unit. ML-KEM invokes
-15 forward and nine inverse transforms in the measured request; ML-DSA invokes
-46 and 49, respectively. KEM inverse butterflies require the second reduction
-product, while DSA keeps a signed 32-bit sum and uses the wider Montgomery
-path. Passing both complete libraries is therefore stronger than reusing the
-same opcode on two synthetic moduli: it exercises different layer counts,
-twiddle schedules, inverse conventions, and rejection-controlled call counts.
+A second 200-MHz V80 sweep covers ML-KEM at 512, 768, and 1024 and
+ML-DSA at 44, 65, and 87.
+Across these six parameter sets, Stage, shared NTT, and mapped arithmetic gain
+\ParameterMinOne{}--\ParameterMaxOne{}$\times$ at one request and
+\ParameterMinEight{}--\ParameterMaxEight{}$\times$ at eight over matched
+cooperative software (Fig.~\ref{fig:parameters}). This cohort fixes a different software mapping from
+Fig.~\ref{fig:requests}, so its ratios are not combined with that figure.
+All 120 parameter/concurrency cells pass byte-exact KATs on the same image.
+
+In the measured request, ML-KEM invokes 15 forward and nine inverse transforms;
+ML-DSA invokes 46 and 49. The shared unit thus exercises different layer
+counts, twiddle schedules, inverse conventions, and reduction paths, including
+KEM's second product and DSA's signed 32-bit arithmetic.
 
 \subsection{Primitive peaks do not select the hardware}
 Figure~\ref{fig:tradeoffs}(a) compares Round with equally unrolled Stage.
@@ -486,12 +486,19 @@ packing, and control bound the remaining benefit.
 
 \begin{figure*}[t]
 \centering\input{figures/eval_tradeoffs.tex}
-\caption{Selecting granularity and multiplier count. (a) Round fusion has a
-large primitive but small complete-request gain. (b,c) Five matched banks run
-the same NTTBF binary; M2 is the measured knee. Resources are post-route NTT
-hierarchy values normalized to M16.}
+\caption{Selecting granularity and multiplier count. (a) Round fusion's
+primitive and request gains. (b,c) Five banks run the same NTTBF binary;
+post-route NTT resources are normalized to M16. Circles, squares, and
+triangles denote LUTs, FFs, and DSPs in (c).}
 \label{fig:tradeoffs}
 \end{figure*}
+
+\begin{figure}[t]
+\centering\input{figures/eval_parameters.tex}
+\caption{Six-parameter 200-MHz V80 A/E complete-request speedups. Blue/teal
+denote one/eight requests; arms use the parameter sweep's matched mapping.}
+\label{fig:parameters}
+\end{figure}
 
 M16 is the fastest NTT bank, but M8 and M4 increase standalone NTTBF cycles by
 only \BankEightNttPenalty{}\% and \BankFourNttPenalty{}\%. M2 increases them
@@ -512,8 +519,8 @@ limit: once serialization grows to 16 or 32 beats, primitive cycles rise
 sharply while end-to-end area savings have nearly saturated.
 
 \begin{table}[t]
-\caption{Independent RV32IM post-route cores at 250 MHz. Rows above and below
-the rule are separate matched cohorts; M2 is not combined with Stage here.}
+\caption{Independent RV32IM post-route cores at 200 MHz. M16 varies Keccak
+granularity; M2 is measured both alone and with Stage.}
 \label{tab:cost}
 \centering\footnotesize\setlength{\tabcolsep}{3.4pt}
 \begin{tabular}{@{}lrrrr@{}}
@@ -525,25 +532,32 @@ Variant & LUT & FF & DSP & WNS (ns)\\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:cost} closes every core without routing errors. In the matched
-K-only cohort, Stage adds \StageLutPct{}\% LUTs and \StageFfPct{}\% FFs;
-Round adds \RoundLutPct{}\% LUTs and \RoundFfPct{}\% FFs. In the separate K/D
-bank cohort, M2 reduces whole-core LUTs, FFs, and DSPs by
+Table~\ref{tab:cost} closes every core without routing errors. At M16,
+Stage adds \StageLutPct{}\% LUTs and \StageFfPct{}\% FFs; Round adds
+\RoundLutPct{}\% LUTs and \RoundFfPct{}\% FFs; Pointer adds
+\PointerLutPct{}\% LUTs and \PointerFfPct{}\% FFs. With Keccak fixed at the
+software base, M2 reduces whole-core LUTs, FFs, and DSPs by
 \BankTwoCoreLutSaved{}\%, \BankTwoCoreFfSaved{}\%, and
-\BankTwoCoreDspSaved{}\% relative to M16. The two cohorts isolate Keccak
-granularity and NTT bank sizing; combining their rows would not be a measured
-final-core area result.
+\BankTwoCoreDspSaved{}\% relative to M16. The routed M2+Stage core directly
+measures their joint cost; Stage adds \JointStageLutPct{}\% LUTs and
+\JointStageFfPct{}\% FFs to M2 alone. The separate routed board AFU also
+contains Round and Pointer; it uses \BoardAfuLuts{} LUTs,
+\BoardAfuFfs{} FFs, and \BoardAfuDsps{} DSPs and closes at 200 MHz with
+\BoardWns{} ns setup slack. Board arms select software paths within this
+all-feature image, so their runtime ratios do not imply per-arm area.
 
 \subsection{Design implications and scope}
-The sweeps separate instruction granularity, which places communication in the
-stream, a collective, or behind the LSU, from multiplier count, which sets
-service time. Keccak shows that fewer instructions can reduce batch
-throughput; NTT shows that other warps can hide a longer collective. M2 is
-workload-specific: fewer warps or more transform work could move the knee.
-Claims cover one routed V80 core and standardized ML-KEM-768/ML-DSA-65;
-Table~\ref{tab:cost} uses separate synthesis cohorts, and energy is excluded
-without workload activity. These limits reinforce the need for matched
-full-request measurements.
+Keccak shows that fewer instructions can reduce batch throughput; NTT shows
+that other warps can hide a longer collective. M2 is workload-specific: fewer
+warps or more transform work could move the knee. Board speedups cover
+ML-KEM-768/ML-DSA-65 in Fig.~\ref{fig:requests}; the separate sweep covers
+all six sets. Across that sweep, eight
+resident warps raise optimized eight-request throughput by
+\ParameterOccupancyMin{}--\ParameterOccupancyMax{}$\times$ over one worker.
+With W8 fixed, 64-request throughput is \ParameterBatchMin{}--
+\ParameterBatchMax{}$\times$ its eight-request value. The batches use
+synchronized waves, not a dynamic queue. Energy is excluded without
+workload activity.
 
 \section{Conclusion}
 Communication-matched warp collectives keep Keccak and NTT state in ordinary

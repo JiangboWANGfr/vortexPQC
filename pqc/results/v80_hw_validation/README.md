@@ -81,6 +81,14 @@ On the 200 MHz image, ML-KEM-512/768/1024 and ML-DSA-44/65/87 pass the
 single-request and eight-request byte-exact KATs. Their logs are named
 `<scheme>_full_*_multiout_v80_200mhz.log`.
 
+The six-set A/E parameter sweep also measures occupancy (one to eight
+resident workers for eight fixed inputs) and fixed-W8 batch throughput
+(eight to 64 requests). All 120 cells pass byte-exact KATs after one warmup
+and five timed repetitions, with matched algorithm call counts. Across the
+six sets, A/E speedup is 1.454--1.552x at one request and 1.677--1.832x at
+eight. The medians, plots, raw archive, and image-identity caveat are in
+`parameter_board_200mhz/README.md`.
+
 `VORTEX_PROFILING=1/4/7` on the performance image reports zero extension
 counters because that image was built without `PERF_ENABLE`. A separate
 instrumented image is required to attribute the extra cycles; its results
