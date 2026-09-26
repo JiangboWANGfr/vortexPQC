@@ -1,0 +1,61 @@
+{
+  "clock_mhz": 200,
+  "wns_ns": 0.001,
+  "routing_errors": 0,
+  "vbin_sha256": "c98747981d05748cca5b5cf517044206cc06c83d7847335bdb9dcedb004adf73",
+  "utilization_sha256": "029fc794d53de8a89556218c6bff381f1026625ffe2a027f0965144c14453409",
+  "timing_sha256": "3b79236cfdbf6ca9eacb097f7cd03e5d943729d82388d3fcf95a018e4f2c5945",
+  "route_sha256": "c02073031b5f80ae8084f506dd5feb2ccee8da3a44f51e56416e57b6cce7cd6c",
+  "note": "Hierarchy rows overlap; unit rows must not be summed with their parent core.",
+  "resources": {
+    "full_device": {
+      "luts": 287690,
+      "ffs": 207398,
+      "ramb36": 145,
+      "ramb18": 76,
+      "dsps": 106
+    },
+    "reconfigurable_afu": {
+      "luts": 243073,
+      "ffs": 181881,
+      "ramb36": 145,
+      "ramb18": 76,
+      "dsps": 106
+    },
+    "vortex_core": {
+      "luts": 209489,
+      "ffs": 139946,
+      "ramb36": 113,
+      "ramb18": 40,
+      "dsps": 106
+    },
+    "keccak_round_unit": {
+      "luts": 2121,
+      "ffs": 6126,
+      "ramb36": 0,
+      "ramb18": 0,
+      "dsps": 0
+    },
+    "keccak_stage_unit": {
+      "luts": 612,
+      "ffs": 2023,
+      "ramb36": 0,
+      "ramb18": 0,
+      "dsps": 0
+    },
+    "shared_ntt_unit": {
+      "luts": 3658,
+      "ffs": 5563,
+      "ramb36": 0,
+      "ramb18": 0,
+      "dsps": 10
+    },
+    "pointer_keccak_agu": {
+      "luts": 6190,
+      "ffs": 4303,
+      "ramb36": 0,
+      "ramb18": 0,
+      "dsps": 0
+    }
+  }
+}

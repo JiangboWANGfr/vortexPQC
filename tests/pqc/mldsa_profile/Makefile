@@ -86,8 +86,8 @@ $(error SAMPLER must be warp, all, or unset)
 endif
 
 ifeq ($(SHAKE_EXTRACT),warp)
-ifeq ($(filter sg25 kround,$(KECCAK)),)
-$(error SHAKE_EXTRACT=warp requires KECCAK=sg25 or kround)
+ifeq ($(filter sg25 sg25_sw kround,$(KECCAK)),)
+$(error SHAKE_EXTRACT=warp requires KECCAK=sg25, sg25_sw, or kround)
 endif
 	VX_CFLAGS += -DPQC_SHAKE_EXTRACT_WARP
 	CXXFLAGS += -DPQC_SHAKE_EXTRACT_WARP
