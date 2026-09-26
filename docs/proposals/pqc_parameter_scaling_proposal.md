@@ -96,9 +96,16 @@ outlier remains open and is not resolved by this parameter expansion.
 
 The parameterized applications and resident-wave scheduler build for all
 30 parameter/arm combinations, and the static instruction audit passes.
-All six parameter sets pass initial SimX byte-exact validation in arm E.
-Multi-request validation and XRT measurements are running. The current
+The 200-MHz V80 sweep has completed all 120 A/E parameter/concurrency cells:
+one warmup and five timed runs per cell, byte-exact KATs, and matching
+algorithm call counts across arms and repetitions. Its raw run archive,
+medians, occupancy and batch plots, clock checks, and source hashes are in
+`pqc/results/v80_hw_validation/parameter_board_200mhz/`. Across six sets,
+A/E speedup is 1.454--1.552x for one request and 1.677--1.832x for eight.
+The resident image was reused without programming; VRT metadata does not
+independently attest its PDI identity.
+
+The complete XRT/SimX parameter queue is still running. The current
 machine-readable status is `pqc/results/parameter_scaling/pqc_parameters_status.json`;
 its planned/completed fields distinguish queued work from validated results.
-No new parameter/scaling performance conclusion is established yet. Paper
-sources and PDFs have not been changed.
+The DAC manuscript uses the completed board sweep for its six-set claims.
