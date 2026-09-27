@@ -105,7 +105,88 @@ A/E speedup is 1.454--1.552x for one request and 1.677--1.832x for eight.
 The resident image was reused without programming; VRT metadata does not
 independently attest its PDI identity.
 
-The complete XRT/SimX parameter queue is still running. The current
-machine-readable status is `pqc/results/parameter_scaling/pqc_parameters_status.json`;
-its planned/completed fields distinguish queued work from validated results.
-The DAC manuscript uses the completed board sweep for its six-set claims.
+The initial XRT/SimX queue completed all 312 planned runs, with 156 paired
+instruction matches and no 5% timing-parity failures. Its archived software
+does not include the later warp sampler, codec/noise/linear mapping for KEM,
+or the SHAKE extraction and signing-arithmetic mapping for DSA. It must not
+be called the final software implementation or combined with the separately
+optimized middle-parameter board ablations.
+
+## Complete-software-mapping cohort
+
+Use `build32_pqc_parameters_full_wt` and `run_pqc_parameters.py --full-mapping`.
+Every A--E arm enables KEM `SAMPLER=warp CODEC=all NOISE=warp LINEAR=warp
+ZEROIZE=warp`, or DSA `SAMPLER=warp SHAKE_EXTRACT=warp SIGN_ARITH=warp
+ZEROIZE=warp`. All other arm differences remain as defined above. The build
+audits the required software macros as well as the custom opcodes, and
+rebuilds both simulator runtimes with matching hardware flags, including
+`VX_CFG_DCACHE_WRITEBACK=0` to match the board's write-through core.
+
+The opcode audit found that the earlier KEM `LINEAR=warp` implementation
+unconditionally used NTTMUL.K for conversion to Montgomery form, including
+the nominal software arms. The complete-mapping cohort makes that operation
+obey `ARITH_MUL=ise`; A/B must contain zero NTTMUL/NTTBF instructions, and
+D/E now includes this conversion in its arithmetic comparison. Archived
+middle-parameter binaries retain their original behavior for reproduction.
+
+First replay the archived KEM-768 A/D and DSA-65 A/E board binaries at their
+original one/eight-request inputs, including DSA input start 3. Then run
+all six parameters and five arms at one/eight requests with input start 1,
+followed by A/E occupancy and fixed-W8 batches through 64 requests. Each
+board cell uses a warmup and five measurements at the read-back 200-MHz
+clock. Byte-exact KATs, DSA arena checks and equal algorithm call counts
+are required. Preserve input IDs, binary/runtime hashes and all raw logs;
+DSA rejection variation prevents mixing different input cohorts.
+
+Store the new simulation results in `pqc/results/parameter_scaling_full/`
+and board results in `pqc/results/v80_hw_validation/parameter_full_board_200mhz/`.
+The original results and manuscript numbers remain identifiable until the
+new cohort has passed validation. No RTL or synthesis change is required.
+
+The initial complete-mapping simulation in `build32_pqc_parameters_full`
+inherited the older write-back cache configuration. K512 at eight workers
+hit RTL scoreboard timeouts, while its one-worker B/D/E cases had identical
+retired instruction counts but 7.1--7.5% model-cycle gaps. That queue was
+stopped, and its data is retained in
+`pqc/results/parameter_scaling_full_writeback_diagnostic/`. This is an open
+write-back diagnostic, not a passed verification cohort; switching the main
+experiment to the actual board configuration does not resolve that issue.
+
+The fresh write-through runtime initially stalled as well. Tracing localized
+this to XRT's AXI memory model sampling request signals after the active edge:
+write-credit gating could remove a just-accepted write before the model saw
+it, losing its completion. Capturing requests before the edge restores the
+`fence` regression and K512 E single-request execution (identical instructions,
+4.373% device-cycle gap). The independent CI case and failure evidence are in
+`pqc/results/xrt_axi_sampling/`. The complete-mapping simulation rebuild uses
+this correction; watchdog and parity thresholds are unchanged. The original
+write-back measurements remain a failed diagnostic until separately rerun.
+
+### Complete-mapping board results
+
+The 156 board cells completed with 780 timed runs and 156 warmups, all
+byte-exact KATs passing. The archived middle-parameter binaries reproduced
+their earlier median cycles within 0.18%. The new six-set sweep uses input
+start 1 and the corrected KEM arithmetic switch:
+
+| Parameter | A/E, one request | A/E, eight requests |
+| --- | ---: | ---: |
+| ML-KEM-512 | 2.341x | 2.126x |
+| ML-KEM-768 | 2.314x | 2.004x |
+| ML-KEM-1024 | 2.365x | 2.013x |
+| ML-DSA-44 | 1.966x | 1.966x |
+| ML-DSA-65 | 1.910x | 1.914x |
+| ML-DSA-87 | 2.150x | 2.023x |
+
+The complete-mapping E arm gains 2.218--3.042x throughput from one to eight
+workers on eight fixed inputs. With eight workers fixed, M64/M8 throughput
+is 0.998--1.047x. D/E at K768 is 0.999x/0.998x, so enabling the additional
+arithmetic instructions is not a universal improvement; retain D as a
+control. DSA signing rejection varies with input, so the single-request
+absolute latency ordering is not a general security-level scaling claim.
+
+The write-through rebuild produces byte-identical host and kernel binaries
+for all 30 board applications. Its separately rebuilt simulator runtimes
+are being verified; board performance is independent of that pending model
+validation. Full results and provenance are in
+`pqc/results/v80_hw_validation/parameter_full_board_200mhz/README.md`.

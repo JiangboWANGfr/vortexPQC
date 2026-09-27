@@ -20,7 +20,7 @@ def plot(folder, driver):
         fig.supylabel('Requests / million cycles')
         complete = True
         for parameter, ax in zip(SETS, axes.flat):
-            for arm, label in [('A', 'W32 software'), ('E', 'All implemented ISE')]:
+            for arm, label in [('A', 'W32 software'), ('E', 'Stage + NTT + arithmetic')]:
                 series = [r for r in rows if r['parameter'] == parameter and r['arm'] == arm
                           and int(r['input_start']) == 1
                           and (int(r['requests']) == 8 if name == 'occupancy' else int(r['resident']) == 8)

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Measure parameter scaling on the resident 200-MHz V80 image."""
 
+import argparse
 import csv
+import fcntl
 import hashlib
 import json
 import os
@@ -43,9 +45,17 @@ def validate(text, parameter, batch, workers):
     return int(cycles), int(instructions), int(device_cycles)
 
 
-def main():
+def main(full_mapping=False):
     assert VBIN.exists()
+    assert Path.cwd() == BUILD, 'Run from the selected configured build tree'
     manifest = json.loads((BUILD / "parameter_sweep/manifest.json").read_text())
+    assert bool(manifest.get('full_mapping')) == full_mapping
+    audit = json.loads((BUILD / 'parameter_sweep/opcode_audit.json').read_text())
+    if full_mapping:
+        assert all(app.get('software_mapping_macros') for app in audit.values())
+
+    def arms(batch, workers):
+        return 'ABCDE' if full_mapping and (batch, workers) in ((1, 1), (8, 8)) else 'AE'
     libraries = (SLASH / "vrt/vrtd/build/libvrtd/src", SLASH / "vrt/build/lib",
                  BOARD / "sw/runtime")
     env = dict(os.environ, LD_LIBRARY_PATH=":".join(map(str, libraries)),
@@ -61,6 +71,10 @@ def main():
         return int(value)
 
     OUT.mkdir(exist_ok=True)
+    planned = [(parameter, arm, batch, workers) for parameter in SETS
+               for batch, workers in CELLS for arm in arms(batch, workers)]
+    (OUT / 'plan.json').write_text(json.dumps(dict(full_mapping=full_mapping,
+        cells=planned, warmups=1, repetitions=5), indent=2) + '\n')
     before = clock()
     image_sha = digest(VBIN)
     previous = json.loads((OUT.parent / "dsa65_ablation_200mhz/summary.json").read_text())
@@ -73,7 +87,7 @@ def main():
     }
     apps = {}
     for parameter in SETS:
-        for arm in "AE":
+        for arm in ('ABCDE' if full_mapping else 'AE'):
             name = f"{parameter}_{arm}"
             app = manifest["apps"][name]
             folder = BUILD / "tests/pqc" / ("parameters_" + name)
@@ -87,7 +101,7 @@ def main():
     for parameter in SETS:
         for batch, workers in CELLS:
             for repeat in range(6):
-                for arm in "AE":
+                for arm in arms(batch, workers):
                     name = f"{parameter}_{arm}"
                     app = apps[name]
                     label = "warmup" if repeat == 0 else f"r{repeat}"
@@ -138,6 +152,9 @@ def main():
                                          instructions=instructions,
                                          device_cycles=device_cycles,
                                          log_sha256=state["log_sha256"], log=log.name))
+                    (OUT / 'progress.json').write_text(json.dumps(dict(
+                        planned_measurements=5 * len(planned), completed_measurements=len(rows),
+                        last_pass=stem, updated_unix=time.time()), indent=2) + '\n')
 
     after = clock()
     with (OUT / "raw_runs.csv").open("w", newline="") as stream:
@@ -147,7 +164,7 @@ def main():
     medians = []
     for parameter in SETS:
         for batch, workers in CELLS:
-            for arm in "AE":
+            for arm in arms(batch, workers):
                 group = [r for r in rows if (r["parameter"], r["arm"], r["requests"], r["resident"])
                          == (parameter, arm, batch, workers)]
                 assert len(group) == 5
@@ -164,7 +181,7 @@ def main():
     for parameter in SETS:
         for batch, workers in CELLS:
             hashes = set()
-            for arm in "AE":
+            for arm in arms(batch, workers):
                 for repeat in range(1, 6):
                     text = (OUT / f"{parameter}_{arm}_m{batch}_w{workers}_r{repeat}.log").read_text()
                     pattern = (r"^COUNTERS:.*$" if parameter.startswith("K") else
@@ -178,6 +195,7 @@ def main():
                    image_path=str(VBIN.relative_to(REPO)), image_sha256=image_sha,
                    note="Resident image reused without programming; VRT metadata cannot attest its PDI identity.",
                    repetitions=5, warmups=1, cells=len(medians), runtime=runtime,
+                   full_mapping=full_mapping,
                    call_count_sha256=call_hashes,
                    apps={name: {key: value for key, value in app.items() if key != "folder"}
                          for name, app in apps.items()})
@@ -189,8 +207,15 @@ def main():
             zipped.write(path, path.name)
         zipped.write(Path(__file__), Path(__file__).name)
         zipped.write(BUILD / "parameter_sweep/manifest.json", "manifest.json")
+        zipped.write(BUILD / "parameter_sweep/opcode_audit.json", "opcode_audit.json")
+        if full_mapping:
+            for relative, expected in manifest['sources'].items():
+                path = BUILD / 'parameter_sweep/source' / relative
+                assert digest(path) == expected, path
+                zipped.write(path, 'source/' + relative)
         for name, app in apps.items():
-            for path in (app["folder"] / app["project"], app["folder"] / "kernel.vxbin"):
+            for path in (app["folder"] / app["project"], app["folder"] / "kernel.vxbin",
+                         app["folder"] / 'config.stamp', app["folder"] / 'kernel.dump'):
                 zipped.write(path, name + "/" + path.name)
     with zipfile.ZipFile(archive) as zipped:
         assert zipped.testzip() is None
@@ -198,4 +223,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--full-mapping', action='store_true')
+    args = parser.parse_args()
+    if args.full_mapping:
+        BUILD = REPO / 'build32_pqc_parameters_full_wt'
+        OUT = OUT.parent / 'parameter_full_board_200mhz'
+    with (BOARD / 'pqc_board.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        main(args.full_mapping)

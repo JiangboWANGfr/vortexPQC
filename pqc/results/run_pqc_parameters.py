@@ -20,12 +20,16 @@ ARMS = {'A': ('sg25_sw', False), 'B': ('sg25', False),
         'C': ('sg25_sw', True), 'D': ('sg25', True), 'E': ('sg25', True)}
 
 
-def apps():
+def apps(full_mapping=False):
     for parameter in SETS:
         project = 'mlkem_profile' if parameter[0] == 'K' else 'mldsa_profile'
         fixed = [f'PARAM={parameter[1:]}', 'NTT=reg32', 'UNROLL=1']
         fixed += (['SERIAL=1', 'ARITH=all'] if parameter[0] == 'K'
                   else ['MLDSA_RAM=full', 'POINTWISE_L5=w32'])
+        if full_mapping:
+            fixed += (['SAMPLER=warp', 'CODEC=all', 'NOISE=warp', 'LINEAR=warp', 'ZEROIZE=warp']
+                      if parameter[0] == 'K' else
+                      ['SAMPLER=warp', 'SHAKE_EXTRACT=warp', 'SIGN_ARITH=warp', 'ZEROIZE=warp'])
         for arm, (keccak, hardware) in ARMS.items():
             options = fixed + [f'KECCAK={keccak}']
             if hardware:
@@ -60,39 +64,73 @@ def audit_opcodes(manifest):
         assert bool(counts['nttbf']) == (arm in 'CDE'), name
         assert bool(counts['stage']) == (arm in 'BDE'), name
         assert counts['pointer'] == 0 and counts['round'] == 0, name
+        if manifest.get('full_mapping'):
+            folder = BUILD / 'tests/pqc' / ('parameters_' + name)
+            flags = set((folder / 'config.stamp').read_text().splitlines()[0].split())
+            required = {'PQC_REJ_WARP', 'PQC_ZEROIZE_WARP'}
+            required |= ({'PQC_CODEC_WARP', 'PQC_CODEC_COMPRESS_WARP', 'PQC_NOISE_WARP',
+                          'PQC_LINEAR_WARP'} if name.startswith('K') else
+                         {'PQC_SHAKE_EXTRACT_WARP', 'PQC_SIGN_DECOMPOSE_WARP',
+                          'PQC_SIGN_HINT_WARP', 'PQC_SIGN_CHKNORM_WARP',
+                          'PQC_SIGN_CADDQ_WARP', 'PQC_SIGN_ZUNPACK_WARP'})
+            assert {'-D' + flag for flag in required} <= flags, name
+            counts['software_mapping_macros'] = sorted(required)
         result[name] = counts
     (OUT / 'opcode_audit.json').write_text(json.dumps(result, indent=2) + '\n')
 
 
-def build():
+def build(full_mapping=False):
+    flags = FLAGS + (' -DVX_CFG_DCACHE_WRITEBACK=0' if full_mapping else '')
+    if (OUT / 'manifest.json').exists():
+        old = json.loads((OUT / 'manifest.json').read_text())
+        assert bool(old.get('full_mapping')) == full_mapping, 'Use a separate build for a different mapping'
+        assert old['flags'] == flags, 'Use a separate build for a different hardware configuration'
     with (OUT / 'configure.log').open('w') as log:
         subprocess.run(['../configure', '--xlen=32', '--tooldir=/home/jiangbowang/tools-pqc-v3.0.1'],
                        cwd=BUILD, env=ENV, stdout=log, stderr=subprocess.STDOUT, check=True)
     previous = REPO / 'build32_ntt_joint/ntt_joint/manifest.json'
-    core = json.loads(previous.read_text())
-    assert core['flags'] == FLAGS
-    for name, expected in core['runtime'].items():
-        assert sha(RUNTIME / name) == expected, name
+    if full_mapping:
+        RUNTIME.mkdir(exist_ok=True)
+        for target in ('sw/kernel', 'sw/runtime/stub', 'sw/runtime/simx', 'sw/runtime/xrt'):
+            command = ['make', '-C', target, '-j8', 'THREADS=8', f'CONFIGS={flags}']
+            if target != 'sw/kernel':
+                command += [f'DESTDIR={RUNTIME}']
+            with (OUT / ('build_' + target.replace('/', '_') + '.log')).open('w') as log:
+                subprocess.run(command, cwd=BUILD, env=ENV, stdout=log,
+                               stderr=subprocess.STDOUT, check=True)
+        shutil.copy2(RUNTIME / 'libvortex.so', BUILD / 'sw/runtime/libvortex.so')
+        core = {'runtime': {path.name: sha(path) for path in RUNTIME.iterdir()
+                            if path.suffix in ('.so', '.stamp')}}
+    else:
+        core = json.loads(previous.read_text())
+        assert core['flags'] == FLAGS
+        for name, expected in core['runtime'].items():
+            assert sha(RUNTIME / name) == expected, name
     manifest = {'head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
-                'flags': FLAGS, 'runtime': core['runtime'], 'core_manifest': str(previous), 'apps': {}}
-    for name, project, options in apps():
+                'flags': flags, 'runtime': core['runtime'], 'full_mapping': full_mapping,
+                'core_manifest': None if full_mapping else str(previous), 'apps': {}}
+    for name, project, options in apps(full_mapping):
         folder = BUILD / 'tests/pqc' / ('parameters_' + name)
         folder.mkdir(exist_ok=True)
         shutil.copy2(BUILD / 'tests/pqc' / project / 'Makefile', folder / 'Makefile')
-        command = ['make', '-j4', f'CONFIGS={FLAGS}'] + options
+        command = ['make', '-j4', f'CONFIGS={flags}'] + options
         with (OUT / f'build_{name}.log').open('w') as log:
             subprocess.run(command, cwd=folder, env=ENV, stdout=log, stderr=subprocess.STDOUT, check=True)
         manifest['apps'][name] = dict(project=project, options=options, command=command,
                                      kernel_sha256=sha(folder / 'kernel.vxbin'), host_sha256=sha(folder / project))
         print('BUILT ' + name, flush=True)
     audit_opcodes(manifest)
-    sources = [REPO / 'VX_config.toml']
+    sources = [REPO / 'VX_config.toml', REPO / 'VX_types.toml']
     for directory in ('tests/pqc/mlkem_profile', 'tests/pqc/mldsa_profile', 'tests/pqc/mlkem', 'tests/pqc/mldsa'):
         sources += [p for p in (REPO / directory).iterdir() if p.is_file()]
     sources += list((REPO / 'tests/pqc').glob('*.h'))
     sources += [Path(__file__).resolve(), Path(__file__).with_name('run_ntt_joint.py').resolve(),
                 Path(__file__).with_name('collect_pqc_parameters.py').resolve(),
                 REPO / 'docs/proposals/pqc_parameter_scaling_proposal.md']
+    if full_mapping:
+        tracked = subprocess.check_output(['git', 'ls-files', 'hw/rtl', 'sim',
+                                          'sw/kernel', 'sw/common', 'sw/runtime'], cwd=REPO, text=True)
+        sources += [REPO / name for name in tracked.splitlines() if (REPO / name).is_file()]
     manifest['sources'] = {}
     for path in sources:
         relative = str(path.relative_to(REPO))
@@ -105,6 +143,7 @@ def build():
 
 def run(args):
     manifest = json.loads((OUT / 'manifest.json').read_text())
+    assert bool(manifest.get('full_mapping')) == args.full_mapping, 'Mapping does not match the build'
     runtime = {name: sha(RUNTIME / name) for name in manifest['runtime']}
     assert runtime == manifest['runtime'], 'Runtime changed'
     cells = [(name, batch, args.resident or min(batch, 8)) for name in manifest['apps']
@@ -181,6 +220,7 @@ def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=('build', 'run'))
+    parser.add_argument('--full-mapping', action='store_true', help='Enable the complete software mapping in every arm')
     parser.add_argument('--suite', action='store_true', help='Complete paper coverage, occupancy, and batch matrix')
     parser.add_argument('--parameters', nargs='+', choices=SETS, default=SETS)
     parser.add_argument('--arms', nargs='+', choices=ARMS, default=list(ARMS))
@@ -195,6 +235,6 @@ if __name__ == '__main__':
     assert args.workers > 0 and 0 <= args.input_start <= 0xffffffff - 63
     assert all(b % (args.resident or min(b, 8)) == 0 for b in args.batches)
     if args.action == 'build':
-        build()
+        build(args.full_mapping)
     else:
         run(args)

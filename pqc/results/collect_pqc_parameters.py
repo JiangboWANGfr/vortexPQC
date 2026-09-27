@@ -123,6 +123,7 @@ def collect(source, output, archive):
     print(json.dumps({k: v for k, v in summary.items() if k != 'not_completed'}, indent=2))
     if archive:
         assert not pending and not failures and not (planned - completed), 'Do not archive incomplete executions'
+        assert all(p['pass_5pct'] for p in parity), 'Do not archive failed timing parity'
         with zipfile.ZipFile(output / 'pqc_parameters_sources.zip', 'w', zipfile.ZIP_DEFLATED) as zipped:
             for path in source.glob('*'):
                 if path.suffix in ('.json', '.log'):
@@ -137,6 +138,10 @@ def collect(source, output, archive):
                     zipped.write(folder / file, 'tests/pqc/parameters_' + name + '/' + file)
             for path in output.glob('pqc_parameters_*.csv'):
                 zipped.write(path, 'tables/' + path.name)
+            for name, expected in manifest['runtime'].items():
+                path = source / 'runtime' / name
+                assert sha(path) == expected, path
+                zipped.write(path, 'runtime/' + name)
     return not failures and all(p['pass_5pct'] for p in parity)
 
 

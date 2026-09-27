@@ -89,6 +89,17 @@ six sets, A/E speedup is 1.454--1.552x at one request and 1.677--1.832x at
 eight. The medians, plots, raw archive, and image-identity caveat are in
 `parameter_board_200mhz/README.md`.
 
+The complete-software-mapping sweep in `parameter_full_board_200mhz/`
+supersedes that older mapping for final six-set software performance.
+All five hardware arms share the warp sampler and surrounding software
+optimizations. It completes 156 cells (780 timed runs) and gives A/E gains
+of 2.314--2.365x / 2.004--2.126x for KEM and 1.910--2.150x / 1.914--2.023x
+for DSA at one/eight requests. KEM's Montgomery conversion now follows
+`ARITH_MUL=ise`; the A/B binaries contain no NTTMUL/NTTBF opcodes.
+The archive preserves every binary, compiled mapping audit, raw log and
+source snapshot. `replay/summary.json` separately verifies the original
+middle-parameter binaries with their original inputs.
+
 `VORTEX_PROFILING=1/4/7` on the performance image reports zero extension
 counters because that image was built without `PERF_ENABLE`. A separate
 instrumented image is required to attribute the extra cycles; its results
