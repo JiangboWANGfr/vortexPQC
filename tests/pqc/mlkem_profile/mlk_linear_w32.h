@@ -30,7 +30,11 @@ extern "C" __attribute__((noinline, used)) void mlk_profile_linear_lanes() {
   if (args.operation <= MLK_LINEAR_SUB) {
     for (unsigned index = lane; index < args.count; index += 32) {
       if (args.operation == MLK_LINEAR_TOMONT) {
+#if defined(PQC_ARITH_NTTMUL)
         args.output[index] = vx_nttmul_k(args.output[index], 1353);
+#else
+        args.output[index] = mlk_fqmul(args.output[index], 1353);
+#endif
       } else if (args.operation == MLK_LINEAR_ADD) {
         args.output[index] = (int16_t)(args.output[index] + args.input[index]);
       } else {
