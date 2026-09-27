@@ -724,6 +724,21 @@ private:
       for (int b = 0; b < VX_CFG_PLATFORM_MEMORY_NUM_BANKS; ++b) {
         m_axi_states_[b].read_rsp_ready = *m_axi_mem_[b].rready;
         m_axi_states_[b].write_rsp_ready = *m_axi_mem_[b].bready;
+        auto& state = m_axi_states_[b];
+        // Capture handshakes before the edge can advance the master's state.
+        state.ar_fire = *m_axi_mem_[b].arvalid && *m_axi_mem_[b].arready;
+        state.ar_addr = *m_axi_mem_[b].araddr;
+        state.ar_tag = *m_axi_mem_[b].arid;
+        state.ar_len = *m_axi_mem_[b].arlen;
+        state.aw_fire = *m_axi_mem_[b].awvalid && *m_axi_mem_[b].awready;
+        state.aw_next_addr = *m_axi_mem_[b].awaddr;
+        state.aw_next_tag = *m_axi_mem_[b].awid;
+        state.w_fire = *m_axi_mem_[b].wvalid && *m_axi_mem_[b].wready;
+        state.w_strb = *m_axi_mem_[b].wstrb;
+        state.w_last = *m_axi_mem_[b].wlast;
+        if (state.w_fire) {
+          memcpy(state.w_data.data(), m_axi_mem_[b].wdata->data(), VX_CFG_PLATFORM_MEMORY_DATA_SIZE);
+        }
       }
       return;
     }
@@ -779,12 +794,12 @@ private:
 
       // handle read requests — an AXI burst expands into arlen+1 per-beat
       // responses (one cache line each, INCR addressing).
-      if (*m_axi_mem_[b].arvalid && *m_axi_mem_[b].arready) {
-        uint32_t len  = *m_axi_mem_[b].arlen;     // beats - 1
-        uint64_t base = uint64_t(*m_axi_mem_[b].araddr);
+      if (m_axi_states_[b].ar_fire) {
+        uint32_t len  = m_axi_states_[b].ar_len;     // beats - 1
+        uint64_t base = m_axi_states_[b].ar_addr;
         for (uint32_t beat = 0; beat <= len; ++beat) {
           auto mem_req = new mem_req_t();
-          mem_req->tag   = *m_axi_mem_[b].arid;
+          mem_req->tag   = m_axi_states_[b].ar_tag;
           mem_req->addr  = base + uint64_t(beat) * VX_CFG_PLATFORM_MEMORY_DATA_SIZE;
           ram_->read(mem_req->data.data(), mem_req->addr, VX_CFG_PLATFORM_MEMORY_DATA_SIZE);
           mem_req->write = false;
@@ -796,29 +811,27 @@ private:
       }
 
       // handle write address — latch the burst.
-      if (*m_axi_mem_[b].awvalid && *m_axi_mem_[b].awready
-       && !m_axi_states_[b].aw_active) {
+      if (m_axi_states_[b].aw_fire && !m_axi_states_[b].aw_active) {
         m_axi_states_[b].aw_active = true;
-        m_axi_states_[b].aw_addr   = uint64_t(*m_axi_mem_[b].awaddr);
-        m_axi_states_[b].aw_tag    = *m_axi_mem_[b].awid;
+        m_axi_states_[b].aw_addr   = m_axi_states_[b].aw_next_addr;
+        m_axi_states_[b].aw_tag    = m_axi_states_[b].aw_next_tag;
         m_axi_states_[b].aw_beat   = 0;
       }
 
       // handle write data beats — write one cache line per W beat; the
       // last beat (WLAST) queues a single B response for the burst.
-      if (m_axi_states_[b].aw_active
-       && *m_axi_mem_[b].wvalid && *m_axi_mem_[b].wready) {
+      if (m_axi_states_[b].aw_active && m_axi_states_[b].w_fire) {
         uint64_t byte_addr = m_axi_states_[b].aw_addr
                            + uint64_t(m_axi_states_[b].aw_beat)
                              * VX_CFG_PLATFORM_MEMORY_DATA_SIZE;
-        auto byteen = *m_axi_mem_[b].wstrb;
-        auto data = (const uint8_t*)m_axi_mem_[b].wdata->data();
+        auto byteen = m_axi_states_[b].w_strb;
+        auto data = m_axi_states_[b].w_data.data();
         for (int i = 0; i < VX_CFG_PLATFORM_MEMORY_DATA_SIZE; ++i) {
           if ((byteen >> i) & 0x1) {
             (*ram_)[byte_addr + i] = data[i];
           }
         }
-        if (*m_axi_mem_[b].wlast) {
+        if (m_axi_states_[b].w_last) {
           auto mem_req = new mem_req_t();
           mem_req->tag   = m_axi_states_[b].aw_tag;
           mem_req->addr  = m_axi_states_[b].aw_addr;
@@ -838,6 +851,17 @@ private:
   typedef struct {
     bool     read_rsp_ready;
     bool     write_rsp_ready;
+    bool     ar_fire;
+    uint64_t ar_addr;
+    uint32_t ar_tag;
+    uint32_t ar_len;
+    bool     aw_fire;
+    uint64_t aw_next_addr;
+    uint32_t aw_next_tag;
+    bool     w_fire;
+    uint64_t w_strb;
+    bool     w_last;
+    std::array<uint8_t, VX_CFG_PLATFORM_MEMORY_DATA_SIZE> w_data;
     // Write-burst state — latched on AW, advanced one cache line per W beat.
     bool     aw_active;
     uint64_t aw_addr;

@@ -1,0 +1,28 @@
+{
+  "failure": "post-edge AXI request sampling drops a write when RTL write credits fill",
+  "before": {
+    "fence_n1": "timeout at 30 seconds",
+    "kem512_E_m1": "scheduler stall timeout"
+  },
+  "after": {
+    "fence_n1": {
+      "passed": true,
+      "instructions": 304,
+      "cycles": 3136
+    },
+    "fence_n256": {
+      "passed": true,
+      "instructions": 18664,
+      "cycles": 1082485
+    },
+    "K512_E_m1": {
+      "passed": true,
+      "instructions": 79953,
+      "xrt_cycles": 1305032,
+      "simx_cycles": 1247957,
+      "gap_pct": 4.373455976558427
+    }
+  },
+  "ci_case": "config2/fence-write-through-xrt",
+  "hardware_changed": false
+}

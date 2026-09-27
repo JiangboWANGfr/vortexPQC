@@ -6,6 +6,16 @@ defaults:
   - 64
   tier: smoke
 tests:
+- id: fence-write-through-xrt
+  via: blackbox
+  drivers: [xrt]
+  xlen: [32]
+  app: fence
+  args: -n1
+  shape:
+    warps: 8
+    threads: 32
+  configs: -DVX_CFG_DCACHE_WRITEBACK=0 -DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE
 - id: printf-1
   via: blackbox
   drivers:
