@@ -1,0 +1,482 @@
+{
+  "K512_A": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K512_B": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K512_C": {
+    "nttmul": 32,
+    "nttbf": 64,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K512_D": {
+    "nttmul": 32,
+    "nttbf": 64,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K512_E": {
+    "nttmul": 37,
+    "nttbf": 64,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K768_A": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K768_B": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K768_C": {
+    "nttmul": 32,
+    "nttbf": 64,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K768_D": {
+    "nttmul": 32,
+    "nttbf": 64,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K768_E": {
+    "nttmul": 37,
+    "nttbf": 64,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K1024_A": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K1024_B": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K1024_C": {
+    "nttmul": 32,
+    "nttbf": 64,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K1024_D": {
+    "nttmul": 32,
+    "nttbf": 64,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "K1024_E": {
+    "nttmul": 37,
+    "nttbf": 64,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_CODEC_COMPRESS_WARP",
+      "PQC_CODEC_WARP",
+      "PQC_LINEAR_WARP",
+      "PQC_NOISE_WARP",
+      "PQC_REJ_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D44_A": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D44_B": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D44_C": {
+    "nttmul": 32,
+    "nttbf": 80,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D44_D": {
+    "nttmul": 32,
+    "nttbf": 80,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D44_E": {
+    "nttmul": 40,
+    "nttbf": 80,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D65_A": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D65_B": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D65_C": {
+    "nttmul": 32,
+    "nttbf": 80,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D65_D": {
+    "nttmul": 32,
+    "nttbf": 80,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D65_E": {
+    "nttmul": 40,
+    "nttbf": 80,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D87_A": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D87_B": {
+    "nttmul": 0,
+    "nttbf": 0,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D87_C": {
+    "nttmul": 32,
+    "nttbf": 80,
+    "stage": 0,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D87_D": {
+    "nttmul": 32,
+    "nttbf": 80,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  },
+  "D87_E": {
+    "nttmul": 40,
+    "nttbf": 80,
+    "stage": 144,
+    "pointer": 0,
+    "round": 0,
+    "software_mapping_macros": [
+      "PQC_REJ_WARP",
+      "PQC_SHAKE_EXTRACT_WARP",
+      "PQC_SIGN_CADDQ_WARP",
+      "PQC_SIGN_CHKNORM_WARP",
+      "PQC_SIGN_DECOMPOSE_WARP",
+      "PQC_SIGN_HINT_WARP",
+      "PQC_SIGN_ZUNPACK_WARP",
+      "PQC_ZEROIZE_WARP"
+    ]
+  }
+}

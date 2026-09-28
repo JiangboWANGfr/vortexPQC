@@ -12,9 +12,8 @@
   \draw[box,fill=cBlue!7] (.20,2.30-.27*\i) rectangle (1.18,2.51-.27*\i);
   \draw[box,fill=cBlue!7] (3.70,2.30-.27*\i) rectangle (4.68,2.51-.27*\i);
 }
-\node[note] at (.69,1.46) {$a_{l+32k}$};
-\node[note] at (4.19,1.46) {$a_{l\oplus d+32k}$};
-\draw[flow,cBlue,bend left=12] (1.18,2.405) to node[note,above] {register-local} (3.70,2.405);
+\draw[flow,cBlue] (1.18,2.405) -- (1.65,2.405) -- (1.65,1.865) -- (1.18,1.865);
+\node[note,text=cBlue,anchor=west] at (1.75,2.135) {register-local};
 \draw[flow,cTeal,bend right=12] (3.70,.515) to node[note,below] {pair collective} (1.18,.515);
 \node[note,anchor=west] at (.18,.03) {KEM: 7 layers, 16-bit \quad DSA: 8 layers, 32-bit};
 
@@ -40,6 +39,5 @@
 \node[box,minimum width=1.65cm,minimum height=.55cm,note,fill=cTeal!10] (dst) at (17.00,2.12) {destination\\vector};
 \draw[flow] (src)--(route); \draw[flow] (route)--(dst);
 \node[box,minimum width=5.90cm,minimum height=.58cm,note,fill=black!3] at (14.86,.93) {ordinary scoreboard, backpressure, and writeback};
-\node[note,text=cPurple,anchor=west] at (12.0,.25) {stateless between instructions};
-\node[note,text=black!60,anchor=east] at (17.70,.25) {no pointer or private context};
+\node[note,text=cPurple] at (14.86,.25) {stateless between instructions};
 \end{tikzpicture}

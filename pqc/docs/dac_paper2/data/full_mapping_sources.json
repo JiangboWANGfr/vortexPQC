@@ -1,0 +1,14 @@
+{
+  "board_results": "pqc/results/v80_hw_validation/parameter_full_board_200mhz",
+  "simulation_results": "pqc/results/parameter_scaling_full",
+  "scope": "All 156 board cells; only the completed 60 headline SimX/XRT pairs. Supplementary simulation scans are not required or claimed complete.",
+  "files": {
+    "parameter_board_200mhz.csv": "3338a141a03aa8adc6e69f44e273525df8da0083de8e4394e1e56f84b4ca605c",
+    "parameter_board_summary_200mhz.json": "45fc0d269ca0bddd40cba90a46f3c15f6516df307150f88e2a34d95064f68c65",
+    "parameter_board_repeats_200mhz.csv": "a3a1c604b0e339f7542af82ddb587f28ac89bbd57dc22ae44c50b06e1a1c5fe9",
+    "full_mapping_build.json": "b2b2d61a41ad0f709029a1528389f91b2ade4590bd6e125ea0e7baf2c662bf7c",
+    "full_mapping_opcode_audit.json": "9921fc07436213cc5ebe9e0f14287206ce86b478b1f66ca7dbf207a2fc2dc6c6",
+    "full_mapping_headline_runs.csv": "b0a9d1e9e514b90bebccbfc153eb846c82f2781a10fd176d49982f8ad9c6b749",
+    "full_mapping_headline_parity.csv": "20fb905330e011e9253ca60b836b56a445d84687e9a6d3767abdb2ea8db65db5"
+  }
+}

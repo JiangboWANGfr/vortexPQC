@@ -4,6 +4,7 @@
 import csv
 import hashlib
 import json
+import statistics
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -59,65 +60,76 @@ for scheme in ["K", "D"]:
                            / int(rtl["launch_cycles"]))
 assert max(parity_gaps) < 5
 
-board_kem = json.loads((DATA / "mlkem768_board_200mhz.json").read_text())
-board_dsa = json.loads((DATA / "mldsa65_board_200mhz.json").read_text())
 board_resources = json.loads((DATA / "aved_resources_200mhz.json").read_text())
-assert board_kem["configuration"]["board_clock_hz"] == 200_000_000
-assert board_dsa["clock_hz_before"] == board_dsa["clock_hz_after"] == 200_000_000
 assert board_resources["clock_mhz"] == 200 and board_resources["wns_ns"] >= 0
-assert board_kem["image"]["sha256"] == board_dsa["vbin_sha256"] == board_resources["vbin_sha256"]
-assert len(board_dsa["runs"]) == 50
-for batch in (1, 8):
-    for arm in "ABCD":
-        assert board_kem["measurements"][f"M{batch}"][arm]["all_kat_pass"]
-    for arm in "ABCDE":
-        assert sorted(r["repeat"] for r in board_dsa["runs"]
-                      if r["batch"] == batch and r["arm"] == arm) == [1, 2, 3, 4, 5]
-board_numbers = {}
-for batch, suffix in ((1, "One"), (8, "Eight")):
-    kem = board_kem["measurements"][f"M{batch}"]
-    dsa = board_dsa["medians"][str(batch)]
-    board_numbers.update({
-        "BoardKemStage" + suffix: kem["A"]["median_makespan_cycles"] /
-                                   kem["B"]["median_makespan_cycles"],
-        "BoardKemNtt" + suffix: kem["B"]["median_makespan_cycles"] /
-                                 kem["D"]["median_makespan_cycles"],
-        "BoardKem" + suffix: kem["A"]["median_makespan_cycles"] /
-                              kem["D"]["median_makespan_cycles"],
-        "BoardDsaStage" + suffix: dsa["A"] / dsa["B"],
-        "BoardDsaNtt" + suffix: dsa["B"] / dsa["D"],
-        "BoardDsaPointwise" + suffix: dsa["D"] / dsa["E"],
-        "BoardDsaHardware" + suffix: dsa["A"] / dsa["D"],
-        "BoardDsaFinal" + suffix: dsa["A"] / dsa["E"],
-    })
-table("board_kem.dat", ["index", "one", "eight"],
-      [(i, board_kem["measurements"]["M1"]["A"]["median_makespan_cycles"] /
-        board_kem["measurements"]["M1"][arm]["median_makespan_cycles"],
-        board_kem["measurements"]["M8"]["A"]["median_makespan_cycles"] /
-        board_kem["measurements"]["M8"][arm]["median_makespan_cycles"])
-       for i, arm in enumerate("ABCD")])
-table("board_dsa.dat", ["index", "one", "eight"],
-      [(i, board_dsa["medians"]["1"]["A"] / board_dsa["medians"]["1"][arm],
-        board_dsa["medians"]["8"]["A"] / board_dsa["medians"]["8"][arm])
-       for i, arm in enumerate("ABCDE")])
-board_numbers["BoardCoreLuts"] = board_resources["resources"]["vortex_core"]["luts"]
-board_numbers["BoardCoreFfs"] = board_resources["resources"]["vortex_core"]["ffs"]
-board_numbers["BoardCoreDsps"] = board_resources["resources"]["vortex_core"]["dsps"]
-board_numbers["BoardAfuLuts"] = board_resources["resources"]["reconfigurable_afu"]["luts"]
-board_numbers["BoardAfuFfs"] = board_resources["resources"]["reconfigurable_afu"]["ffs"]
-board_numbers["BoardAfuDsps"] = board_resources["resources"]["reconfigurable_afu"]["dsps"]
-board_numbers["BoardWns"] = board_resources["wns_ns"]
-
 parameter_board = rows("parameter_board_200mhz.csv")
 parameter_summary = json.loads((DATA / "parameter_board_summary_200mhz.json").read_text())
+parameter_repeats = rows("parameter_board_repeats_200mhz.csv")
+full_build = json.loads((DATA / "full_mapping_build.json").read_text())
+opcodes = json.loads((DATA / "full_mapping_opcode_audit.json").read_text())
+provenance = json.loads((DATA / "full_mapping_sources.json").read_text())
+for name, expected in provenance["files"].items():
+    assert hashlib.sha256((DATA / name).read_bytes()).hexdigest() == expected, name
+assert parameter_summary["full_mapping"] and full_build["full_mapping"]
+assert "-DVX_CFG_DCACHE_WRITEBACK=0" in full_build["flags"].split()
 assert parameter_summary["board_clock_hz_before"] == parameter_summary["board_clock_hz_after"] == 200_000_000
 assert parameter_summary["image_sha256"] == board_resources["vbin_sha256"]
 assert parameter_summary["repetitions"] == 5 and parameter_summary["warmups"] == 1
-assert parameter_summary["cells"] == len(parameter_board) == 120
+assert parameter_summary["cells"] == len(parameter_board) == 156
+assert len(parameter_repeats) == 780
 assert len(parameter_summary["call_count_sha256"]) == 60
-assert {r["parameter"] for r in parameter_board} == {
-    "K512", "K768", "K1024", "D44", "D65", "D87"}
+parameters = ("K512", "K768", "K1024", "D44", "D65", "D87")
+assert {r["parameter"] for r in parameter_board} == set(parameters)
 assert all(r["driver"] == "aved" and r["input_start"] == "1" for r in parameter_board)
+for name, app in parameter_summary["apps"].items():
+    for key in ("kernel_sha256", "host_sha256"):
+        assert app[key] == full_build["apps"][name][key], (name, key)
+    assert opcodes[name]["software_mapping_macros"]
+    parameter = name.split("_")[0]
+    assert opcodes[name]["software_mapping_macros"] == opcodes[parameter + "_A"]["software_mapping_macros"]
+    required = {"SAMPLER=warp", "ZEROIZE=warp"}
+    required |= ({"CODEC=all", "NOISE=warp", "LINEAR=warp"} if parameter.startswith("K") else
+                 {"SHAKE_EXTRACT=warp", "SIGN_ARITH=warp", "MLDSA_RAM=full", "POINTWISE_L5=w32"})
+    assert required <= set(full_build["apps"][name]["options"]), name
+    arm = name.split("_")[1]
+    assert bool(opcodes[name]["nttmul"]) == (arm in "CDE"), name
+    assert bool(opcodes[name]["nttbf"]) == (arm in "CDE"), name
+    assert bool(opcodes[name]["stage"]) == (arm in "BDE"), name
+    assert opcodes[name]["round"] == opcodes[name]["pointer"] == 0
+
+
+def board_samples(row):
+    return [r for r in parameter_repeats if all(r[k] == row[k] for k in
+            ("parameter", "arm", "requests", "resident", "input_start"))]
+
+
+for row in parameter_board:
+    samples = board_samples(row)
+    assert sorted(int(r["repeat"]) for r in samples) == [1, 2, 3, 4, 5]
+    assert statistics.median(int(r["cycles"]) for r in samples) == int(row["cycles"])
+hashes = parameter_summary["call_count_sha256"]
+for parameter in parameters:
+    assert len({hashes[f"{parameter}_m8_w{w}"] for w in (1, 2, 4, 8)}) == 1
+
+headline = rows("full_mapping_headline_runs.csv")
+headline_parity = rows("full_mapping_headline_parity.csv")
+assert len(headline) == 120 and len(headline_parity) == 60
+headline_gaps = []
+for parameter in parameters:
+    for arm in "ABCDE":
+        for batch in (1, 8):
+            filters = dict(parameter=parameter, arm=arm, requests=batch, resident=batch, input_start=1)
+            model = one(headline, driver="simx", **filters)
+            rtl = one(headline, driver="xrt", **filters)
+            assert model["instructions"] == rtl["instructions"]
+            assert model["calls_sha256"] == rtl["calls_sha256"]
+            assert rtl["calls_sha256"] == hashes[f"{parameter}_m{batch}_w{batch}"]
+            assert all(r["instructions"] == rtl["instructions"] for r in board_samples(rtl))
+            gap = 100 * abs(int(model["device_cycles"]) / int(rtl["device_cycles"]) - 1)
+            check = one(headline_parity, **filters)
+            assert check["instructions_match"] == check["pass_5pct"] == "True"
+            assert abs(gap - float(check["device_gap_pct"])) < 1e-8 and gap <= 5
+            headline_gaps.append(gap)
 
 
 def parameter_cycles(parameter, arm, batch, workers):
@@ -125,31 +137,57 @@ def parameter_cycles(parameter, arm, batch, workers):
                    requests=batch, resident=workers)["cycles"])
 
 
-parameter_numbers = {}
-parameter_plot = []
-for index, parameter in enumerate(("K512", "K768", "K1024", "D44", "D65", "D87")):
-    parameter_plot.append((index,
-                           parameter_cycles(parameter, "A", 1, 1) /
-                           parameter_cycles(parameter, "E", 1, 1),
-                           parameter_cycles(parameter, "A", 8, 8) /
-                           parameter_cycles(parameter, "E", 8, 8)))
-table("parameter_speedup.dat", ["index", "one", "eight"], parameter_plot)
+def gain(parameter, before, after, batch):
+    return parameter_cycles(parameter, before, batch, batch) / parameter_cycles(parameter, after, batch, batch)
+
+
+board_numbers = {"HeadlineParityMax": max(headline_gaps)}
 for batch, suffix in ((1, "One"), (8, "Eight")):
-    speedups = [parameter_cycles(parameter, "A", batch, batch) /
-                parameter_cycles(parameter, "E", batch, batch)
-                for parameter in ("K512", "K768", "K1024", "D44", "D65", "D87")]
-    parameter_numbers["ParameterMin" + suffix] = min(speedups)
-    parameter_numbers["ParameterMax" + suffix] = max(speedups)
-occupancy = [parameter_cycles(parameter, "E", 8, 1) /
-             parameter_cycles(parameter, "E", 8, 8)
-             for parameter in ("K512", "K768", "K1024", "D44", "D65", "D87")]
-batch_throughput = [8 * parameter_cycles(parameter, "E", 8, 8) /
-                    parameter_cycles(parameter, "E", 64, 8)
-                    for parameter in ("K512", "K768", "K1024", "D44", "D65", "D87")]
-parameter_numbers.update(ParameterOccupancyMin=min(occupancy),
-                         ParameterOccupancyMax=max(occupancy),
-                         ParameterBatchMin=min(batch_throughput),
-                         ParameterBatchMax=max(batch_throughput))
+    for name, parameter, before, after in (
+            ("BoardKemStage", "K768", "A", "B"), ("BoardKemNtt", "K768", "B", "D"),
+            ("BoardKem", "K768", "A", "D"), ("BoardKemArithmetic", "K768", "D", "E"),
+            ("BoardDsaStage", "D65", "A", "B"), ("BoardDsaNtt", "D65", "B", "D"),
+            ("BoardDsaPointwise", "D65", "D", "E"), ("BoardDsaHardware", "D65", "A", "D"),
+            ("BoardDsaFinal", "D65", "A", "E")):
+        board_numbers[name + suffix] = gain(parameter, before, after, batch)
+for scheme, parameter in (("kem", "K768"), ("dsa", "D65")):
+    table("board_" + scheme + ".dat", ["index", "one", "eight"],
+          [(i, gain(parameter, "A", arm, 1), gain(parameter, "A", arm, 8))
+           for i, arm in enumerate("ABCDE")])
+for prefix, hierarchy in (("BoardCore", "vortex_core"), ("BoardAfu", "reconfigurable_afu")):
+    for name, key in (("Luts", "luts"), ("Ffs", "ffs"), ("Dsps", "dsps")):
+        board_numbers[prefix + name] = board_resources["resources"][hierarchy][key]
+board_numbers["BoardWns"] = board_resources["wns_ns"]
+
+parameter_numbers = {}
+table("parameter_speedup.dat", ["index", "one", "eight"],
+      [(i, gain(p, "A", "E", 1), gain(p, "A", "E", 8)) for i, p in enumerate(parameters)])
+for batch, suffix in ((1, "One"), (8, "Eight")):
+    for name, sets in (("Parameter", parameters), ("KemParameter", parameters[:3]), ("DsaParameter", parameters[3:])):
+        speedups = [gain(p, "A", "E", batch) for p in sets]
+        parameter_numbers[name + "Min" + suffix] = min(speedups)
+        parameter_numbers[name + "Max" + suffix] = max(speedups)
+for scheme, sets in (("Kem", parameters[:3]), ("Dsa", parameters[3:])):
+    for name, before, after in (("Stage", "A", "B"), ("Ntt", "B", "D"), ("Arithmetic", "D", "E")):
+        values = [gain(p, before, after, batch) for p in sets for batch in (1, 8)]
+        parameter_numbers[scheme + name + "Min"] = min(values)
+        parameter_numbers[scheme + name + "Max"] = max(values)
+    latencies = [parameter_cycles(p, "E", 1, 1) / 200000 for p in sets]
+    parameter_numbers[scheme + "LatencyMin"] = min(latencies)
+    parameter_numbers[scheme + "LatencyMax"] = max(latencies)
+occupancy = [parameter_cycles(p, "E", 8, 1) / parameter_cycles(p, "E", 8, 8) for p in parameters]
+batch_throughput = [8 * parameter_cycles(p, "E", 8, 8) / parameter_cycles(p, "E", 64, 8) for p in parameters]
+parameter_numbers.update(ParameterOccupancyMin=min(occupancy), ParameterOccupancyMax=max(occupancy),
+                         ParameterBatchMin=min(batch_throughput), ParameterBatchMax=max(batch_throughput))
+parameter_numbers["ParameterBatchPeak"] = max(
+    (b / 8) * parameter_cycles(p, "E", 8, 8) / parameter_cycles(p, "E", b, 8)
+    for p in parameters for b in (8, 16, 32, 64))
+table("parameter_occupancy.dat", ["workers", *parameters],
+      [(w, *[parameter_cycles(p, "E", 8, 1) / parameter_cycles(p, "E", 8, w)
+             for p in parameters]) for w in (1, 2, 4, 8)])
+table("parameter_batch.dat", ["requests", *parameters],
+      [(b, *[(b / 8) * parameter_cycles(p, "E", 8, 8) / parameter_cycles(p, "E", b, 8)
+             for p in parameters]) for b in (8, 16, 32, 64)])
 
 pointwise = rows("mldsa_pointwise.csv")
 assert all(r["result"] == "PASS" for r in pointwise)

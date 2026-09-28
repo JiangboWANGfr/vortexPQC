@@ -1,7 +1,7 @@
 \begin{tikzpicture}
 \begin{groupplot}[
- group style={group size=2 by 1,horizontal sep=13mm},
- width=.46\textwidth,height=42mm,
+ group style={group size=3 by 1,horizontal sep=10mm},
+ width=.31\textwidth,height=43mm,
  axis lines*=left,
  tick label style={font=\scriptsize},
  label style={font=\scriptsize},
@@ -11,17 +11,26 @@
  ybar]
 \nextgroupplot[
  title={(a) ML-KEM-768},
- xtick={0,1,2,3},xticklabels={A,B,C,D}]
-\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=6pt]
+ xtick={0,1,2,3,4},xticklabels={A,B,C,D,E}]
+\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=3pt]
  table[x=index,y=one]{assets/board_kem.dat};
-\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=6pt]
+\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=3pt]
  table[x=index,y=eight]{assets/board_kem.dat};
 \nextgroupplot[
  title={(b) ML-DSA-65},
  xtick={0,1,2,3,4},xticklabels={A,B,C,D,E}]
-\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=6pt]
+\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=3pt]
  table[x=index,y=one]{assets/board_dsa.dat};
-\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=6pt]
+\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=3pt]
  table[x=index,y=eight]{assets/board_dsa.dat};
+\nextgroupplot[
+ title={(c) All parameter sets},
+ xtick={0,1,2,3,4,5},
+ xticklabels={K512,K768,K1024,D44,D65,D87},
+ x tick label style={font=\scriptsize,rotate=35,anchor=north east}]
+\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=2.5pt]
+ table[x=index,y=one]{assets/parameter_speedup.dat};
+\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=2.5pt]
+ table[x=index,y=eight]{assets/parameter_speedup.dat};
 \end{groupplot}
 \end{tikzpicture}

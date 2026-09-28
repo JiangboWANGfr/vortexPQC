@@ -6,13 +6,14 @@
   "note": "Resident image reused without programming; VRT metadata cannot attest its PDI identity.",
   "repetitions": 5,
   "warmups": 1,
-  "cells": 120,
+  "cells": 156,
   "runtime": {
     "vortexPQC/build32_v80_pqc_hw/sw/runtime/libvortex.so": "9ea289a7bfe7e70ea985f6ea31d4a7e9bf5aff0e95e5b85f924c6aac0ae04770",
     "vortexPQC/build32_v80_pqc_hw/sw/runtime/libvortex-aved.so": "fef1181d7b7efc7e332f7267531b3a395cdd3c3454afcc840a5582dcda3bad0a",
     "slash/vrt/build/lib/libvrt.so.1.0.0": "1095d1481dff0a9ec3da403963a4dfc5d7d82223f6d176b371f7260561b8bc62",
     "slash/vrt/vrtd/build/libvrtd/src/libvrtd.so.1.0.0": "95600a1c10cd1839f7fe327a0d37b2ad7c93325f337852afa3de8f64a7c99cc8"
   },
+  "full_mapping": true,
   "call_count_sha256": {
     "K512_m1_w1": "0bb23f9d813b3dfcbc1e4c8e24b1a06ca431f42b1047072b787b5fbd1bb98f7e",
     "K512_m2_w2": "8bc8af5126eb6350058640324ef4e2db04aa53b5446abad63cf0238d1bff283f",
@@ -78,63 +79,153 @@
   "apps": {
     "K512_A": {
       "project": "mlkem_profile",
-      "kernel_sha256": "5b87e18a7a389d4fe555e6898adde857df7b8dc678f0b3738f90534e178d0266",
-      "host_sha256": "ff44edb0a5db4f30ec0d8b3a5e7e095f8d40e6491ccaf0f7dc30e0551d219ffc"
+      "kernel_sha256": "39cba166bcf5efd8709cb8723fd1020febc9c016cff3335c8a0f580e4dc25622",
+      "host_sha256": "228d577de47461696c47bf83edd3e2cc77d0eb7a3ee2b944a78801a331335729"
+    },
+    "K512_B": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "f445b8ae7da5225e2629da910c367247b9e75566934af9bf28ce0cdf4ddc9442",
+      "host_sha256": "f9bb86d32d1b3840cb9bcee00d39a5b43e944ebef92672f94a7e47c4ab1fea78"
+    },
+    "K512_C": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "f817438be2f4e52aaa40b8504978a968a409c926ef58874f09a03f028ebe1ba7",
+      "host_sha256": "0bf885c80697de0466fc401b0c763eef9f689a2dd44591cbe3d84d6fb1f5a3c7"
+    },
+    "K512_D": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "11f31c0b3e390ba3a464e7843ec416da1dcf9f24899c3d70c9327b18ae72b16c",
+      "host_sha256": "8dd9700efb4f0739837551007219956dd65b330fd221ca18ef8b5a48a998cc80"
     },
     "K512_E": {
       "project": "mlkem_profile",
-      "kernel_sha256": "a3f08d9ec6e945a956a37f6243324746bac1ada0fcef96d4b4bd3f9634c1a1d9",
-      "host_sha256": "9537b583fd6579d78831322bef917510e754820f659d81ef00ee1375c29e2734"
+      "kernel_sha256": "04a3a3ccc1ddb58edd94fe7e701786a97a9137d6de8138b50ee1993074e1f951",
+      "host_sha256": "170895e759b5d76d97ad72f437cd49b7e4fe9249488e60b4b7f4166e08d3e8b9"
     },
     "K768_A": {
       "project": "mlkem_profile",
-      "kernel_sha256": "34811017f3b56fbe87aafcad50aabc3f7b6b23f717f3330ae902c299f503d1d8",
-      "host_sha256": "da3d887bc2ab45a9be0867decb0f030a5c29df006c08faba1e9cbacbd722bfdb"
+      "kernel_sha256": "087e7f618236d7086c53f454ad813bcaa11e405d85febac73b8205ed860f11f9",
+      "host_sha256": "f65c04625c474cf396fc12e5f4069ac18a21c27c0637c999ce55b9241511ede6"
+    },
+    "K768_B": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "09c0d598658bf8ada91a8c032c007a52382475762784a32681bfd961f2ec38c9",
+      "host_sha256": "5570530b9c12e0e5f07ebfd189be1c41ef4ff5564260d208bfcdce2308eaf68c"
+    },
+    "K768_C": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "cf4205523ab6117691487c0e81429a7647b1a338e1e22e68a38faf4101e19d3f",
+      "host_sha256": "772699360f560b108a1785ce142111627a7670d4d2a7fa7df62451cc9f544105"
+    },
+    "K768_D": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "615ddf25637d9945b570aa723404420b04645259474d1f77f53bb083c85d9119",
+      "host_sha256": "f9dc8fdae5d611ee330ea1b58b5968cf96073e6b83bc18e88bcd116c35f28d12"
     },
     "K768_E": {
       "project": "mlkem_profile",
-      "kernel_sha256": "242ea5381fa246fda93e2fdd071062657b8d408bd6e0b053976b6327f56039ed",
-      "host_sha256": "c501ffe365254da0308026486e8e57af447f8ae8336dbdc15019788eac4f0f15"
+      "kernel_sha256": "37261e099b4bcf65c3dcf4464c6cd305afe6517e1d72156b999c307c14fbc383",
+      "host_sha256": "f9f1d20274469a3825b251302763221b7ece1629692795868ccca6509d871c35"
     },
     "K1024_A": {
       "project": "mlkem_profile",
-      "kernel_sha256": "575a62d1156a14bcae0cf0b53de193f3b9978350de9d31b9447fe6a81c90a08e",
-      "host_sha256": "dc8b5153d162fa24cacee18a51dd423524dd129f0974c0aae497cc8b22da4cdb"
+      "kernel_sha256": "ecff00899263d0521732da8cc4edc2255d6910488f6276253a6b6da5715b6c12",
+      "host_sha256": "5e53d88275d3e8e9d650bd36597717be1d3858bcc5e07d54b8e1db7af7b493f5"
+    },
+    "K1024_B": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "e866179833c5011936619158f18574b3d658648855b986a380e16f75e9734b2b",
+      "host_sha256": "ad9e44923440a5383840acbfadae8834a71c0267e60ef03f4f444028f82aed4c"
+    },
+    "K1024_C": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "b549b67096ea83e35e3c5d33e8c9ea4c89788517c593b41e8842cf2741e5b1da",
+      "host_sha256": "c6037357b0e752baee2d61b84d685218f3bd38fce689f591f2f38809045c630e"
+    },
+    "K1024_D": {
+      "project": "mlkem_profile",
+      "kernel_sha256": "0200f8f1e8d72fa35ba2d88d9ba3b0619ebd34f6119963cea9b900f64ef8f668",
+      "host_sha256": "ddcdbe5b243bd6e38100d1bd259854cf4919c278881aa4ce4b5071bd51149f67"
     },
     "K1024_E": {
       "project": "mlkem_profile",
-      "kernel_sha256": "e6e6a4020050b162665383227b9842ce43b6e53aa5757c7c5984d6070646b4f4",
-      "host_sha256": "63607a00de6ca1123f6c1c48ffca4acdd1873e1d3af177ce5e44cc09dc4ad6ce"
+      "kernel_sha256": "42cff44a8472c43d4598c7a4552b5809041af762e5e2642e8fb35a630d60ee4a",
+      "host_sha256": "6d44edfb762d22a2630a6eb3f295937f97ed8dd804f9035198e9020eb8ad24bc"
     },
     "D44_A": {
       "project": "mldsa_profile",
-      "kernel_sha256": "1bf6f0f73cf35a09a703133150e05e391ab6798ebbf37d64f45c299278943231",
-      "host_sha256": "58f7eb4b0d0e0a83222c186e77fb9860623ec360231b28265624030b4d1e0a39"
+      "kernel_sha256": "0b1d24718da4f6b7f76c5f295f508c10da4c5c53fee582aefd74989b702f6420",
+      "host_sha256": "316e4a8ca046bf618dd9f3dd1916e480eb7a9382987445fd6a9cfa31076ff910"
+    },
+    "D44_B": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "514ca7ceb0a3d4e7db66b3fc1dd01a05e96e3349ab2e31db3c8c755355f4ab10",
+      "host_sha256": "c9047d1030a9c0994bc6cbb5da7f497b44bcea239feddfe863e3a600a31935e3"
+    },
+    "D44_C": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "c468dcdd49143768c9a5088a78960fc0cf6a9aa1f8497da7d3e7b217ffa58a5c",
+      "host_sha256": "f06ce9db9b29c42cd943a8a855174e32e632389413620a29263a062cd422708f"
+    },
+    "D44_D": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "bbe2a5dc1194d4013b634ed05f3b09fe9bcab694beaca70fbd585d8f2230fc95",
+      "host_sha256": "be97dcf572c4fcdcde1e4525693a2f0fbd44947ca5e738559cd532ee801e0e0a"
     },
     "D44_E": {
       "project": "mldsa_profile",
-      "kernel_sha256": "5a52bbbb8f21150c2d497d5e3131de0982ae1f0556c2cb241921ae27557a0907",
-      "host_sha256": "f9139cf39befdd9ae90e103937d20b6b4e2e23b1232373b31be1dc972073a770"
+      "kernel_sha256": "0bc7d0d45c7025465b6cf60972249949a18f464fba0a9348322b1496bec94347",
+      "host_sha256": "926559a3743d63105b9043e210d870a9b3bf6ef04c11afac820554d44a7164af"
     },
     "D65_A": {
       "project": "mldsa_profile",
-      "kernel_sha256": "190fcd8405d63bc2c7f41df6d6db6de6b83eb67ea0467595505bcccc0958bd97",
-      "host_sha256": "0032a589c09b26ba8164fae054e0241f1ce1d8a12d38fedfa2d445f659c43472"
+      "kernel_sha256": "3e71cd91a09424b5081615c5aa5e4d65117beb49e67595f248b01e21764e7a9b",
+      "host_sha256": "a078ff30704ca0b21ef458293b7c8a933e7c63a59bfbd170230761bb9a7b1cb2"
+    },
+    "D65_B": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "ef1efed89e8bae85589ffea1f1bf248032b6706b1f674aff82cfd4d953b0b5d1",
+      "host_sha256": "1c66d041208108b6cbbda30c83640d3a7aaff67bcb6cda5bc88afb11330b3c7a"
+    },
+    "D65_C": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "091d4f266afff3f539bb0bbe907ce2cc8cff99be297e6a7c1f5784b6a35536c9",
+      "host_sha256": "ac082f9c878142cb93734eaf9d42b1434a58ccb69e21b6d2a15342c7b1e719e6"
+    },
+    "D65_D": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "026bf0346f018d04cd689cbfc6ba77061827a3643b88de346f7535c7fdf65f0b",
+      "host_sha256": "e409c9ac8ea2da4590deb25c2a196f0f4843dba32199b951fc95ae50e7bdad9c"
     },
     "D65_E": {
       "project": "mldsa_profile",
-      "kernel_sha256": "bd67f3f7d8a9b40d404ab986732d07b2a82558f55eb8c592aa942538556e7d75",
-      "host_sha256": "308897bc750f550afabcb2fbe512d9673b692f7928820031c81b9a74bef26e5e"
+      "kernel_sha256": "d8959e63f18889e0a48a91cf1a0513036c4410fed6bc2e48c09053369d3a89eb",
+      "host_sha256": "20f228a26d92b543ab209d8053fa2fbbdd949a6a7f685a16a81ccbfe806dfef3"
     },
     "D87_A": {
       "project": "mldsa_profile",
-      "kernel_sha256": "58ff5ad5dfd3611498cfc81b3526d45da5d3e4cfc2deba12c995ced67503c846",
-      "host_sha256": "0a81b5467bc99ea8743d21d2b4691d0cac48f657d5cd15c79bf868ff183b5fcc"
+      "kernel_sha256": "482a779b3987abec3262467d521486a25a7075db373f4d0e83a7e4d759911c43",
+      "host_sha256": "9af9c001661e2d8f9573aa746239ecabe191090bbc813eb3e8688e2cdcc52fab"
+    },
+    "D87_B": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "b261d321ac15b9509820a0d47320cdacb46287462f06c31b1e765974393c7955",
+      "host_sha256": "02858fecef622d9a08d655e1e10ee1d4094e1e0731b926a11d188267969ee148"
+    },
+    "D87_C": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "248c98de8b1aea3ad9b6b6dd4e0e3a2e78139df7aaef1dea8c957d2f67764452",
+      "host_sha256": "0c62e752cbc9496268d71010f4a069d352f701196d6949efc3d48d229e9b2a91"
+    },
+    "D87_D": {
+      "project": "mldsa_profile",
+      "kernel_sha256": "3e60773dedab454e34266993d4d30d86eb6b2a709c3e554f66a8ea32906fa4c7",
+      "host_sha256": "06f01301069d8aee368e8bda570aa7f0c3d541fdff1ecba62b41fdac8f7ad9b6"
     },
     "D87_E": {
       "project": "mldsa_profile",
-      "kernel_sha256": "12c388550840cca8dba50ef5a57a3323958557e1fb4a1c6d9178b582bc1c0342",
-      "host_sha256": "12406aa6dd65ed7529e986d31d2d85dfa70f1d961803960b02b6fba96c8be0e1"
+      "kernel_sha256": "6ec58009d05df2f3a0057fa7e255a6f009c90932c0b810c7a1bd493ca0f45c17",
+      "host_sha256": "e645df1a4616c1f6f17969c8247907955598ce754d92ea62b3f7421debe292e9"
     }
   }
 }

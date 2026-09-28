@@ -1,0 +1,45 @@
+\begin{tikzpicture}
+\begin{groupplot}[
+ group style={group size=2 by 1,horizontal sep=7mm},
+ width=.49\columnwidth,height=43mm,
+ axis lines*=left,
+ tick label style={font=\scriptsize},
+ label style={font=\scriptsize},
+ title style={font=\scriptsize\bfseries},
+ grid=major,grid style={black!8},
+ every axis plot/.append style={semithick,mark size=1.2pt},
+ cycle list={{cBlue,mark=*},{cOrange,mark=square*},
+ {cPurple,mark=triangle*},{cTeal,dashed,mark=diamond*},
+ {black!65,dashed,mark=otimes*},{cGold,dashed,mark=pentagon*}}]
+\nextgroupplot[
+ title={(a) Occupancy},
+ xmin=.7,xmax=8.3,ymin=.9,ymax=3.2,
+ xtick={1,2,4,8},ytick={1,2,3},xlabel={Workers},ylabel={Normalized rate},
+ legend to name=scalinglegend,
+ legend style={font=\scriptsize,draw=none,legend columns=3,column sep=2pt}]
+\addplot table[x=workers,y=K512]{assets/parameter_occupancy.dat};
+\addlegendentry{K512}
+\addplot table[x=workers,y=K768]{assets/parameter_occupancy.dat};
+\addlegendentry{K768}
+\addplot table[x=workers,y=K1024]{assets/parameter_occupancy.dat};
+\addlegendentry{K1024}
+\addplot table[x=workers,y=D44]{assets/parameter_occupancy.dat};
+\addlegendentry{D44}
+\addplot table[x=workers,y=D65]{assets/parameter_occupancy.dat};
+\addlegendentry{D65}
+\addplot table[x=workers,y=D87]{assets/parameter_occupancy.dat};
+\addlegendentry{D87}
+\nextgroupplot[
+ title={(b) Batch size},
+ xmin=5,xmax=67,ymin=.9,ymax=1.15,
+ xtick={8,16,32,64},ytick={.9,1,1.1},xlabel={Requests}]
+\addplot table[x=requests,y=K512]{assets/parameter_batch.dat};
+\addplot table[x=requests,y=K768]{assets/parameter_batch.dat};
+\addplot table[x=requests,y=K1024]{assets/parameter_batch.dat};
+\addplot table[x=requests,y=D44]{assets/parameter_batch.dat};
+\addplot table[x=requests,y=D65]{assets/parameter_batch.dat};
+\addplot table[x=requests,y=D87]{assets/parameter_batch.dat};
+\end{groupplot}
+\path (group c1r1.south west)--(group c2r1.south east)
+ node[midway,below=10mm]{\pgfplotslegendfromname{scalinglegend}};
+\end{tikzpicture}

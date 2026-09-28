@@ -35,9 +35,9 @@ the captions.
 | 2 | `figures/architecture_v2.tex` | Core integration, Keccak granularity, and the shared serialized NTT unit |
 | 3 | `figures/datapath_detail.tex` | Paired butterfly, M2 beat schedule, and RV32 Keccak low/high dependency |
 | 4 | `figures/integration_v2.tex` | Common ML-KEM/ML-DSA software hooks and shared hardware |
-| 5 | `figures/eval_requests.tex` | Matched 200-MHz board speedups for complete KEM and DSA requests |
+| 5 | `figures/eval_requests.tex` | A--E ablations for the middle sets and A/E speedups for all six parameter sets |
 | 6 | `figures/eval_tradeoffs.tex` | Fusion gap and the M16/M8/M4/M2/M1 performance-resource sweep |
-| 7 | `figures/eval_parameters.tex` | Six-parameter 200-MHz board A/E speedups |
+| 7 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
 The manuscript contains three tables: the collective interfaces, the experimental setup,
 and matched post-route cost cohorts.
@@ -46,14 +46,39 @@ and matched post-route cost cohorts.
 
 `data/` contains archived measurement snapshots from `pqc/results/`. The core PPA
 sweep is routed at 200 MHz with the board's write-through D-cache setting.
-The six-parameter board sweep measures 120 A/E configurations with five timed
-repetitions each; its occupancy and fixed-W8 batch plots are archived under
-`pqc/results/v80_hw_validation/parameter_board_200mhz/`.
+The complete-mapping board sweep measures 156 configurations with one warmup
+and five timed repetitions each (780 measurements). It includes A--E at one
+and eight requests plus A/E occupancy and fixed-W8 batches through 64 requests.
+Its source record is
+`pqc/results/v80_hw_validation/parameter_full_board_200mhz/`.
+All arms enable the same software mapping; A/B contain no NTT instructions,
+including Montgomery conversion. Zeroization uses warp cooperation for one
+worker and leader execution otherwise, consistently across arms.
+
+The primary A/E speedups are 2.314--2.365x / 2.004--2.126x for ML-KEM and
+1.910--2.150x / 1.914--2.023x for ML-DSA (one/eight requests). Hardware NTT
+adds 1.082--1.153x and 1.118--1.194x after Stage for KEM and DSA. Extra modular
+arithmetic has limited KEM benefit; KEM-768 remains within 0.2% of D.
+The occupancy curves gain 2.218--3.042x from one to eight workers. Fixed-W8
+M64/M8 throughput is 0.998--1.047x; intermediate DSA batches peak at 1.119x
+and include input-dependent signing-retry variation.
+
+The manuscript validates exactly the completed 60 headline SimX/XRT pairs,
+with identical instruction counts and a maximum cycle gap of 4.422%. Their
+300 board repetitions also match the XRT instruction counts. Supplementary
+simulation scans may continue in the background; their completion is neither
+required nor claimed by the paper. The frozen headline CSVs are independent
+of the live queue. `full_mapping_sources.json` records hashes and scope.
+The older middle-set board JSONs remain historical snapshots, not headline
+inputs. Separate fusion/bank timing controls retain their archived write-back
+configuration; the primary board/model cohort and routed PPA use write-through.
 `generate_results.py` validates matched binaries, correctness status, instruction
 equality, parity bounds, configuration, and routing status before generating:
 
 - `assets/numbers.tex` for reported values;
-- `assets/board_kem.dat`, `assets/board_dsa.dat`, `assets/parameter_speedup.dat`, `assets/fusion_gain.dat`, and `assets/ntt_bank.dat` for plots;
+- `assets/board_kem.dat`, `assets/board_dsa.dat`, `assets/parameter_speedup.dat`,
+  `assets/parameter_occupancy.dat`, `assets/parameter_batch.dat`,
+  `assets/fusion_gain.dat`, and `assets/ntt_bank.dat` for plots;
 - `assets/cost_rows.tex` for the post-route table;
 - `assets/source_manifest.json` with source hashes and derived values.
 
