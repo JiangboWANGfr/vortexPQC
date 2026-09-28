@@ -4,9 +4,9 @@
 
 中文工作题目：**面向 RV32 SIMT GPU 的瓶颈驱动 Keccak 加速设计**。
 
-本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 12 页，含 23 张表、5 幅图和 11 条参考文献。
+本稿采用 IEEEtran conference 模板、Letter 纸张、双栏排版，正文为英文。作者和单位暂用匿名信息，日期为 2026 年 9 月。尚未选定投稿会议，因此没有自行套用某个会议的页数限制。当前 PDF 为 13 页，含 24 张表、5 幅图和 11 条参考文献。
 
-论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。本次更新补齐同 W32 的 PQRV 汇编、SG1/SG5/SG25 映射和 Stage/KROUND 相同展开方式的控制实验，并增加统一核心六映射完整 ML-KEM XRT M1/M8、固定输入置换 XRT 及 RV32IM/RV64IM M8 XRT 对比。
+论文资料统一位于仓库的 pqc/docs/paper/：[PDF 初稿](vortex_pqc_ieee_draft.pdf)、[独立源码包](vortex_pqc_ieee_source.zip)、[正文源文件](main.tex) 和 [参考文献](references.bib)。当前版本新增完整软件映射的六参数 200 MHz 板测；此前的 W32 软件映射、统一核心 XRT 和 RV32IM/RV64IM 对照仍各用自己的匹配分母。
 
 [Keccak 相关工作接口核对](keccak_related_work.md) 区分 RISQ-V 的 CPU 寄存器耦合、专用状态单元及 pointer/DMA 加速器，并提供原文依据；该补充笔记尚未并入正文和 PDF。
 
@@ -158,6 +158,21 @@ RV64 将两种 Keccak 后端的 collective issue 数减半，但完整 ML-KEM �
 
 来源：`keccak_w32_controls.csv`、`mlkem_w32_controls.csv`、`keccak_sg5_sync.csv`，新增模型复测单列于 `keccak_sg5_cache_forward.csv`，轨迹摘要和回归证据见 `keccak_sg5_cache_forward_trace.json`。后三种诊断实现的源码补丁归档于 `keccak_sg5_sync_sources.zip`，分别基于 `68845dd72`；保留的 fence/barrier 实现为 `1bd44cf34`。构建命令、原始日志目录和验证范围见 `docs/proposals/keccak_sg25_proposal.md`。同步轮只改软件与实验入口，后续轮修正 SimX 模型；均未改 RTL 或重新综合。
 
+### 六参数完整映射板测
+
+新 [200 MHz 板测](../../../pqc/results/v80_hw_validation/parameter_full_board_200mhz/README.md) 在六组参数上统一启用了软件并行映射。A 使用软件 Keccak/NTT，E 启用 Stage、NTT 和算术指令；两组其余软件映射相同。下表用相同请求数和 worker 数下五次计时的周期中位数计算 A/E 完整请求加速比，M=1 用 1 个 worker，M=8 用 8 个 worker。
+
+| 参数 | M=1 A/E | M=8 A/E |
+| --- | ---: | ---: |
+| ML-KEM-512 | 2.341× | 2.126× |
+| ML-KEM-768 | 2.314× | 2.004× |
+| ML-KEM-1024 | 2.365× | 2.013× |
+| ML-DSA-44 | 1.966× | 1.966× |
+| ML-DSA-65 | 1.910× | 1.914× |
+| ML-DSA-87 | 2.150× | 2.023× |
+
+因此不能写成“六组参数都超过 2×”：DSA-44 和 DSA-65 仍低于 2×。新板测与先前软件映射较少的六参数实验使用不同的程序，不能混用加速比。旧 DSA-65 板测的签名输入也不同。新板测的六组 A/E 均通过逐字节 KAT；对应的六参数 SimX/XRT 时序模型验证尚未完成。板卡时钟读回为 200 MHz，但驻留 PDI 身份缺少独立元数据证明。
+
 ## 6. 成本与频率的写法
 
 NTT 不是只有一种候选。仓库先后保留了 scalar library、shared-array
@@ -218,7 +233,7 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 
 ## 7. 表格与来源映射
 
-以下路径均相对仓库根目录的 pqc/results/；生成清单保存 28 份 CSV、1 份诊断源码包和 1 份轨迹证据 JSON，共 30 个输入文件的 SHA-256。
+以下路径均相对仓库根目录的 pqc/results/；生成清单保存 30 份 CSV、1 份板测摘要 JSON、1 份诊断源码包和 1 份轨迹证据 JSON，共 33 个输入文件的 SHA-256。
 
 | 正文内容 | 源文件 |
 | --- | --- |
@@ -234,17 +249,18 @@ RV32IM 的 112 减到 RV64IM 的 16，是因为通用 MULDIV 从 96 DSP 改为�
 | 表 IX 整轮比较器 | keccak_kround25.csv |
 | 表 X–XII、图 5 完整 ML-KEM、阶段周期、访存/栈 | keccak_sg25_mlkem.csv |
 | 表 XIII 最终 NTT+Keccak 六映射 XRT 完整 ML-KEM、历史 SimX 对照 | keccak_ntt_unified_xrt.csv、keccak_ntt_unified_mlkem.csv |
-| 表 XIV–XV、同 W32 软件映射与循环展开控制 | keccak_w32_controls.csv |
+| 表 XIV 六参数完整映射板测 | v80_hw_validation/parameter_full_board_200mhz/{summary.json,pqc_parameters_runs.csv,raw_runs.csv} |
+| 表 XV–XVI、同 W32 软件映射与循环展开控制 | keccak_w32_controls.csv |
 | 固定输入的六映射 XRT 置换对照 | keccak_w32_matched_xrt.csv |
-| 表 XVI、同 W32 PQRV 与展开控制的完整 ML-KEM | mlkem_w32_controls.csv |
+| 表 XVII、同 W32 PQRV 与展开控制的完整 ML-KEM | mlkem_w32_controls.csv |
 | SG5 同步实现、失败点与源码对照 | keccak_sg5_sync.csv、keccak_sg5_sync_sources.zip |
 | SG5 cache 转发模型修复与复测 | keccak_sg5_cache_forward.csv、keccak_sg5_cache_forward_trace.json |
-| 表 XVII、最终 RV32IM 直接阶段 profile | mlkem_phase_profile.csv |
-| 表 XVIII、匹配 RV32IM/RV64IM 完整 ML-KEM 与八请求 XRT | rv32im_rv64im_keccak.csv、rv32im_rv64im_keccak_xrt_m8.csv |
-| 表 XIX、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
-| 表 XX、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
-| 表 XXI、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
-| 表 XXII–XXIII、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
+| 表 XVIII、最终 RV32IM 直接阶段 profile | mlkem_phase_profile.csv |
+| 表 XIX、匹配 RV32IM/RV64IM 完整 ML-KEM 与八请求 XRT | rv32im_rv64im_keccak.csv、rv32im_rv64im_keccak_xrt_m8.csv |
+| 表 XX、最终 NTT 架构 PPA | ntt_v80_ppa.csv |
+| 表 XXI、统一 NTT 分母的 Keccak 整核 PPA | ntt_keccak_backend_ppa.csv |
+| 表 XXII、匹配 RV32IM/RV64IM 整核 PPA | rv32im_rv64im_keccak_ppa.csv |
+| 表 XXIII–XXIV、独立单元 PPA 分析 | keccak_sg25_ppa.csv |
 | 历史核宽度成本 | core_config_v80.csv |
 | 历史 SG5 配置说明 | keccak_sg5.csv |
 
@@ -262,7 +278,7 @@ make -C ../pqc/docs/paper
 
 也可在本目录直接执行 make。此目标只生成文档，不编译 Vortex 核心或测试程序。所有中间结果进入仓库 build/ieee_pqc/，最终 PDF 保存在本目录。
 
-[generate_results.py](generate_results.py) 从 24 份结构化结果表生成数值、表格和四张矢量统计图，检查消融差值、调用数、NTT 正确性、SimX/RTL 阶段指令计数、差分样本 ELF 一致性、整轮样本链长、完整 ML-KEM 正确性、阶段周期之和、最终阶段 bucket 的互斥求和、探针开销与三模型一致性、RV32/RV64 KAT 与 model parity、SG5 同步实验的 PASS/FAIL 分类、cache 修复前后的二进制与指令一致性及 launch/span 差距、六映射 XRT KAT/指令一致性，以及两组 XLEN 的综合配置、路由和闭合状态。另将文字引用的四份历史 CSV、一份 SG5 诊断源码包和一份轨迹证据 JSON 纳入哈希清单，共记录 30 个输入文件；这些历史文件不是重新执行实验后的结果。
+[generate_results.py](generate_results.py) 从 26 份结构化结果表生成数值、表格和四张矢量统计图，检查新板测的五次原始周期与中位数，以及原有的消融差值、KAT、指令数、SimX/RTL/XRT 对照和综合配置。另将文字引用的四份历史 CSV、板测摘要 JSON、一份 SG5 诊断源码包和一份轨迹证据 JSON 纳入哈希清单，共记录 33 个输入文件；这些历史文件不是重新执行实验后的结果。
 
 独立源码包含已生成的表格、图、原始 CSV 快照和 provenance.json，可在 Overleaf 选择 pdfLaTeX 编译 main.tex，也可在解压目录执行：
 
@@ -286,7 +302,7 @@ provenance.json 记录本次文档生成时的仓库 HEAD、工作区是否有�
 最终 8w × 32t 的直接阶段计时、匹配软件映射与展开控制已完成。剩余优先项为：
 
 1. 补齐真实 fence 的 cache-flush 建模，并追踪 SG5 W8/S2/P2 独立区间仍有的 5.633% 差距。BAR/LSU/cache 对照已定位并修复 fill 转发时机；保留的双 warp barrier 方案全部 11 对整 launch 已通过，但不能外推到其他同步方案或所有独立区间。
-2. 扩展多输入与混合 batch；如果论文覆盖 ML-DSA collective 性能，则完成其端到端集成和输入分布实验。
-3. 根据最终投稿目标补板上运行、功耗/能耗和更完整系统 PPA。现有 XRT 证据是集成仿真，ASIC 数据是独立单元映射结果。
+2. 补齐六参数完整软件映射的 SimX/XRT 时序模型验证，并扩展 ML-DSA 多输入与混合 batch；目前板测覆盖完整请求，但没有单独分离 ML-DSA Keccak collective 收益。
+3. 根据最终投稿目标补功耗/能耗和更完整系统 PPA。板上运行已有 200 MHz 六参数数据；ASIC 数据仍是独立单元映射结果。
 
 这些项目已在英文稿限制部分明确写出，没有用推算值填成实测结果。

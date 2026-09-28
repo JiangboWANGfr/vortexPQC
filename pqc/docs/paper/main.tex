@@ -46,6 +46,11 @@ improves complete ML-KEM XRT cycles by \UnifiedStageOne{} times at one request
 and \UnifiedStageEight{} times at eight requests over serial software;
 the instruction-only gains over the identical shuffle mapping are
 \UnifiedIseOne{} and \UnifiedIseEight{} times.
+A separate 200 MHz board sweep with matched complete software mappings
+measures joint Keccak, NTT, and arithmetic speedups of
+\BoardMinOne{}--\BoardMaxOne{} times at one request and
+\BoardMinEight{}--\BoardMaxEight{} times at eight across six ML-KEM/ML-DSA
+parameter sets.
 At a common 250 MHz target, the stage extension increases full-core LUTs by
 \StageLutOverhead{} and flip-flops by \StageFfOverhead{}. A matched RV32IM
 control gives both Stage and whole round fully expanded round code.
@@ -148,10 +153,10 @@ and three-word row gathers. The RV32 interface stores each word in two
 32-bit registers, avoiding a change to the core-wide integer width.
 
 \subsection{Measurement families and denominators}
-Table~\ref{tab:config} separates the measurement families. All cycle results
-are simulation results. FPGA numbers come from routed out-of-context
-\code{VX\_core\_top} or isolated-unit implementations targeting the Alveo V80
-part; they are not board measurements. We preserve historical software
+Table~\ref{tab:config} separates the measurement families. Except for the
+200 MHz board sweep, cycle results are from simulation. FPGA area and timing
+numbers come from routed out-of-context \code{VX\_core\_top} or isolated-unit
+implementations targeting the Alveo V80 part. We preserve historical software
 experiments to explain the design choice, but use the 8-warp, 32-thread
 experiments for the collective comparison.
 
@@ -172,6 +177,7 @@ SG25 stages / round & $8\times32$ & 32-wide SIMD/ALU; 1 or 8 states & Synchroniz
 Complete SG25 ML-KEM & $8\times32$ & Serial FIPS-202; 143 permutations/request & Whole-launch cycles at fixed $M$ & SG1, shuffle, stages, whole round, pointer \\
 Final NTT+Keccak ML-KEM & $8\times32$ & W32 NTT/arithmetic; KAT; 140 permutations/request & Whole-launch cycles at fixed $M$ & Five Keccak backends with all other arms fixed \\
 W32 software / unrolling & $8\times32$ & RV32IM; SG1/PQRV/SG5/SG25; looped/unrolled stages & Completed-permutation span; KEM launch at fixed $M$ & Packed-state throughput and equal-unrolling controls \\
+Six-parameter board & $8\times32$ & ML-KEM-512/768/1024 and ML-DSA-44/65/87; matched full software mapping & Median request makespan at fixed $M$ and workers & Joint A/E instruction gains within this board cohort \\
 Physical implementation & $8\times32$ & RV32 backend builds; matched integer-only RV32/RV64 NTT/Stage/KROUND builds; isolated units & Matched 250/300 MHz constraints & LUT/FF and STA-derived frequency within each family \\
 \bottomrule
 \end{tabular}
@@ -847,6 +853,42 @@ historical SimX rows remain in \texttt{keccak\_ntt\_unified\_mlkem.csv}.
 Section~VI uses four separate builds that retain the same NTT and enable either no Keccak
 hardware, stages, whole round, or the pointer PE.
 
+\subsection{Six-parameter 200 MHz board sweep}
+Table~\ref{tab:boardparameters} measures full ML-KEM key generation,
+encapsulation, and decapsulation or ML-DSA key generation, signing, and
+verification. All six sets use one RV32, $8w\times32t$ board image and the
+same complete software mapping in each arm. A executes software Keccak and
+NTT; E adds Stage, NTT, and arithmetic instructions. The KEM mapping includes
+warp-level sampling, encoding, noise, and linear operations; the DSA mapping
+includes warp-level sampling, SHAKE extraction, and signing arithmetic.
+Each cell has one warmup and five timed runs, with byte-exact KAT checks.
+The table divides median A makespan by median E makespan at the same request
+count and worker count. All DSA inputs in this sweep start at index 1.
+
+\begin{table}[t]
+\caption{Matched full-mapping A/E round-trip speedups on the 200 MHz V80
+board. $M=1$ uses one worker; $M=8$ uses eight workers.}
+\label{tab:boardparameters}
+\centering\footnotesize\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Parameter set & $M=1$ & $M=8$ \\
+\midrule
+\tablerows{board_parameters.tex}
+\bottomrule
+\end{tabular}
+\src{pqc/results/v80_hw_validation/parameter_full_board_200mhz/pqc_parameters_runs.csv}
+\end{table}
+
+The joint gain spans \BoardMinOne{}--\BoardMaxOne{}$\times$ at one request
+and \BoardMinEight{}--\BoardMaxEight{}$\times$ at eight. Both ML-DSA-44 and
+ML-DSA-65 remain below $2\times$ in these matched comparisons; the four other
+sets exceed $2\times$ at both request counts. These ratios include all three
+instruction families and must not be attributed to Keccak alone. The
+earlier incomplete-mapping parameter sweep uses different software binaries;
+its A/E ratios are not pooled with this cohort. The historical DSA-65 board
+ablation also starts from a different signing input.
+
 \subsection{Matched W32 software and unrolling controls}
 The additional controls hold RV32IM, disabled F/D, W8T32, final NTT, and
 the Stage/KROUND-enabled core fixed. Table~\ref{tab:w32mapping} reruns
@@ -1295,13 +1337,17 @@ and one SG5 column mapping with synchronization controls. They do not establish 
 software implementation. Packed-state permutation throughput is distinct from
 complete-request throughput; SG5 has no end-to-end ML-KEM integration here.
 
-ML-DSA collective integration and mixed-input batches remain unmeasured.
-Existing ML-DSA results cover software and pointer controls on their own
-configurations. We report neither confidence intervals from repeated
-deterministic simulation nor quantiles from the incomplete host sweep.
+The six-parameter board sweep covers complete ML-DSA requests, but it does
+not isolate an ML-DSA Keccak collective or characterize mixed-input batch
+distributions. Its fixed-input DSA signing times can depend on rejection
+sampling. The corresponding full-mapping SimX/XRT parity campaign remains
+incomplete, so the board results do not establish timing-model parity across
+all six sets. We report no quantiles from the incomplete host sweep.
 
-Evidence includes XRT integration simulation and out-of-context full-core
-FPGA routing. Board execution, complete-system PPA, full-core routed ASIC
+Evidence includes XRT integration simulation, a 200 MHz V80 board sweep, and
+out-of-context full-core FPGA routing. The resident board image was reused;
+clock readback confirms 200 MHz, but VRT metadata does not independently
+attest the resident PDI identity. Complete-system PPA, full-core routed ASIC
 results, and activity-driven energy remain outside the demonstrated scope.
 Each XLEN physical row is one implementation seed.
 Register residence alone does not establish side-channel resistance.
@@ -1319,6 +1365,9 @@ They improve permutation throughput by \StageThroughputGain{}$\times$
 over shuffles and, with the final NTT path fixed, complete ML-KEM by
 \UnifiedStageOne{}$\times$/\UnifiedStageEight{}$\times$ over SG1 at
 one/eight requests.
+The matched full-mapping board sweep extends the joint instruction evaluation
+to six ML-KEM/ML-DSA parameter sets, with \BoardMinOne{}--\BoardMaxOne{}$\times$
+at one request and \BoardMinEight{}--\BoardMaxEight{}$\times$ at eight.
 With equal round unrolling, whole-round fusion adds
 \MatchedRoundGainEight{}$\times$ permutation throughput but only
 \MatchedRoundKemGainOne{}$\times$/\MatchedRoundKemGainEight{}$\times$
@@ -1339,7 +1388,8 @@ one primitive benchmark.
 \section{Data Provenance and Reproduction}
 All local measurements quoted here are archived under \code{pqc/results/}.
 The companion README maps tables to source files. The generator recomputes
-ratios, checks ablation differences and phase sums, and emits vector figures
+ratios, checks board medians against five raw repeats, checks ablation
+differences and phase sums, and emits vector figures
 and a SHA-256 input manifest. It uses data rows rather than historical
 narrative percentages. The new W32 controls identify their source commit and
 executable hashes. Some historical collective datasets were measured with

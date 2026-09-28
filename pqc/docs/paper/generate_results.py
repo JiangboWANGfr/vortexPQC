@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 from pathlib import Path
+from statistics import median
 import subprocess
 
 import matplotlib
@@ -316,6 +317,45 @@ for backend, xrt_row in unified_xrt.items():
     macros["UnifiedXrtGap" + ("Stage" if backend == "sg25_stages" else "Round")] = \
         number(100 * gap, 3) + "\\%"
 macros["UnifiedMatchedMaxModelGap"] = percent(max(matched_gaps))
+
+board_dir = "v80_hw_validation/parameter_full_board_200mhz"
+board_summary_path = RESULTS / board_dir / "summary.json"
+sources[str(board_summary_path.relative_to(ROOT))] = hashlib.sha256(
+    board_summary_path.read_bytes()).hexdigest()
+board_summary = json.loads(board_summary_path.read_text())
+board_rows = read(board_dir + "/pqc_parameters_runs")
+board_raw = read(board_dir + "/raw_runs")
+board_index = {(r["parameter"], r["arm"], r["requests"], r["resident"]): r
+               for r in board_rows}
+board_repeats = {}
+for row in board_raw:
+    key = tuple(row[field] for field in ("parameter", "arm", "requests", "resident"))
+    board_repeats.setdefault(key, []).append(int(row["cycles"]))
+assert board_summary["full_mapping"] and board_summary["cells"] == len(board_index) == 156
+assert board_summary["repetitions"] == 5 and board_summary["warmups"] == 1
+assert board_summary["board_clock_hz_before"] == board_summary["board_clock_hz_after"] == 200000000
+assert set(board_repeats) == set(board_index)
+assert all(len(board_repeats[key]) == 5 and median(board_repeats[key]) == int(row["cycles"])
+           for key, row in board_index.items())
+assert all(r["driver"] == "aved" and r["input_start"] == "1" for r in board_rows)
+board_parameters = ("K512", "K768", "K1024", "D44", "D65", "D87")
+board_gains = {1: [], 8: []}
+board_table = []
+for parameter in board_parameters:
+    gains = []
+    for requests in (1, 8):
+        key = (parameter, "A", str(requests), str(requests))
+        baseline = int(board_index[key]["cycles"])
+        optimized = int(board_index[(parameter, "E", str(requests), str(requests))]["cycles"])
+        gain = baseline / optimized
+        board_gains[requests].append(gain)
+        gains.append(number(gain))
+    board_table.append(["ML-KEM-" + parameter[1:] if parameter[0] == "K"
+                        else "ML-DSA-" + parameter[1:], *gains])
+table("board_parameters", board_table)
+for requests, suffix in ((1, "One"), (8, "Eight")):
+    macros["BoardMin" + suffix] = number(min(board_gains[requests]))
+    macros["BoardMax" + suffix] = number(max(board_gains[requests]))
 
 xlen_rows = read("rv32im_rv64im_keccak")
 assert all(r["result"] == "PASS" and r["kat"] == "PASS" for r in xlen_rows)
