@@ -26,7 +26,7 @@ The page allocation is:
 
 ## Figures and tables
 
-All seven figures are native TikZ/PGFPlots sources with restrained labels and explanations in
+All six figures are native TikZ/PGFPlots sources with restrained labels and explanations in
 the captions.
 
 | Figure | Source | Purpose |
@@ -34,10 +34,9 @@ the captions.
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
 | 2 | `figures/architecture_v2.tex` | Full-width core context, expanded shared NTT datapath, and Keccak pipelines |
 | 3 | `figures/datapath_detail.tex` | Single-column M2 product schedule and RV32 Round register dependencies |
-| 4 | `figures/integration_v2.tex` | Common ML-KEM/ML-DSA software hooks and shared hardware |
-| 5 | `figures/eval_requests.tex` | A--E ablations for the middle sets and A/E speedups for all six parameter sets |
-| 6 | `figures/eval_tradeoffs.tex` | Fusion gap and the M16/M8/M4/M2/M1 performance-resource sweep |
-| 7 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
+| 4 | `figures/eval_requests.tex` | A--E ablations for the middle sets and A/E speedups for all six parameter sets |
+| 5 | `figures/eval_tradeoffs.tex` | Fusion gap and the M16/M8/M4/M2/M1 performance-resource sweep |
+| 6 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
 The manuscript contains three tables: the collective interfaces, the experimental setup,
 and matched post-route cost cohorts.

@@ -334,19 +334,11 @@ NTTMUL.K/D & lane-local & product & II=$B$\\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
-\centering\input{figures/integration_v2.tex}
-\caption{Software integration. Both native libraries retain leader control
-and enter converged warp kernels through their existing Keccak and NTT hooks.
-The algorithms select a reduction mode while sharing routing and multipliers.}
-\label{fig:integration}
-\end{figure}
-
 \subsection{Complete-library integration}
 The native libraries retain their public APIs and byte-level
-outputs~\cite{mlkemnative,mldsanative}. Lane zero
-executes scalar control, broadcasts primitive arguments, activates the warp,
-and restores leader execution (Fig.~\ref{fig:integration}). One-shot SHAKE
+outputs~\cite{mlkemnative,mldsanative}. Their Keccak and NTT hooks select the
+shared datapaths. Lane zero broadcasts primitive arguments, activates the
+cooperating lanes, and resumes scalar control when the primitive returns. One-shot SHAKE
 keeps its state in registers across absorb, permutation, and squeeze; an
 incremental context is stored between calls. NTT kernels load eight
 coefficients per lane and perform all layers without intermediate memory.
@@ -557,6 +549,7 @@ they do not establish an optimal bank size for every parameter and workload.
 Energy requires workload activity; device timings do not measure host-to-host
 latency.
 
+\noindent\begin{minipage}{\columnwidth}
 \section{Conclusion}
 Communication-matched collectives keep Keccak and NTT state in ordinary lane
 registers and share one modular unit across ML-KEM and ML-DSA. At 200 MHz,
@@ -566,6 +559,7 @@ ablations show incremental NTT benefit after Stage, while bank sizing and
 batch sweeps favor modest hardware and explicit warp concurrency. Primitive
 throughput alone does not predict the best complete-request design.
 
+\end{minipage}
 \clearpage
 \bibliographystyle{IEEEtran}
 \bibliography{references}
