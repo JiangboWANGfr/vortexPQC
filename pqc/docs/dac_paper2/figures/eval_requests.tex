@@ -1,36 +1,70 @@
-\begin{tikzpicture}
-\begin{groupplot}[
- group style={group size=3 by 1,horizontal sep=10mm},
- width=.31\textwidth,height=43mm,
- axis lines*=left,
- tick label style={font=\scriptsize},
- label style={font=\scriptsize},
- title style={font=\footnotesize\bfseries,yshift=-1mm},
- grid=major,grid style={black!8},
- ymin=0,ymax=2.6,ytick={0,1,2},ylabel={Speedup vs. A},
- ybar]
-\nextgroupplot[
- title={(a) ML-KEM-768},
- xtick={0,1,2,3,4},xticklabels={A,B,C,D,E}]
-\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=3pt]
- table[x=index,y=one]{assets/board_kem.dat};
-\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=3pt]
- table[x=index,y=eight]{assets/board_kem.dat};
-\nextgroupplot[
- title={(b) ML-DSA-65},
- xtick={0,1,2,3,4},xticklabels={A,B,C,D,E}]
-\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=3pt]
- table[x=index,y=one]{assets/board_dsa.dat};
-\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=3pt]
- table[x=index,y=eight]{assets/board_dsa.dat};
-\nextgroupplot[
- title={(c) All parameter sets},
- xtick={0,1,2,3,4,5},
- xticklabels={K512,K768,K1024,D44,D65,D87},
- x tick label style={font=\scriptsize,rotate=35,anchor=north east}]
-\addplot[draw=cBlue!85!black,fill=cBlue!27,bar width=2.5pt]
- table[x=index,y=one]{assets/parameter_speedup.dat};
-\addplot[draw=cTeal!85!black,fill=cTeal!30,bar width=2.5pt]
- table[x=index,y=eight]{assets/parameter_speedup.dat};
-\end{groupplot}
+\begin{tikzpicture}[x=1mm,y=1mm,font=\fontsize{8}{9}\selectfont]
+\path[use as bounding box] (0,0) rectangle (178,57);
+\pgfplotsset{requestaxis/.style={
+ scale only axis,anchor=south west,height=34mm,
+ axis lines*=left,axis line style={black!65,line width=.35pt},
+ tick align=outside,tick style={black!65,line width=.35pt},
+ tick label style={font=\fontsize{8}{9}\selectfont},
+ ymin=0,ymax=2.65,ytick={0,1,2},
+ ymajorgrids=true,grid style={black!10,line width=.3pt},
+ enlarge x limits=false,ybar,clip=false,
+ every axis plot/.append style={line width=.35pt},
+ bar width=5pt},
+ requestone/.style={draw=cBlue,fill=cBlue!78,bar shift=-2.8pt},
+ requesteight/.style={draw=cTeal,fill=cTeal!68,bar shift=2.8pt}}
+
+\begin{axis}[requestaxis,at={(9mm,11mm)},width=67mm,
+ xmin=-.55,xmax=5.55,xtick={0,1,2,3,4,5},
+ xticklabels={512,768,1024,44,65,87}]
+ \draw[black!55,dashed,line width=.45pt]
+  (axis cs:-.55,1)--(axis cs:5.55,1);
+ \addplot[requestone]
+  table[x=index,y=one]{assets/parameter_speedup.dat};
+ \addplot[requesteight]
+  table[x=index,y=eight]{assets/parameter_speedup.dat};
+\end{axis}
+
+\begin{axis}[requestaxis,at={(88mm,11mm)},width=42mm,
+ xmin=.5,xmax=4.5,xtick={1,2,3,4},xticklabels={B,C,D,E},
+ yticklabels={},restrict x to domain=1:4]
+ \draw[black!55,dashed,line width=.45pt]
+  (axis cs:.5,1)--(axis cs:4.5,1);
+ \addplot[requestone]
+  table[x=index,y=one]{assets/board_kem.dat};
+ \addplot[requesteight]
+  table[x=index,y=eight]{assets/board_kem.dat};
+\end{axis}
+
+\begin{axis}[requestaxis,at={(136mm,11mm)},width=42mm,
+ xmin=.5,xmax=4.5,xtick={1,2,3,4},xticklabels={B,C,D,E},
+ yticklabels={},restrict x to domain=1:4]
+ \draw[black!55,dashed,line width=.45pt]
+  (axis cs:.5,1)--(axis cs:4.5,1);
+ \addplot[requestone]
+  table[x=index,y=one]{assets/board_dsa.dat};
+ \addplot[requesteight]
+  table[x=index,y=eight]{assets/board_dsa.dat};
+\end{axis}
+
+\node[rotate=90] at (1,28) {Speedup over A};
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (42.5,48.5)
+ {(a) All parameters: $T_A/T_E$};
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (109,48.5)
+ {(b) ML-KEM-768};
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (157,48.5)
+ {(c) ML-DSA-65};
+
+\draw[black!45,line width=.35pt] (11,4.6)--(40.5,4.6);
+\draw[black!45,line width=.35pt] (44.5,4.6)--(74,4.6);
+\node[anchor=north] at (25.75,4.1) {ML-KEM};
+\node[anchor=north] at (59.25,4.1) {ML-DSA};
+\node[anchor=north,text=black!75] at (109,4.1) {Execution mode};
+\node[anchor=north,text=black!75] at (157,4.1) {Execution mode};
+
+\path[draw=cBlue,fill=cBlue!78,line width=.35pt]
+ (48,53.3) rectangle (52.5,55.8);
+\node[anchor=west] at (54.2,54.55) {$N=1,\ W=1$};
+\path[draw=cTeal,fill=cTeal!68,line width=.35pt]
+ (98,53.3) rectangle (102.5,55.8);
+\node[anchor=west] at (104.2,54.55) {$N=8,\ W=8$};
 \end{tikzpicture}

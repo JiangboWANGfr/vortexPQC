@@ -338,16 +338,29 @@ table("ntt_bank.dat",
         100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_ffs"]) / int(ppa_base["ntt_ffs"]),
         100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_dsps"]) / int(ppa_base["ntt_dsps"]))
        for bank in bank_order])
+request_changes = {}
+for scheme in ("mlkem", "mldsa"):
+    for batch in (1, 8):
+        runs = [r for r in bank_perf if r["scheme"] == scheme
+                and r["requests"] == str(batch)]
+        for key in ("kernel_sha256", "calls_sha256", "instructions"):
+            assert len({r[key] for r in runs}) == 1, (scheme, batch, key)
+        reference = one(runs, multipliers=16, driver="xrt")
+        for bank in bank_order:
+            row = one(runs, multipliers=bank, driver="xrt")
+            change = 100 * (int(row["makespan_cycles"]) /
+                            int(reference["makespan_cycles"]) - 1)
+            assert abs(change - float(row["change_vs16_pct"])) < 0.000001
+            request_changes[scheme, batch, bank] = change
+table("ntt_bank_requests.dat", ["bank", "kem_one", "kem_eight", "dsa_one", "dsa_eight"],
+      [(bank, *(request_changes[scheme, batch, bank]
+                 for scheme in ("mlkem", "mldsa") for batch in (1, 8)))
+       for bank in bank_order])
 bank_two_ppa = one(ppa, multipliers=2, keccak="base")
 bank_two_perf = [r for r in bank_perf
                  if r["multipliers"] == "2" and r["driver"] == "xrt"]
 assert len(bank_two_perf) == 4
 bank_numbers = {
-    "BankTwoDspPct": 100 * int(bank_two_ppa["ntt_dsps"]) / int(ppa_base["ntt_dsps"]),
-    "BankTwoCyclesPct": 100 * int(one(bank_nttbf, multipliers=2)["rtl_cycles"]) / nttbf_base,
-    "BankOneDspPct": 100 * int(one(ppa, multipliers=1, keccak="base")["ntt_dsps"]) /
-                     int(ppa_base["ntt_dsps"]),
-    "BankOneCyclesPct": 100 * int(one(bank_nttbf, multipliers=1)["rtl_cycles"]) / nttbf_base,
     "BankEightNttPenalty": float(one(bank_nttbf, multipliers=8)["change_vs16_pct"]),
     "BankFourNttPenalty": float(one(bank_nttbf, multipliers=4)["change_vs16_pct"]),
     "BankTwoNttPenalty": float(one(bank_nttbf, multipliers=2)["change_vs16_pct"]),
@@ -425,9 +438,9 @@ for m, name in [(1, "One"), (8, "Eight")]:
     s = one(kem_controls, arm="stage_unrolled", driver="simx", batch=m)
     r = one(kem_controls, arm="kround", driver="simx", batch=m)
     numbers["FusionKem" + name] = int(s["device_cycles"]) / int(r["device_cycles"])
-table("fusion_gain.dat", ["index", "perm", "kem"],
-      [(i, numbers["Fusion" + name], numbers["FusionKem" + name])
-       for i, name in enumerate(["One", "Eight"])])
+table("fusion_scope.dat", ["scope", "one", "eight"],
+      [(0, numbers["FusionOne"], numbers["FusionEight"]),
+       (1, numbers["FusionKemOne"], numbers["FusionKemEight"])])
 def latex_number(key, value):
     if key.startswith("Motivation"):
         return f"{value:.2f}"

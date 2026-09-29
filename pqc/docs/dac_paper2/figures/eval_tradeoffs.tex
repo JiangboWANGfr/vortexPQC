@@ -1,44 +1,101 @@
-\begin{tikzpicture}
-\begin{groupplot}[
- group style={group size=3 by 1,horizontal sep=10mm},
- width=.31\textwidth,height=43mm,
- axis lines*=left,
- tick label style={font=\scriptsize},
- label style={font=\scriptsize},
- title style={font=\footnotesize\bfseries,yshift=-1mm},
- grid=major,grid style={black!8}]
-\nextgroupplot[
- title={(a) Round over Stage},
- ymin=0,ymax=3.7,ytick={0,1,2,3},ylabel={Speedup},
- xtick={0,1},xticklabels={$N{=}1$,$N{=}8$},
- legend style={font=\scriptsize,draw=none,fill=none,at={(.5,.98)},anchor=north,legend columns=1},
- ybar,bar width=6pt]
-\addplot[draw=cPurple!85!black,fill=cPurple!28] table[x=index,y=perm]{assets/fusion_gain.dat};
-\addlegendentry{Permutation}
-\addplot[draw=cTeal!85!black,fill=cTeal!25] table[x=index,y=kem]{assets/fusion_gain.dat};
-\addlegendentry{Complete KEM}
-\nextgroupplot[
- title={(b) Performance--DSP},
- xmin=0,xmax=105,ymin=99,ymax=127,
- xtick={0,25,50,75,100},ytick={100,110,120},
- xlabel={NTT DSPs (\% M16)},ylabel={RTL cycles (\% M16)}]
-\addplot[cBlue,semithick,mark=*,mark size=1.6pt]
- table[x=nttdsp,y=cycles]{assets/ntt_bank.dat};
-\addplot[only marks,mark=*,mark size=3pt,cGold]
- coordinates {(\BankTwoDspPct,\BankTwoCyclesPct)};
-\node[font=\scriptsize,anchor=north west]
- at (axis cs:\BankOneDspPct,\BankOneCyclesPct) {M1};
-\node[font=\scriptsize,text=cGold!85!black,anchor=south west,xshift=1pt]
- at (axis cs:\BankTwoDspPct,\BankTwoCyclesPct) {M2};
-\node[font=\scriptsize,anchor=south east] at (axis cs:100,100) {M16};
-\nextgroupplot[
- title={(c) NTT hierarchy},
- xmin=-.15,xmax=4.15,ymin=0,ymax=105,
- xtick={0,1,2,3,4},xticklabels={16,8,4,2,1},
- ytick={0,25,50,75,100},xlabel={Multipliers},ylabel={Resource (\% M16)}]
-\addplot[cBlue,semithick,mark=*] table[x expr=\coordindex,y=nttlut]{assets/ntt_bank.dat};
-\addplot[cTeal,semithick,mark=square*] table[x expr=\coordindex,y=nttff]{assets/ntt_bank.dat};
-\addplot[cPurple,semithick,mark=triangle*] table[x expr=\coordindex,y=nttdsp]{assets/ntt_bank.dat};
-\draw[cGold,semithick,dashed] (axis cs:3,0)--(axis cs:3,105);
-\end{groupplot}
+\begin{tikzpicture}[x=1mm,y=1mm,font=\fontsize{8}{9}\selectfont]
+\path[use as bounding box] (0,0) rectangle (178,88);
+\pgfplotsset{
+ tradeaxis/.style={
+  scale only axis,anchor=south west,height=27mm,
+  axis lines*=left,axis line style={black!65,line width=.35pt},
+  tick align=outside,major tick length=1.5pt,
+  tick style={black!65,line width=.35pt},
+  tick label style={font=\fontsize{8}{9}\selectfont},
+  label style={font=\fontsize{8}{9}\selectfont},
+  ymajorgrids,grid style={black!10,line width=.3pt},
+  scaled ticks=false,
+  legend style={font=\fontsize{8}{9}\selectfont,draw=none,fill=none,
+   inner sep=.5pt,legend cell align=left},
+ },
+ bankaxis/.style={tradeaxis,xmin=-.45,xmax=4.45,
+  xtick={0,1,2,3,4},
+  xticklabels={M16,M8,M4,\textcolor{cGold!75!black}{\bfseries M2},M1}},
+ onebar/.style={draw=cBlue,fill=cBlue!78,line width=.35pt},
+ eightbar/.style={draw=cTeal,fill=cTeal!70,line width=.35pt}}
+
+\begin{axis}[tradeaxis,at={(12mm,53mm)},width=71mm,
+ xmin=-.8,xmax=4.8,ymin=0,ymax=4,ytick={0,1,2,3},ylabel={Speedup},
+ xtick={.5,3.5},xticklabels={Permutation,Complete KEM},
+ xticklabel style={align=center},
+ legend style={at={(.5,1.02)},anchor=south,legend columns=2,column sep=3mm},
+ ybar,bar width=10pt,bar shift=0pt,
+ legend image code/.code={\draw[#1] (0cm,-.05cm) rectangle (.18cm,.05cm);},
+ nodes near coords,point meta=y,
+ every node near coord/.append style={font=\fontsize{8}{9}\selectfont,
+  /pgf/number format/fixed,/pgf/number format/precision=3,
+  /pgf/number format/fixed zerofill,yshift=1pt}]
+ \draw[black!45,dashed,line width=.4pt] (axis cs:-.8,1)--(axis cs:4.8,1);
+ \addplot[onebar] table[x expr=3*\thisrow{scope},y=one]{assets/fusion_scope.dat};
+ \addlegendentry{$N=1$}
+ \addplot[eightbar] table[x expr=3*\thisrow{scope}+1,y=eight]{assets/fusion_scope.dat};
+ \addlegendentry{$N=8$}
+\end{axis}
+\node[font=\fontsize{7.5}{8.5}\selectfont,text=black!65] at (28.5,45.8) {XRT};
+\node[font=\fontsize{7.5}{8.5}\selectfont,text=black!65] at (66.5,45.8) {SimX};
+
+\begin{axis}[bankaxis,at={(102mm,53mm)},width=75mm,
+ ymin=0,ymax=28.5,ytick={0,10,20},ylabel={Cycle increase (\%)}]
+ \path[fill=cGold!13,draw=none] (axis cs:2.7,0) rectangle (axis cs:3.3,28.5);
+ \addplot[cBlue,line width=.8pt,mark=*,mark size=2pt]
+  table[x expr=\coordindex,y expr=\thisrow{cycles}-100]{assets/ntt_bank.dat};
+ \addplot[cGold!85!black,only marks,mark=*,mark size=2.7pt]
+  coordinates {(3,\BankTwoNttPenalty)};
+ \node[anchor=south east,font=\fontsize{8}{9}\selectfont,text=cGold!75!black]
+  at (axis cs:3,5) {+\BankTwoNttPenalty\%};
+\end{axis}
+
+\begin{axis}[bankaxis,at={(12mm,8mm)},width=71mm,
+ ymin=-.35,ymax=.65,ytick={-.3,0,.3,.6},ylabel={Makespan change (\%)},
+ yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=1},
+ legend style={at={(.02,.99)},anchor=north west,legend columns=2,
+  column sep=1.5mm,row sep=-.3pt,fill=white,fill opacity=.9,text opacity=1}]
+ \path[fill=cGold!13,draw=none] (axis cs:2.7,-.35) rectangle (axis cs:3.3,.65);
+ \draw[black!45,line width=.4pt] (axis cs:-.45,0)--(axis cs:4.45,0);
+ \addplot[cBlue,line width=.75pt,mark=*,mark size=1.8pt]
+  table[x expr=\coordindex,y=kem_one]{assets/ntt_bank_requests.dat};
+ \addlegendentry{K, $N=1$}
+ \addplot[cBlue,line width=.75pt,dashed,mark=square*,mark size=1.8pt]
+  table[x expr=\coordindex,y=kem_eight]{assets/ntt_bank_requests.dat};
+ \addlegendentry{K, $N=8$}
+ \addplot[cTeal,line width=.75pt,mark=triangle*,mark size=2.2pt]
+  table[x expr=\coordindex,y=dsa_one]{assets/ntt_bank_requests.dat};
+ \addlegendentry{D, $N=1$}
+ \addplot[cTeal,line width=.75pt,dashed,mark=diamond*,mark size=2.2pt]
+  table[x expr=\coordindex,y=dsa_eight]{assets/ntt_bank_requests.dat};
+ \addlegendentry{D, $N=8$}
+ \node[anchor=south east,font=\fontsize{8}{9}\selectfont,text=cGold!75!black]
+  at (axis cs:3.05,.23) {+\BankTwoEndToEndMax\%};
+ \draw[cGold!75!black,line width=.45pt,-{Stealth[length=1.1mm]}]
+  (axis cs:3,.23)--(axis cs:3,\BankTwoEndToEndMax);
+\end{axis}
+
+\begin{axis}[bankaxis,at={(102mm,8mm)},width=75mm,
+ ymin=0,ymax=120,ytick={0,50,100},ylabel={Resources (\% of M16)},
+ legend style={at={(.97,1.01)},anchor=north east,legend columns=3,column sep=2mm}]
+ \path[fill=cGold!13,draw=none] (axis cs:2.7,0) rectangle (axis cs:3.3,120);
+ \addplot[cBlue,line width=.8pt,mark=*,mark size=2pt]
+  table[x expr=\coordindex,y=nttlut]{assets/ntt_bank.dat};
+ \addlegendentry{LUT}
+ \addplot[cTeal,line width=.8pt,mark=square*,mark size=2pt]
+  table[x expr=\coordindex,y=nttff]{assets/ntt_bank.dat};
+ \addlegendentry{FF}
+ \addplot[cPurple,line width=.8pt,mark=triangle*,mark size=2.4pt]
+  table[x expr=\coordindex,y=nttdsp]{assets/ntt_bank.dat};
+ \addlegendentry{DSP}
+\end{axis}
+
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (47.5,87)
+ {(a) Keccak: Round over Stage};
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (139.5,87)
+ {(b) NTTBF.K test program};
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (47.5,39.5)
+ {(c) Complete requests (XRT)};
+\node[font=\fontsize{8}{9}\selectfont\bfseries] at (139.5,39.5)
+ {(d) Post-route NTT resources};
 \end{tikzpicture}

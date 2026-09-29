@@ -34,8 +34,8 @@ the captions.
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
 | 2 | `figures/architecture_v2.tex` | Full-width core context, expanded shared NTT datapath, and Keccak pipelines |
 | 3 | `figures/datapath_detail.tex` | Single-column M2 product schedule and RV32 Round register dependencies |
-| 4 | `figures/eval_requests.tex` | A--E ablations for the middle sets and A/E speedups for all six parameter sets |
-| 5 | `figures/eval_tradeoffs.tex` | Fusion gap and the M16/M8/M4/M2/M1 performance-resource sweep |
+| 4 | `figures/eval_requests.tex` | Six-parameter headline speedups first; B--E middle-set ablations relative to the 1x software reference |
+| 5 | `figures/eval_tradeoffs.tex` | 2x2 comparison of fusion, NTTBF test cycles, complete-request bank sensitivity, and NTT resources |
 | 6 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
 The manuscript contains four tables: the initial software cost diagnosis, collective
@@ -47,6 +47,18 @@ CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
 and explicit schedules replace sentence boxes. Figure 3 distinguishes pair
 products from beat numbers and uses Round as the old-half dependency example;
 the Stage chi/iota operation only reads its selected half.
+
+Figures 4--5 are authored at 178-mm width with 8-point labels. Figure 4
+allocates approximately 45/27.5/27.5 percent of its plotting width to the
+headline and the two ablations. It uses 5-point bars, horizontal parameter
+labels, and a shared request/worker legend. Figure 5 highlights M2 in all
+three bank panels and retains signed request changes, including small
+negative values. Whole-core and AFU resources remain in the table.
+
+Evaluation has six subsections: methodology, complete-request acceleration,
+hardware contributions, granularity/capacity, concurrency/batches, and
+routed cost/scope. Repeated prose was condensed to keep the larger evidence
+figure within six body pages, without changing fonts or margins.
 
 ## Reproducible numbers
 
@@ -84,7 +96,8 @@ equality, parity bounds, configuration, and routing status before generating:
 - `assets/numbers.tex` for reported values;
 - `assets/board_kem.dat`, `assets/board_dsa.dat`, `assets/parameter_speedup.dat`,
   `assets/parameter_occupancy.dat`, `assets/parameter_batch.dat`,
-  `assets/fusion_gain.dat`, and `assets/ntt_bank.dat` for plots;
+  `assets/fusion_scope.dat`, `assets/ntt_bank.dat`, and
+  `assets/ntt_bank_requests.dat` for plots;
 - `assets/cost_rows.tex` for the post-route table;
 - `assets/source_manifest.json` with source hashes and derived values.
 
@@ -108,6 +121,20 @@ Stage+M2 core. The full board image
 contains additional optional Keccak units; its AFU area is reported separately
 from the lean core sweep. Power and energy are excluded because no
 workload-activity-based measurement is available.
+
+The Figure 5 timing controls are distinct from the main board cohort:
+
+- Fusion uses XRT isolated-permutation intervals and SimX whole-KEM launch
+  cycles. The eight-request KEM fusion point has no paired XRT run.
+- NTTBF uses historical RV32IMF W4T32 processor RTL test-program cycles,
+  including loads, stores, and loops; this is not saturated unit throughput.
+- Bank request sensitivity uses RV32IM W8T32 write-back XRT with fixed
+  Pointer Keccak for KEM-768 and DSA-65, at one/eight requests. The generator
+  recalculates all 20 signed changes from raw makespans and verifies matching
+  binaries, call counts, and instruction counts across the banks.
+- NTT resources use separate 200-MHz write-through routed cores. The
+  six-parameter Stage+M2 board study validates that implementation; it does
+  not establish joint optimality or repeat the complete multiplier sweep.
 
 ## Literature coverage
 
