@@ -1,43 +1,51 @@
-\begin{tikzpicture}[x=1cm,y=1cm,
-  box/.style={draw=black!45,rounded corners=1pt,fill=black!2},
-  flow/.style={-{Latex[length=1.5mm]},semithick,draw=black!65},
-  note/.style={font=\scriptsize,align=center}]
-\draw[black!15] (5.72,-.1)--(5.72,3.25);
-\draw[black!15] (11.55,-.1)--(11.55,3.25);
-
-\node[font=\footnotesize\bfseries,anchor=west] at (0,3.02) {(a) Polynomial: XOR partners};
-\node[note,anchor=west] at (.08,2.60) {lane $l$};
-\node[note,anchor=west] at (3.55,2.60) {lane $l\oplus d$};
-\foreach \i in {0,...,7}{
-  \draw[box,fill=cBlue!7] (.20,2.30-.27*\i) rectangle (1.18,2.51-.27*\i);
-  \draw[box,fill=cBlue!7] (3.70,2.30-.27*\i) rectangle (4.68,2.51-.27*\i);
+\begin{tikzpicture}[x=1cm,y=1cm,font=\sffamily\scriptsize,
+  edge/.style={line width=.65pt,-{Latex[length=1.3mm]}},
+  cell/.style={draw=black!50,line width=.35pt}]
+\path[use as bounding box] (-.06,-.15) rectangle (8.55,3.89);
+\node[anchor=west,font=\sffamily\scriptsize\bfseries] at (0,3.73) {(a) NTT: coefficient indices};
+\node[anchor=west,font=\sffamily\scriptsize\bfseries] at (4.43,3.73) {(b) Keccak: lane indices};
+\node[anchor=east] at (.58,3.39) {$l$};
+\foreach \x/\lane in {.65/0,1.27/1,2.12/16,2.74/17}{
+  \node at (\x+.28,3.39) {\lane};
+  \foreach \k in {0,...,7}{
+    \pgfmathtruncatemacro{\coef}{\lane+32*\k}
+    \draw[cell,fill=black!3] (\x,2.87-.30*\k) rectangle ++(.56,.28);
+    \node at (\x+.28,3.01-.30*\k) {\coef};
+  }
 }
-\draw[flow,cBlue] (1.18,2.405) -- (1.65,2.405) -- (1.65,1.865) -- (1.18,1.865);
-\node[note,text=cBlue,anchor=west] at (1.75,2.135) {register-local};
-\draw[flow,cTeal,bend right=12] (3.70,.515) to node[note,below] {pair collective} (1.18,.515);
-\node[note,anchor=west] at (.18,.03) {KEM: 7 layers, 16-bit \quad DSA: 8 layers, 32-bit};
-
-\node[font=\footnotesize\bfseries,anchor=west] at (5.92,3.02) {(b) Keccak: fixed neighborhoods};
-\begin{scope}[shift={(6.12,.36)}]
+\node at (1.975,3.39) {$\cdots$};
+\node at (3.59,3.39) {$k$};
+\foreach \k in {0,...,7}{\node[text=black!65] at (3.59,3.01-.30*\k) {\k};}
+\foreach \k/\coef in {0/0,4/128}{
+  \draw[cell,fill=cBlue!22,draw=cBlue] (.65,2.87-.30*\k) rectangle ++(.56,.28);
+  \node at (.93,3.01-.30*\k) {\coef};
+}
+\draw[edge,cBlue] (.65,3.01)--(.25,3.01)--(.25,1.81)--(.65,1.81);
+\node[rotate=90,text=cBlue] at (.02,2.41) {$d=128$};
+\foreach \x/\coef in {.65/224,2.12/240}{
+  \draw[cell,fill=cTeal!20,draw=cTeal] (\x,.77) rectangle ++(.56,.28);
+  \node at (\x+.28,.91) {\coef};
+}
+\draw[edge,cTeal] (.93,.77)--(.93,.50)--(2.40,.50)--(2.40,.77);
+\node[text=cTeal] at (1.66,.25) {XOR 16};
+\node[anchor=east,text=black!65] at (3.90,-.07) {$a[l+32k]$};
+\begin{scope}[shift={(4.88,.74)}]
 \foreach \x in {0,...,4}{\foreach \y in {0,...,4}{
   \pgfmathtruncatemacro{\lane}{\x+5*\y}
-  \filldraw[fill=black!2,draw=black!35] (.50*\x,.50*\y) rectangle ++(.43,.43);
-  \node[font=\tiny] at (.50*\x+.215,.50*\y+.215) {\lane};
+  \def\shade{black!3}
+  \ifnum\x=2 \def\shade{cBlue!22}\fi
+  \ifnum\y=2 \def\shade{cTeal!20}\fi
+  \draw[cell,fill=\shade] (.45*\x,.45*\y) rectangle ++(.43,.43);
+  \node at (.45*\x+.215,.45*\y+.215) {\lane};
 }}
-\foreach \y in {0,...,4}{\fill[cBlue!24] (1.0,.50*\y) rectangle ++(.43,.43);}
-\foreach \x in {0,...,4}{\fill[cTeal!22] (.50*\x,1.0) rectangle ++(.43,.43);}
-\draw[cOrange,very thick,-{Latex[length=1.5mm]}] (.72,2.22) .. controls (2.9,2.65) and (3.15,.45) .. (2.45,.22);
-\node[note,text=cBlue!80!black,anchor=west] at (2.75,2.06) {$\theta$: column};
-\node[note,text=cOrange!90!black,anchor=west] at (2.75,1.48) {$\rho\pi$: permute};
-\node[note,text=cTeal!80!black,anchor=west] at (2.75,.90) {$\chi$: row};
-\node[note,anchor=west] at (2.75,.28) {25 words};
+\draw[cBlue,line width=.8pt] (.90,-.02) rectangle (1.35,2.25);
+\draw[cTeal,line width=.8pt] (-.02,.90) rectangle (2.25,1.35);
+\draw[edge,cOrange] (.665,0) .. controls (.665,-.55) and (-.42,-.55) .. (-.42,.55) -- (-.42,1.115) -- (0,1.115);
+\node[text=cOrange] at (-.28,-.53) {$\rho\pi$};
+\draw[edge,cBlue] (1.115,2.25)--(1.115,2.53);
+\node[text=cBlue] at (1.55,2.55) {$\theta$};
+\draw[edge,cTeal] (2.25,1.115)--(2.58,1.115);
+\node[text=cTeal,anchor=west] at (2.64,1.115) {$\chi$};
 \end{scope}
-
-\node[font=\footnotesize\bfseries,anchor=west] at (11.77,3.02) {(c) Register-resident contract};
-\node[box,minimum width=1.65cm,minimum height=.55cm,note,fill=cBlue!10] (src) at (12.72,2.12) {source\\vectors};
-\node[box,minimum width=1.90cm,minimum height=.72cm,note,fill=cOrange!12] (route) at (14.85,2.12) {fixed routing\\+ arithmetic};
-\node[box,minimum width=1.65cm,minimum height=.55cm,note,fill=cTeal!10] (dst) at (17.00,2.12) {destination\\vector};
-\draw[flow] (src)--(route); \draw[flow] (route)--(dst);
-\node[box,minimum width=5.90cm,minimum height=.58cm,note,fill=black!3] at (14.86,.93) {ordinary scoreboard, backpressure, and writeback};
-\node[note,text=cPurple] at (14.86,.25) {stateless between instructions};
+\node[anchor=west,text=black!65] at (4.51,-.07) {$l=x+5y$ \quad $25\times64$ bits};
 \end{tikzpicture}

@@ -20,8 +20,8 @@ The page allocation is:
 | Pages | Content |
 | --- | --- |
 | 1--2 | Introduction, communication graphs, prior work, and SIMT design requirements |
-| 2 (end)--5 (upper) | Collective contract, Keccak Stage/Round, shared K/D NTT, native-library integration, and verification |
-| 5 (lower)--6 | Methodology, complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, post-route cost, scope, and conclusion |
+| 2 (end)--4 | Collective contract, Keccak Stage/Round, shared K/D NTT, native-library integration, and verification |
+| 4 (end)--6 | Methodology, complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, post-route cost, scope, and conclusion |
 | 7 | References only |
 
 ## Figures and tables
@@ -31,9 +31,9 @@ the captions.
 
 | Figure | Source | Purpose |
 | --- | --- | --- |
-| 1 | `figures/thesis.tex` | NTT XOR partners, Keccak neighborhoods, and the stateless register contract |
-| 2 | `figures/architecture_v2.tex` | Core integration, Keccak granularity, and the shared serialized NTT unit |
-| 3 | `figures/datapath_detail.tex` | Paired butterfly, M2 beat schedule, and RV32 Keccak low/high dependency |
+| 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
+| 2 | `figures/architecture_v2.tex` | Full-width core context, expanded shared NTT datapath, and Keccak pipelines |
+| 3 | `figures/datapath_detail.tex` | Single-column M2 product schedule and RV32 Round register dependencies |
 | 4 | `figures/integration_v2.tex` | Common ML-KEM/ML-DSA software hooks and shared hardware |
 | 5 | `figures/eval_requests.tex` | A--E ablations for the middle sets and A/E speedups for all six parameter sets |
 | 6 | `figures/eval_tradeoffs.tex` | Fusion gap and the M16/M8/M4/M2/M1 performance-resource sweep |
@@ -41,6 +41,13 @@ the captions.
 
 The manuscript contains three tables: the collective interfaces, the experimental setup,
 and matched post-route cost cohorts.
+
+Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
+redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
+CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
+and explicit schedules replace sentence boxes. Figure 3 distinguishes pair
+products from beat numbers and uses Round as the old-half dependency example;
+the Stage chi/iota operation only reads its selected half.
 
 ## Reproducible numbers
 

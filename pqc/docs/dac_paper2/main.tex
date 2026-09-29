@@ -97,14 +97,14 @@ ablations, and concurrency sweeps. Separate fusion and multiplier-bank studies
 distinguish primitive gains, complete-request benefit, and physical cost.
 \end{itemize}
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering\input{figures/thesis.tex}
-\caption{The communication determines the hardware boundary. NTT coefficients
-use register-local or XOR-paired partners; Keccak uses fixed column,
-permutation, and row neighborhoods. Both execute through a stateless register
-contract, so the processor retains ordinary scheduling and writeback.}
+\caption{Register placement determines the communication. (a) Selected NTT
+lanes: indices 0 and 128 pair within lane 0; 224 and 240 pair across lanes 0
+and 16. (b) Keccak uses column parity ($\theta$), a fixed permutation
+($\rho\pi$, one edge shown), and row neighbors ($\chi$).}
 \label{fig:thesis}
-\end{figure*}
+\end{figure}
 
 \section{Background and Motivation}
 \subsection{Two workloads, two communication graphs}
@@ -220,11 +220,13 @@ occupies several internal beats but commits exactly once.
 
 \begin{figure*}[t]
 \centering\input{figures/architecture_v2.tex}
-\caption{Microarchitecture. The collectives are ordinary ALU processing
-elements. Keccak exposes either three two-stage operations or a fused
-four-stage round. The K/D NTT unit captures a lane vector, serializes products
-over $M$ multipliers, selects a modulus-specific reduction, and assembles one
-result per lane.}
+\caption{Core integration and collective datapaths. (a) Dedicated PEs share
+operand dispatch and result arbitration with INT and multiply/divide.
+(b) Pair preparation includes GS pre-add/subtract. Both moduli share the
+multiplier bank, coefficient bypass, and result assembly.
+(c) Stage forms column parity $C$ before its first register and completes
+$\theta$ after it; Round pipelines all four steps. Thin vertical bars denote
+pipeline registers.}
 \label{fig:architecture}
 \end{figure*}
 
@@ -237,8 +239,8 @@ B[y,2x{+}3y]&=\mathrm{rol}(T[x,y],\rho[x,y]),\nonumber\\
 A'[x,y]&=B[x,y]\oplus(\neg B[x{+}1,y]\wedge B[x{+}2,y]).
 \end{align}
 The \emph{Stage} interface exposes $\theta$, $\rho\pi$, and $\chi\iota$.
-Each has low/high RV32 forms; the two forms read the same old word pair and
-return the selected half. Six issues form a round. The \emph{Round} interface
+Each has low/high RV32 forms returning the selected half. Six issues form
+a round. The \emph{Round} interface
 fuses all stages and uses a literal round index. Its low/high instructions
 recompute the internal full word from identical operands, avoiding hidden
 state and multi-destination writeback. Two issues form an RV32 round. A
@@ -295,24 +297,25 @@ inverse transforms, final scaling, ML-KEM base multiplication, and ML-DSA
 pointwise work. More importantly, the scheduler may suspend a warp between
 layers and issue another warp without saving an accelerator context.
 
-Figure~\ref{fig:detail} makes the two encoding constraints explicit. A logical
+The paired encoding addresses a scalar instruction's operand mismatch. A logical
 butterfly has three values $(a,b,\zeta)$ and two results, but the pair-low lane
 provides the twiddle and the two physical lanes independently receive $r_p$
 and $r_h$. This converts an awkward three-input/two-output scalar operation
-into an ordinary two-vector/one-vector SIMT transaction. For M2, the routing
-network presents two logical products per beat for eight beats. Result
+into an ordinary two-vector/one-vector SIMT transaction. Figure~\ref{fig:detail}
+shows M2 assigning successive pairs to two multipliers over eight beats,
+and the RV32 temporary that preserves the old Keccak state. Result
 assembly records their lane indices and releases the vector only after the
 final reduction; later warps can still execute other functional units while
 the issuing warp waits on the destination dependency.
 
-\begin{figure*}[t]
+\begin{figure}[t]
 \centering\input{figures/datapath_detail.tex}
-\caption{Datapath details. (a) A lane pair turns one Montgomery product into
-two ordinary results. (b) M2 covers 16 logical products in eight beats without
-changing the ISA. (c) RV32 Keccak low/high instructions both read the old
-64-bit state; a temporary preserves it across the two issues.}
+\caption{Serialization and dependencies. (a) M2 assigns 16 pair products to
+two multipliers in eight CT or DSA-GS beats; pipeline latency is omitted.
+(b) Program order for an RV32 Round: both issues read the old halves, the
+low result remains in $T$, and the final move updates $A_L$.}
 \label{fig:detail}
-\end{figure*}
+\end{figure}
 
 \begin{table}[t]
 \caption{Collective interfaces on RV32. Issue counts are per Keccak round or

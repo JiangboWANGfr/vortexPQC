@@ -1,50 +1,62 @@
 \begin{tikzpicture}[x=1cm,y=1cm,
-  b/.style={draw=black!45,rounded corners=1pt,font=\scriptsize,align=center,minimum height=.45cm},
-  a/.style={-{Latex[length=1.4mm]},semithick,draw=black!65}]
-\draw[black!15] (5.55,-.05)--(5.55,3.62);
-\draw[black!15] (11.52,-.05)--(11.52,3.62);
-\node[font=\footnotesize\bfseries,anchor=west] at (0,3.42) {(a) One paired butterfly};
-\node[b,fill=cBlue!9,minimum width=1.15cm] (a0) at (.76,2.50) {lane $p$\\$a,\zeta$};
-\node[b,fill=cBlue!9,minimum width=1.15cm] (b0) at (.76,1.24) {lane $h$\\$b$};
-\node[b,fill=cTeal!11,minimum width=1.18cm] (m) at (2.42,1.56) {$\Mont_q$};
-\node[circle,draw=black!45,fill=cOrange!12,inner sep=1.5pt,font=\scriptsize] (plus) at (3.76,2.48) {$+$};
-\node[circle,draw=black!45,fill=cOrange!12,inner sep=1.5pt,font=\scriptsize] (minus) at (3.76,1.18) {$-$};
-\node[b,fill=black!3,minimum width=.88cm] (rp) at (4.78,2.48) {$r_p$};
-\node[b,fill=black!3,minimum width=.88cm] (rh) at (4.78,1.18) {$r_h$};
-\draw[a] (b0)--(m); \draw[a] (a0)--(plus);
-\draw[a] (a0.east) -- (1.55,2.50) -- (1.55,.82) -| (minus.south);
-\draw[a] (a0.east) -- (1.72,2.50) |- (m.west);
-\draw[a] (m)--(plus); \draw[a] (m)--(minus); \draw[a] (plus)--(rp); \draw[a] (minus)--(rh);
-\node[font=\scriptsize,text=black!60] at (2.75,.36) {one product, two ordinary lane results};
+  font=\sffamily\scriptsize,
+  box/.style={draw=black!65,line width=.45pt,minimum height=.43cm,
+              inner sep=3pt,align=center},
+  flow/.style={-{Latex[length=1.35mm]},draw=black!75,line width=.55pt},
+  order/.style={circle,draw=black!65,fill=white,inner sep=1.2pt,
+                font=\sffamily\bfseries\scriptsize}]
+\path[use as bounding box] (0,0) rectangle (8.45,4.65);
 
-\node[font=\footnotesize\bfseries,anchor=west] at (5.82,3.42) {(b) M2 serialization};
-\node[font=\scriptsize,anchor=east] at (6.75,2.76) {pair};
+\node[anchor=west,font=\sffamily\bfseries\scriptsize] at (0,4.48)
+  {(a) Two multipliers, sixteen pair products};
+\node[anchor=east] at (1.23,4.01) {Beat};
+\node[anchor=east] at (1.23,3.51) {Mul 0};
+\node[anchor=east] at (1.23,2.96) {Mul 1};
 \foreach \i in {0,...,7}{
-  \draw[fill=cBlue!12,draw=white] (6.94+.52*\i,2.50) rectangle ++(.48,.43);
-  \node[font=\tiny] at (7.18+.52*\i,2.715) {\the\numexpr2*\i\relax--\the\numexpr2*\i+1\relax};
+  \pgfmathtruncatemacro{\even}{2*\i}
+  \pgfmathtruncatemacro{\odd}{2*\i+1}
+  \node at (1.68+.83*\i,4.01) {\i};
+  \draw[draw=black!45,fill=cTeal!16,line width=.4pt]
+    (1.30+.83*\i,3.28) rectangle ++(.76,.46);
+  \draw[draw=black!45,fill=cOrange!17,line width=.4pt]
+    (1.30+.83*\i,2.73) rectangle ++(.76,.46);
+  \node at (1.68+.83*\i,3.51) {$P_{\even}$};
+  \node at (1.68+.83*\i,2.96) {$P_{\odd}$};
 }
-\node[font=\scriptsize,anchor=east] at (6.75,1.86) {Mul 0};
-\node[font=\scriptsize,anchor=east] at (6.75,1.26) {Mul 1};
-\foreach \i in {0,...,7}{
-  \draw[fill=cTeal!20,draw=white] (6.94+.52*\i,1.65) rectangle ++(.48,.43);
-  \draw[fill=cOrange!18,draw=white] (6.94+.52*\i,1.05) rectangle ++(.48,.43);
-  \node[font=\tiny] at (7.18+.52*\i,1.865) {$\i$};
-  \node[font=\tiny] at (7.18+.52*\i,1.265) {$\i$};
-}
-\draw[a] (6.95,.62)--(11.08,.62);
-\foreach \i in {0,...,8}{\draw (6.95+.516*\i,.55)--++(0,.14);}
-\node[font=\scriptsize] at (9.02,.25) {8 CT beats; capture once, emit after assembly};
+\draw[black!70,line width=.65pt] (1.25,3.83)--(1.25,2.64);
+\draw[black!70,line width=.65pt] (7.93,3.83)--(7.93,2.64);
+\draw[flow] (1.30,3.83)--(7.88,3.83);
 
-\node[font=\footnotesize\bfseries,anchor=west] at (11.80,3.42) {(c) RV32 Keccak state};
-\node[b,fill=cBlue!9,minimum width=1.40cm] (lo) at (12.72,2.55) {$A_L$};
-\node[b,fill=cBlue!9,minimum width=1.40cm] (hi) at (12.72,1.70) {$A_H$};
-\node[b,fill=cOrange!11,minimum width=1.45cm] (oplo) at (14.62,2.55) {Stage.L\\or Round.L};
-\node[b,fill=cOrange!11,minimum width=1.45cm] (ophi) at (14.62,1.70) {Stage.H\\or Round.H};
-\node[b,fill=cTeal!9,minimum width=1.05cm] (lout) at (16.42,2.55) {$A'_L$};
-\node[b,fill=cTeal!9,minimum width=1.05cm] (hout) at (16.42,1.70) {$A'_H$};
-\draw[a] (lo)--(oplo); \draw[a] (hi)--(ophi);
-\draw[a] (lo.east) -- (13.58,2.55) -- (13.58,1.90) -- (ophi.west |- {13.58,1.90});
-\draw[a] (hi.east) -- (13.76,1.70) -- (13.76,2.35) -- (oplo.west |- {13.76,2.35});
-\draw[a] (oplo)--(lout); \draw[a] (ophi)--(hout);
-\node[font=\scriptsize,text=black!60,align=center] at (14.62,.73) {both issues read the old pair;\\the first result uses a temporary};
+\node[anchor=west,font=\sffamily\bfseries\scriptsize] at (0,2.26)
+  {(b) RV32 Round: preserve the old register pair};
+\node[anchor=west,text=black!70] at (.12,1.78) {Old state};
+\draw[draw=black!65,fill=cBlue!10,line width=.45pt]
+  (.12,.40) rectangle (1.22,1.52);
+\draw[black!45,line width=.4pt] (.12,.96)--(1.22,.96);
+\node at (.67,1.24) {$A_L$};
+\node at (.67,.68) {$A_H$};
+\node[box,fill=cPurple!12,minimum width=1.48cm] (lo) at (3.04,1.35)
+  {Round.L};
+\node[box,fill=cPurple!12,minimum width=1.48cm] (hi) at (3.04,.55)
+  {Round.H};
+\draw[black!75,line width=.8pt] (1.22,.96)--(1.78,.96);
+\draw[black!75,line width=.45pt] (1.42,.89)--(1.55,1.03);
+\node[anchor=south,inner sep=0pt] at (1.49,1.06) {64};
+\fill[black!75] (1.78,.96) circle (.035);
+\draw[flow] (1.78,.96)|-(lo.west);
+\draw[flow] (1.78,.96)|-(hi.west);
+\node[order] at (2.02,1.75) {1};
+\node[order] at (2.02,.15) {2};
+\node[box,fill=cOrange!17,minimum width=.70cm] (temp) at (4.97,1.35) {$T$};
+\node[box,fill=cTeal!15,minimum width=.95cm] (outlo) at (7.60,1.35) {$A'_L$};
+\node[box,fill=cTeal!15,minimum width=.95cm] (outhi) at (7.60,.55) {$A'_H$};
+\node[fill=white,inner sep=2pt] (copy) at (6.15,1.35) {move};
+\draw[flow] (lo)--(temp);
+\draw[flow] (temp)--(copy);
+\draw[flow] (copy)--(outlo);
+\draw[flow] (hi)--(outhi);
+\node[order] at (6.15,1.78) {3};
+\draw[densely dashed,draw=black!55,line width=.4pt,-{Latex[length=1.1mm]}]
+  (6.15,.55)--(copy.south);
+\node[text=black!65] at (6.65,.85) {order};
 \end{tikzpicture}

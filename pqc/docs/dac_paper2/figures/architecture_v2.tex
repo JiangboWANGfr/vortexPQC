@@ -1,38 +1,108 @@
-\begin{tikzpicture}[x=1cm,y=1cm,scale=.88,every node/.style={transform shape},
-  block/.style={draw=black!45,rounded corners=1pt,minimum height=.48cm,font=\scriptsize,align=center},
-  flow/.style={-{Latex[length=1.5mm]},semithick,draw=black!65}]
-\node[font=\footnotesize\bfseries,anchor=west] at (0,4.05) {(a) Core integration};
-\node[block,fill=black!3,minimum width=4.5cm] (issue) at (2.35,3.46) {warp issue / operand collection};
-\node[block,fill=cBlue!8,minimum width=4.5cm,minimum height=.56cm] (rf) at (2.35,2.66) {lane register vectors};
-\node[block,fill=black!3,minimum width=1.05cm] (int) at (.58,1.70) {INT};
-\node[block,fill=cOrange!11,minimum width=1.30cm] (stage) at (1.92,1.70) {Stage};
-\node[block,fill=cPurple!10,minimum width=1.30cm] (round) at (3.34,1.70) {Round};
-\node[block,fill=cTeal!11,minimum width=1.30cm] (ntt) at (4.76,1.70) {NTT K/D};
-\node[block,fill=black!3,minimum width=4.5cm] (wb) at (2.35,.74) {result arbitration / commit};
+\begin{tikzpicture}[x=1cm,y=1cm,font=\sffamily\scriptsize,
+  box/.style={draw=black!65,line width=.45pt,align=center,inner sep=2pt},
+  flow/.style={-{Latex[length=1.3mm]},line width=.6pt},
+  ctrl/.style={-{Latex[length=1.1mm]},dashed,line width=.45pt,draw=black!60},
+  reg/.style={draw=black!65,fill=black!15,line width=.45pt},
+  head/.style={font=\sffamily\scriptsize\bfseries,anchor=west}]
+\path[use as bounding box] (-.06,-.12) rectangle (17.78,5.00);
+\node[head] at (0,4.83) {(a) Vortex ALU integration};
+\node[box,fill=black!5,minimum width=3.70cm,minimum height=.40cm] (issue) at (1.88,4.33) {Issue / scoreboard};
+\node[box,fill=cBlue!7,minimum width=3.70cm,minimum height=.68cm] (rf) at (1.88,3.47) {};
+\node[anchor=east] at (.64,3.61) {$rs_1$};
+\node[anchor=east] at (.64,3.33) {$rs_2$};
+\foreach \i in {0,...,7}{
+  \draw[fill=cBlue!18,draw=white,line width=.45pt] (.72+.365*\i,3.51) rectangle ++(.34,.20);
+  \draw[fill=cBlue!18,draw=white,line width=.45pt] (.72+.365*\i,3.23) rectangle ++(.34,.20);
+}
+\node[fill=cBlue!7,inner sep=0pt] at (2.03,3.61) {$\cdots$};
+\node[fill=cBlue!7,inner sep=0pt] at (2.03,3.33) {$\cdots$};
 \draw[flow] (issue)--(rf);
-\foreach \n in {int,stage,round,ntt}{\draw[flow] (rf.south) -- ++(0,-.25) -| (\n.north); \draw[flow] (\n.south) |- (wb.north);}
-\node[font=\scriptsize,text=black!60] at (2.35,.18) {one destination word per active lane};
-\draw[black!15] (5.65,-.05)--(5.65,4.25);
+\node[box,fill=black!5,minimum width=3.70cm,minimum height=.32cm] (dispatch) at (1.88,2.73) {PE dispatch};
+\draw[flow] (rf)--(dispatch);
+\foreach \x/\name/\fillc in {.38/INT/black!4,1.13/M-D/black!4,1.88/STG/cOrange!20,2.63/RND/cPurple!16,3.38/NTT/cTeal!20}{
+  \node[box,fill=\fillc,minimum width=.69cm,minimum height=.46cm] (pe\name) at (\x,1.98) {\name};
+  \draw[flow] (\x,2.57)--(\x,2.21);
+  \draw (\x,1.75)--(\x,1.45);
+}
+\draw (.38,1.45)--(3.38,1.45);
+\node[box,fill=black!5,minimum width=3.70cm,minimum height=.40cm] (arb) at (1.88,1.05) {Result arbiter};
+\draw[flow] (1.88,1.45)--(arb);
+\node[box,fill=cBlue!7,minimum width=3.70cm,minimum height=.40cm] (wb) at (1.88,.34) {$rd[0{:}31]$};
+\draw[flow] (arb)--(wb);
+\draw[ctrl] (3.74,4.33)--(3.96,4.33)--(3.96,1.05)--(arb.east);
+\node[rotate=90,fill=white,inner sep=1pt,text=black!60] at (3.96,3.37) {warp / mask / rd};
 
-\node[font=\footnotesize\bfseries,anchor=west] at (5.93,4.05) {(b) Keccak granularity};
-\node[font=\scriptsize,anchor=east] at (7.05,3.38) {Stage};
-\node[block,fill=cOrange!11,minimum width=1.15cm] (th) at (7.82,3.38) {$\theta$};
-\node[block,fill=cOrange!11,minimum width=1.15cm] (rp) at (9.25,3.38) {$\rho\pi$};
-\node[block,fill=cOrange!11,minimum width=1.15cm] (ci) at (10.68,3.38) {$\chi\iota$};
-\draw[flow] (th)--(rp); \draw[flow] (rp)--(ci);
-\node[font=\scriptsize,anchor=west] at (11.45,3.38) {6 RV32 issues / round};
-\node[font=\scriptsize,anchor=east] at (7.05,2.49) {Round};
-\node[block,fill=cPurple!10,minimum width=3.95cm] (kr) at (9.25,2.49) {$\theta\;\rightarrow\;\rho\pi\;\rightarrow\;\chi\iota$};
-\node[font=\scriptsize,anchor=west] at (11.45,2.49) {2 RV32 issues / round};
-\node[font=\scriptsize,text=black!60,anchor=west] at (6.30,1.86) {L/H instructions read the same 64-bit state; no hidden result};
+\node[head] at (4.43,4.83) {(b) Shared NTT K/D datapath ($M=2$ shown)};
+\draw[draw=cTeal!65,line width=.6pt,fill=cTeal!2] (4.43,.02) rectangle (12.94,4.53);
+\node[box,fill=cBlue!15,minimum width=1.13cm,minimum height=.68cm] (route) at (5.13,2.73) {XOR\\$+\;/\;-$};
+\node[box,fill=black!4,minimum width=1.28cm,minimum height=1.54cm] (capture) at (6.67,2.73) {};
+\node at (6.67,3.29) {capture};
+\foreach \y in {3.02,2.80,2.58}{\draw[reg] (6.22,\y-.12) rectangle ++(.90,.17);}
+\draw[box,fill=black!10] (6.22,2.43)--(7.12,2.43)--(6.97,2.16)--(6.37,2.16)--cycle;
+\node at (6.67,2.29) {select};
+\node[box,fill=cTeal!21,minimum width=.88cm,minimum height=.52cm] (mul0) at (8.05,3.08) {$\times$};
+\node[box,fill=cTeal!21,minimum width=.88cm,minimum height=.52cm] (mul1) at (8.05,2.38) {$\times$};
+\node at (8.05,3.81) {$32\times32$};
+\node[box,fill=cOrange!14,minimum width=1.45cm,minimum height=1.54cm] (reduce) at (9.61,2.73) {};
+\node[align=center] at (9.61,2.73) {$q_K\mid q_D$\\reduce};
+\node[box,fill=cPurple!12,minimum width=1.20cm,minimum height=1.54cm] (finish) at (11.59,2.73) {};
+\node[align=center] at (11.59,2.73) {$+\;/\;-$\\finish};
+\draw[flow] (route)--(capture);
+\draw[flow] (capture.east |- mul0)--(mul0);
+\draw[flow] (capture.east |- mul1)--(mul1);
+\draw[flow] (mul0.east)--(reduce.west |- mul0);
+\draw[flow] (mul1.east)--(reduce.west |- mul1);
+\draw[flow] (reduce.east |- mul0)--(finish.west |- mul0);
+\draw[flow] (reduce.east |- mul1)--(finish.west |- mul1);
+\draw[flow,draw=cBlue] (6.67,3.50)--(6.67,4.16)--(11.59,4.16)--(finish.north);
+\fill[cBlue] (9.61,4.16) circle (.035);
+\draw[flow,draw=cBlue] (9.61,4.16)--(reduce.north);
+\node[text=cBlue,inner sep=1pt] at (9.12,4.35) {coefficient bypass};
+\node[align=center] at (5.13,3.96) {$rs_1,rs_2$};
+\draw[flow] (5.13,3.76)--(route.north);
+\node[text=black!65] at (5.13,1.74) {$d$, CT/GS};
+\draw[ctrl] (5.13,1.94)--(route.south);
+\node[box,fill=black!3,minimum width=1.60cm,minimum height=.32cm] (beat) at (6.67,1.48) {mode / beat};
+\draw[ctrl] (beat.north)--(capture.south);
+\draw[ctrl] (beat.east)--(9.61,1.48)--(reduce.south);
+\node[fill=cTeal!2,inner sep=1pt,text=black!60] at (9.61,1.48) {K / D};
+\draw[flow] (finish.east)--(12.56,2.73)--(12.56,.93);
+\node[box,fill=cTeal!9,minimum width=7.82cm,minimum height=.58cm] (gather) at (8.68,.64) {};
+\node[anchor=west] at (4.92,.64) {assembly};
+\foreach \x/\lab in {6.45/0,7.00/1,7.55/2,8.10/3,10.05/28,10.60/29,11.15/30,11.70/31}{
+  \draw[draw=black!45,fill=white,line width=.35pt] (\x,.47) rectangle ++(.48,.34);
+  \node at (\x+.24,.64) {\lab};
+}
+\node at (9.18,.64) {$\cdots$};
+\draw[ctrl] (3.77,1.98)--(4.23,1.98);
+\draw[black!40,dashed,line width=.4pt] (4.23,1.98)--(4.43,3.45);
+\draw[black!40,dashed,line width=.4pt] (4.23,1.98)--(4.43,.94);
 
-\node[font=\footnotesize\bfseries,anchor=west] at (5.93,1.25) {(c) Shared serialized NTT unit};
-\node[block,fill=cBlue!8,minimum width=1.45cm] (pair) at (6.94,.60) {pair route};
-\node[block,fill=black!3,minimum width=1.60cm] (cap) at (8.74,.60) {capture /\\serialize};
-\node[block,fill=cTeal!11,minimum width=1.65cm] (mul) at (10.72,.60) {$M\times$\\$32{\times}32$};
-\node[block,fill=cOrange!11,minimum width=1.65cm] (red) at (12.70,.60) {$q_K$ or $q_D$\\reduction};
-\node[block,fill=black!3,minimum width=1.55cm] (asm) at (14.63,.60) {lane-result\\assembly};
-\draw[flow] (pair)--(cap); \draw[flow] (cap)--(mul); \draw[flow] (mul)--(red); \draw[flow] (red)--(asm);
-\node[font=\scriptsize,anchor=west] at (15.55,.60) {$r_l$};
-\node[font=\scriptsize,text=black!60,anchor=west] at (6.20,.05) {$16/M$ beats: CT, DSA GS \quad $32/M$ beats: KEM GS, scalar products};
+\node[head] at (13.32,4.83) {(c) Keccak datapaths};
+\draw[draw=cOrange!75,line width=.6pt,fill=cOrange!3] (13.32,2.66) rectangle (17.76,4.53);
+\node[anchor=west] at (13.48,4.35) {Stage};
+\foreach \y/\lab in {4.02/C,3.53/\rho\pi,3.04/\chi\iota}{
+  \node[box,fill=cOrange!18,minimum width=.82cm,minimum height=.34cm] (op\y) at (14.42,\y) {$\lab$};
+  \draw[flow] (13.81,\y)--(14.01,\y);
+  \draw (14.83,\y)--(15.18,\y);
+}
+\draw (13.81,3.04)--(13.81,4.02);
+\draw[flow] (13.45,3.53)--(13.81,3.53);
+\draw[box,fill=black!10] (15.18,4.19)--(15.48,4.02)--(15.48,3.04)--(15.18,2.87)--cycle;
+\node[rotate=90] at (15.32,3.53) {select};
+\draw[flow] (15.48,3.53)--(17.53,3.53);
+\foreach \x in {16.05,16.55}{\draw[reg] (\x,3.23) rectangle ++(.10,.60);}
+\node[circle,draw=black!65,fill=cOrange!18,inner sep=.5pt] at (16.35,3.53) {$\oplus$};
+\node at (16.35,4.05) {$\theta$ finish};
+\node at (16.43,2.96) {6 issues / round};
+\draw[draw=cPurple!75,line width=.6pt,fill=cPurple!3] (13.32,.02) rectangle (17.76,2.37);
+\node[anchor=west] at (13.48,2.14) {Round};
+\foreach \x/\lab in {13.92/C,14.88/\theta,15.84/\rho\pi,16.80/\chi\iota}{
+  \node[box,fill=cPurple!15,minimum width=.64cm,minimum height=.54cm] at (\x,1.44) {$\lab$};
+  \draw[reg] (\x+.34,1.12) rectangle ++(.09,.64);
+  \draw[flow] (\x+.43,1.44)--(\x+.63,1.44);
+}
+\draw[flow] (13.39,1.44)--(13.60,1.44);
+\node at (15.55,.80) {4 pipeline stages};
+\node at (15.55,.30) {2 issues / round};
 \end{tikzpicture}
