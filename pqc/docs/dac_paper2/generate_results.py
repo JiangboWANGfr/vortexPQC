@@ -31,6 +31,24 @@ def table(name, header, records):
     (OUT / name).write_text("\n".join(lines) + "\n")
 
 
+motivation = {}
+kem_ablation = rows("ablation_mlkem.csv")
+kem_base = one(kem_ablation, variant="baseline")
+for variant, primitive in (("ablate_keccak", "Keccak"), ("ablate_ntt", "Ntt")):
+    row = one(kem_ablation, variant=variant)
+    delta = int(kem_base["cycles"]) - int(row["cycles"])
+    assert delta == int(row["delta_vs_baseline"])
+    assert row["keccak_x1"] == kem_base["keccak_x1"] == "144"
+    motivation["MotivationKem" + primitive] = 100 * delta / int(kem_base["cycles"])
+dsa_ablation = rows("ablation_mldsa.csv")
+for basis, primitive in (("measured (ablation)", "Keccak"),
+                         ("measured (ablation, NTT)", "Ntt")):
+    row = one(dsa_ablation, scope="keypair", ram="full", basis=basis)
+    delta = int(row["baseline_cycles"]) - int(row["ablated_cycles"])
+    assert delta == int(row["delta"])
+    motivation["MotivationDsa" + primitive] = 100 * delta / int(row["baseline_cycles"])
+
+
 kem = rows("keccak_ntt_unified_xrt.csv")
 assert len(kem) == 12 and all(r["result"] == "PASS" for r in kem)
 assert len({r["xrtsim_sha256"] for r in kem}) == 1
@@ -397,6 +415,7 @@ numbers.update(final_phase_numbers)
 numbers.update(bank_numbers)
 numbers.update(board_numbers)
 numbers.update(parameter_numbers)
+numbers.update(motivation)
 numbers.update({
     "KemNttSaved": shared_reduction[3],
     "DsaNttSaved": shared_reduction[7],
@@ -410,6 +429,8 @@ table("fusion_gain.dat", ["index", "perm", "kem"],
       [(i, numbers["Fusion" + name], numbers["FusionKem" + name])
        for i, name in enumerate(["One", "Eight"])])
 def latex_number(key, value):
+    if key.startswith("Motivation"):
+        return f"{value:.2f}"
     return f"{value:,}" if key.startswith(("BoardCore", "BoardAfu")) else f"{value:.3f}"
 
 

@@ -58,44 +58,154 @@ post-quantum cryptography, ML-KEM, ML-DSA, Keccak, NTT, SIMT, RISC-V
 \end{IEEEkeywords}
 
 \section{Introduction}
-ML-KEM and ML-DSA standardize lattice-based key establishment and digital
-signatures~\cite{fips203,fips204}. Their deployments must process independent
-requests while retaining the exact rejection sampling, encoding, and control
-of the standards. A programmable SIMT processor is attractive because a warp
-can cooperate within one primitive and different warps can execute independent
-requests. The challenge is data movement inside the warp.
+The standardization of ML-KEM and ML-DSA gives post-quantum key establishment
+and digital signatures a common deployment target~\cite{fips203,fips204}.
+Although the two schemes provide different services, both repeatedly invoke
+SHA-3/SHAKE and polynomial arithmetic. Efficient implementations must also
+execute sampling, encoding, and, for signatures, input-dependent rejection
+loops. Accelerating an isolated transform or permutation is therefore
+insufficient: the useful outcome is lower latency or higher throughput for a
+complete cryptographic request, including the surrounding computation.
 
-The two shared primitives expose different graphs. An NTT level contains
-128 independent butterflies, but its partner distance changes at every level.
-Keccak-f[1600] instead applies column reductions, a fixed word permutation,
-and row-neighbor logic to 25 tightly coupled 64-bit words. Generic lane
-shuffles can express both graphs, but software pays an instruction and
-dependence cost for every edge. A pointer accelerator removes more instructions
-by moving a complete state to private storage, at the cost of transfers,
-memory-system integration, and a new scheduling boundary.
+A programmable GPU offers two levels of parallelism for these workloads.
+Threads can cooperate within a polynomial or a hash state, while independent
+warps process different requests. GPU implementations of Kyber and Dilithium
+already exploit this structure through register reuse, kernel fusion,
+batching, and cooperative scheduling~\cite{hikyber,cudilithium}. ML-Cube
+further combines GPU execution and machine-learning accelerators, including
+a 25-thread Keccak mapping~\cite{mlcube}. These results motivate a complementary
+question for an extensible SIMT processor: which remaining work merits
+specialized hardware once the software already exploits warp parallelism?
 
-Prior optimized RISC-V software and scalar extensions accelerate modular
-butterflies and Keccak rounds~\cite{pqrv,risqv,nannipieri}; GPU software
-distributes Keccak over 25 threads~\cite{mlcube}; and a patent describes a warp-level Keccak
-round~\cite{collectivepatent}. These results do not answer three questions for
-an open SIMT core: how a collective with multiple logical outputs fits
-single-destination writeback, how ML-KEM and ML-DSA share one NTT datapath,
-and whether primitive throughput predicts complete-request performance.
+Our starting point is the cost shared by both schemes. In a historical
+single-lane RV32 software study, removing the Keccak permutation bodies
+reduces a complete ML-KEM-768 request by \MotivationKemKeccak{}\%, while
+independently removing NTT/INTT bodies reduces it by \MotivationKemNtt{}\%. ML-DSA key generation shows the same
+ordering (Section~\ref{sec:motivation}). These diagnostics identify two
+reusable targets; they do not predict the benefit over optimized GPU
+software. We therefore build a stronger comparison point: register-resident,
+warp-cooperative Keccak and NTT kernels, with parallel sampling, encoding,
+and auxiliary arithmetic enabled identically in every hardware comparison.
+Our reported gains measure specialization beyond that software mapping.
 
-We answer these questions in Vortex~\cite{vortex} with a common rule: place a
-primitive in lane registers, then implement only the fixed edges of its
-communication graph (Fig.~\ref{fig:thesis}). Our contributions are:
+The obstacle is not a lack of arithmetic parallelism but the cost of making
+operands meet. Each NTT layer contains 128 independent butterflies. With
+coefficients distributed across lane registers, some partners lie in the same
+lane and others in lanes separated by an XOR distance. Keccak-f[1600] instead
+couples 25 64-bit words through column reductions, fixed permutations, and
+row-neighbor logic~\cite{fips202}. Generic shuffles express both patterns, but
+introduce instructions and dependencies at each exchange. Keeping the state
+in registers removes intermediate memory traffic without removing these
+communication costs. The two primitives thus favor different internal
+connections even when they share the same architectural register interface.
+
+Prior hardware addresses parts of this problem at other boundaries.
+RISC-V software optimization~\cite{pqrv} and finite-field instruction
+extensions~\cite{alkim,bevin} reduce arithmetic cost; RISQ-V and Nannipieri
+et al. add coarser polynomial operations to scalar cores~\cite{risqv,nannipieri}.
+Configurable lattice processors such as Sapphire and KaLi already reuse
+resources across protocols~\cite{sapphire,kali}, while KiD explicitly unifies
+Kyber/Dilithium NTT multiplication~\cite{kid}. Full-protocol FPGA accelerators
+also exploit request batching~\cite{highvolume}. Sharing arithmetic is therefore
+established; the issue here is how shared arithmetic consumes distributed
+SIMT operands and returns results through an existing GPU pipeline.
+
+The hash interface presents a related choice. Prior work quantifies how
+state transfers and sponge input/output affect hardware hashing
+performance~\cite{karl}. Recent RISC-V extensions retain hash state in private
+registers~\cite{horcrux}; a published patent also describes a Keccak round
+executed collectively by a warp~\cite{collectivepatent}. Building on these
+interfaces, we study the constraints of an RV32 SIMT core: handling 64-bit
+state with 32-bit destinations, preserving per-warp dependency tracking, and
+selecting the instruction granularity at complete-request scope. A faster
+permutation can have little effect once sampling, sponge I/O, or polynomial
+work limits execution.
+
+We address three coupled design constraints. First, collective operations
+must fit ordinary issue and writeback: an NTT butterfly logically has three
+inputs and two outputs, while a Keccak step mixes values from many lanes.
+Second, ML-KEM's 16-bit and ML-DSA's 32-bit coefficients require different
+reductions without duplicating the entire modular datapath. Third, provisioning
+all 16 pair products in parallel may waste resources when other instructions
+or warps hide their latency. Neither an isolated primitive benchmark nor a
+comparison against scalar C resolves these constraints.
+
+We implement \emph{communication-matched warp collectives} in
+Vortex~\cite{vortex}. The state remains in ordinary GPRs, and each instruction
+replaces a fixed communication step together with its arithmetic
+(Fig.~\ref{fig:thesis}). Two lanes jointly execute one NTT butterfly, compute
+one Montgomery product, and each receive one result. A shared serialized
+multiplier bank handles both moduli and also serves lane-local products.
+Keccak exposes either three stage operations or one fused round, with
+explicit low/high outputs on RV32. Every instruction returns a single
+architectural destination vector and retains no cryptographic state between
+instructions. We compare these register interfaces with a memory-coupled
+permutation engine and size the hardware using complete requests.
+
+The resulting Stage-plus-NTT design, including modular-arithmetic reuse,
+accelerates complete single-request ML-KEM by
+\KemParameterMinOne{}--\KemParameterMaxOne{}$\times$ and ML-DSA by
+\DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$ over matched cooperative
+software on a 200-MHz Alveo V80. All six standardized parameter sets are
+covered. NTT specialization provides additional request-level gains after
+Keccak acceleration. A separate bank sweep finds that two multipliers replace
+16 with at most \BankTwoEndToEndMax{}\% request-cycle increase in its measured
+workloads. Our contributions are:
 \begin{itemize}
-\item A stateless warp-collective interface for Keccak stages and XOR-paired
-NTT butterflies. Each lane receives one result through normal dependency,
-backpressure, and writeback machinery.
-\item A shared K/D NTT unit whose pair routing and configurable multiplier bank
-support seven-layer 16-bit ML-KEM and eight-layer 32-bit ML-DSA. A five-point
-RTL and post-route sweep selects two multipliers.
-\item A six-parameter board evaluation with matched software controls, hardware
-ablations, and concurrency sweeps. Separate fusion and multiplier-bank studies
-distinguish primitive gains, complete-request benefit, and physical cost.
+\item A stateless SIMT instruction interface for Keccak neighborhoods and
+XOR-paired NTT butterflies, with ordinary operand tracking and one destination
+per lane; controlled Stage, Round, and Pointer comparisons establish the
+importance of the execution boundary.
+\item A shared K/D modular unit that combines pair routing, modulus-specific
+reduction, and a serialized multiplier bank. It supports forward/inverse NTT
+and reuses the same arithmetic outside transforms without private polynomial
+storage.
+\item A complete-library, six-parameter FPGA evaluation with matched software
+baselines and separate Keccak, NTT, and arithmetic ablations. Concurrency and
+five-point multiplier sweeps connect primitive performance to request latency,
+batch throughput, and routed hardware cost.
 \end{itemize}
+
+\section{Background and Motivation}
+\label{sec:motivation}
+\subsection{Shared hotspots and the scope of profiling}
+ML-KEM uses degree-256 polynomials modulo $q_K=3329$; ML-DSA uses
+$q_D=8380417$. Both use SHA-3/SHAKE for hashing and pseudorandom expansion,
+including polynomial sampling~\cite{fips203,fips204,fips202}.
+Table~\ref{tab:motivation} reports our initial single-lane RV32 SimX diagnosis:
+one core, four warps of four threads, and no L2/L3. Each independent
+ablation removes one primitive's body while preserving its call interface;
+the reported fraction is $(C_0-C_{-i})/C_0$. The instrumented baseline and
+its ablated variant share inputs and configuration. These are diagnostic
+runs with intentionally invalid outputs, not accelerated implementations.
+
+\begin{table}[t]
+\caption{Initial software cost diagnosis. Independent ablation deltas,
+not additive phase fractions of the current board baseline.}
+\label{tab:motivation}
+\centering\footnotesize\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Workload & Keccak & NTT/INTT\\
+\midrule
+ML-KEM-768 complete request & \MotivationKemKeccak{}\% & \MotivationKemNtt{}\%\\
+ML-DSA-65 key generation (full RAM) & \MotivationDsaKeccak{}\% & \MotivationDsaNtt{}\%\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+KEM has 144 permutations and 24 transforms for the selected known-answer
+input. DSA is restricted to key generation: stubbing hashing changes signing
+retries and can prevent verification from terminating. The deltas include
+dependent scheduling and memory effects; they motivate specialization of
+both primitives, with benefit tested on correct complete requests.
+
+\subsection{Register placement defines the communication}
+With lane $l$ holding $a[l+32k]$, $0\le k<8$, the first three forward NTT
+layers exchange registers within one lane. The remaining layers exchange
+lane $l$ with $l\mathbin{\mathrm{xor}}d$: $d=16,8,4,2$ for seven-layer ML-KEM,
+and additionally $d=1$ for eight-layer ML-DSA. Coalesced loads and stores
+surround a transform whose intermediate state remains in GPRs.
 
 \begin{figure}[t]
 \centering\input{figures/thesis.tex}
@@ -106,97 +216,26 @@ and 16. (b) Keccak uses column parity ($\theta$), a fixed permutation
 \label{fig:thesis}
 \end{figure}
 
-\section{Background and Motivation}
-\subsection{Two workloads, two communication graphs}
-Both standards operate on degree-256 polynomials, but ML-KEM uses seven NTT
-layers modulo $q_K=3329$ with 16-bit coefficients, whereas ML-DSA uses eight
-layers modulo $q_D=8380417$ with 32-bit coefficients. With lane $l$ holding
-$a[l+32k]$, $0\le k<8$, the first three layers exchange registers within one
-lane. The remaining layers exchange lane $l$ with $l\mathbin{\mathrm{xor}}d$;
-$d=16,8,4,2$ for ML-KEM and additionally $d=1$ for ML-DSA. This layout gives
-coalesced loads and stores and keeps every intermediate coefficient in GPRs.
+Mapping Keccak word $A[x,y]$ to lane $x+5y$ exposes column parity
+($\theta$), rotate-and-gather ($\rho\pi$), and row logic ($\chi\iota$).
+Each 64-bit word occupies two RV32 GPRs; rotations may need both halves even
+when an instruction returns one. Figure~\ref{fig:thesis} contrasts these
+neighborhoods with NTT pairs. Prior polynomial accelerators organize
+computation around memory rows or accelerator-owned storage
+~\cite{nttpim,bpntt,cham,zkflex}; here the architectural lane vector is the
+boundary. Fixed communication can replace generic shuffles while leaving
+sampling and request control on the programmable core.
 
-Both schemes also call SHA-3/SHAKE~\cite{fips202}. Mapping Keccak word $A[x,y]$ to lane
-$x+5y$ exposes the 25-word state, but a round still needs three distinct
-patterns: five-lane column parity ($\theta$), a rotate-and-gather permutation
-($\rho\pi$), and three-lane row logic ($\chi\iota$). On RV32 every 64-bit word
-occupies two GPRs and rotations cross their boundary. A useful instruction
-must therefore see both halves while returning only one architectural word.
-
-\subsection{Why the execution boundary matters}
-Register residence removes inter-stage memory traffic, but it does not by
-itself remove communication instructions. The fair baseline is consequently
-a cooperative shuffle kernel with the same state placement, rather than a
-single-lane scalar routine. Conversely, fusing more work is not always better:
-it shortens the instruction stream but enlarges the unit and can serialize
-independent warps. A pointer engine makes the opposite trade, removing a whole
-permutation from the ALU path while exposing state transfers through the LSU.
-We evaluate all three boundaries under identical request semantics.
-
-This reasoning also applies to the multiplier bank. A 32-lane paired
-butterfly needs 16 products, but peak issue rate is useful only while NTT work
-is on the request critical path. NTT-PIM and BP-NTT similarly choose their
-operation boundary from physical data placement~\cite{nttpim,bpntt}. We apply
-that principle to the warp register file and size the arithmetic with
-end-to-end measurements. More generally, PacQ and SynGPU show the value of
-matching SIMT hardware to irregular dataflow~\cite{pacq,syngpu}; our focus is
-fixed cryptographic communication with exact software compatibility.
-
-\subsection{Relation to prior cryptographic accelerators}
-Scalar PQC extensions optimize a different register boundary. RISQ-V keeps
-polynomial state in wide scalar registers and fuses several Kyber layers,
-whereas Nannipieri et al. use twiddle state and packed butterfly outputs to fit
-a scalar instruction stream~\cite{risqv,nannipieri}. Those encodings avoid a
-SIMT lane exchange but cannot exploit the 128 independent butterflies already
-present in every transform level. Our pair instruction instead treats two
-lanes as the natural producer of two results while preserving one destination
-per lane.
-
-GPU mappings expose more parallelism but usually leave communication in
-software. ML-Cube maps Keccak to 25 threads and uses shuffles around
-machine-learning accelerators~\cite{mlcube}; the NVIDIA collective-round
-description places a full 64-bit round behind a warp instruction
-~\cite{collectivepatent}. We retain the 25-lane layout but compare three
-implementation boundaries: software shuffles, stage collectives, and a fused
-round. This comparison is necessary on RV32, where low/high results double the
-architectural operations and a fused unit duplicates internal work to remain
-stateless.
-
-Dedicated accelerators can hide these interface costs with private SRAM and
-custom schedules. CHAM, NTT-PIM, BP-NTT, and ZK-Flex demonstrate the
-performance of co-designed polynomial storage and
-compute~\cite{cham,nttpim,bpntt,zkflex}. Their
-boundary is appropriate when the accelerator owns the application state. Our
-target retains sampling, packing, rejection control, and both standardized
-algorithms on one programmable core; the added units therefore operate on the
-same GPR state as the surrounding code. We evaluate fixed communication with
-software mapping and concurrency held constant, using complete requests.
-
-\subsection{SIMT constraints and design requirements}
-Vortex issues one instruction for a warp and carries a thread mask with the
-operand vectors. Each lane reads the same architectural register names, while
-the result arbiter and scoreboard treat the returned lane vector as one
-destination. A collective may use values from several lanes internally, but
-it must still retire with those ordinary semantics. Retaining a partial round
-or transform inside the unit would instead require a new context to be saved
-on a warp switch; writing two architectural destinations would require a new
-scoreboard and recovery rule. We therefore require one explicit transaction
-to consume source vectors, compute a fixed communication step, and return one
-value per active lane.
-
-The active mask must contain every producer needed by that step. For Keccak,
-the 25 state lanes execute as one converged group and the unused lanes are
-padding. For an NTT at distance $d$, activity must be closed under
-$l\mapsto l\mathbin{\mathrm{xor}}d$; otherwise one lane of a butterfly would
-read an absent partner. Distance, direction, modulus, and Keccak round index
-are therefore explicit instruction fields rather than hidden unit state.
-These rules are simple enough to assert in simulation and allow a stalled
-collective to carry the same warp ID, mask, and destination metadata as the
-existing variable-latency units.
-
-The experiments preserve library semantics and inputs. The NTT bank sweep
-changes only internal scheduling, keeping the binary fixed. We select hardware
-using complete requests, routed core cost, and model parity.
+\subsection{From software references to matched baselines}
+Portable C provides byte-exact reference outputs and the historical diagnosis.
+PQRV's optimized scalar RISC-V Keccak~\cite{pqrv} provides a separate scalar
+comparison, not the denominator of the main board results. Our primary
+baseline, A, uses the register layouts above with software shuffles and the
+same surrounding warp optimizations as the hardware arms. B adds Keccak
+Stage; C adds shared NTT; D adds both; E additionally reuses modular hardware
+outside transforms. A--E isolate hardware gains under one software mapping.
+Separate matched configurations evaluate Keccak granularity and
+multiplier-bank size (Section~\ref{sec:evaluation}).
 
 \section{Design and Implementation}
 \subsection{Collective contract and core integration}
@@ -290,23 +329,13 @@ only the constant paths after multiplication. This organization lets
 \code{NTTMUL.D} serve both butterfly products and ordinary pointwise products
 without a second arithmetic unit.
 
-Twiddles remain explicit lane operands. The unit contains neither a twiddle
-ROM nor a layer counter, so it does not assume a transform schedule or retain
-state between issues. Software can use the same operation for forward and
-inverse transforms, final scaling, ML-KEM base multiplication, and ML-DSA
-pointwise work. More importantly, the scheduler may suspend a warp between
-layers and issue another warp without saving an accelerator context.
-
-The paired encoding addresses a scalar instruction's operand mismatch. A logical
-butterfly has three values $(a,b,\zeta)$ and two results, but the pair-low lane
-provides the twiddle and the two physical lanes independently receive $r_p$
-and $r_h$. This converts an awkward three-input/two-output scalar operation
-into an ordinary two-vector/one-vector SIMT transaction. Figure~\ref{fig:detail}
-shows M2 assigning successive pairs to two multipliers over eight beats,
-and the RV32 temporary that preserves the old Keccak state. Result
-assembly records their lane indices and releases the vector only after the
-final reduction; later warps can still execute other functional units while
-the issuing warp waits on the destination dependency.
+Twiddles are explicit lane operands; there is no twiddle ROM or internal
+layer counter. The paired encoding maps $(a,b,\zeta)$ and $(r_p,r_h)$ onto
+two source vectors and one destination vector. Figure~\ref{fig:detail}
+shows M2 assigning 16 pairs to two multipliers over eight beats.
+Result assembly records lane indices and releases the vector after the final
+reduction. Other warps can execute on other functional units while the
+issuing warp waits on its destination dependency.
 
 \begin{figure}[t]
 \centering\input{figures/datapath_detail.tex}
@@ -346,19 +375,11 @@ ML-DSA also reuses \code{NTTMUL.D} for ordinary pointwise products. The
 ML-DSA-65 five-term matrix-vector sum accumulates in 64-bit software and
 performs one final Montgomery reduction, preserving the library representation.
 
-Cooperation is confined to primitive kernels. All 32 lanes enter and leave a
-region together; Keccak activates lanes 0--24, while an NTT butterfly uses a
-pair-closed mask at its encoded XOR distance. The leader controls allocation
-and rejection loops; warp kernels also parallelize candidate filtering,
-encoding, noise generation, and signing arithmetic. This keeps public
-interfaces unchanged and prevents a
-collective from observing a partially active pair. The compiler intrinsics
-name every source and destination, so the existing scoreboard orders a later
-consumer exactly as it does for an integer ALU result.
-
-One-shot sponges and transforms keep state in GPRs between initial load and
-final store. Pointer Keccak instead transfers the 200-byte state through the
-LSU, allowing independent ALU work from another warp.
+The leader controls allocation and rejection loops; warp kernels parallelize
+candidate filtering, encoding, noise generation, and signing arithmetic.
+All 32 lanes enter and leave each cooperative region together, using the
+converged or pair-closed masks required by the primitive. Intrinsics name
+every source and destination for ordinary compiler dependency tracking.
 
 Full-RAM ML-DSA reserves an 88-KiB arena per request for sets 44/65 and
 160 KiB for set 87. Leader-only allocation and reverse-order release reclaim
@@ -369,25 +390,31 @@ and FIPS-202 rounds. Complete runs of all six parameter sets compare keys,
 ciphertexts or signatures, and shared secrets byte for byte with portable C.
 
 \subsection{Model and RTL verification}
-The SimX timing model mirrors every RTL bank beat, pipeline latency, and result
-stall. This provides a functional oracle before processor RTL runs and makes
-cycle disagreement observable rather than hidden by a looser simulator. The
-processor tests then exercise instruction decode, scoreboard hazards, masks,
-and writeback arbitration. XRT adds the AFU integration used by the complete
-applications. We require identical retired instruction counts for matched
-SimX/XRT binaries and keep timing gaps below the pre-defined 5\% parity bound;
-we do not widen the bound to accommodate a new unit.
-
-Unit testbenches cover all five XOR distances, both directions and moduli,
-masks, backpressure, and consecutive warp metadata. Instruction tests compare
-every lane with scalar references; transform boundary vectors precede complete
-library KATs. All 60 single/eight-request A--E cases across the six sets pass
+The SimX model mirrors RTL bank beats, pipeline latency, and result stalls.
+Processor tests exercise decode, scoreboard hazards, and writeback; XRT adds
+the AFU integration used by complete applications. Unit tests cover all five
+XOR distances, both directions and moduli, masks, backpressure, and consecutive
+warp metadata. Lane results are checked against scalar references before
+transform boundary vectors and complete-library known-answer tests. Matched
+SimX/XRT binaries must retire identical instruction counts with cycle gaps
+below a fixed 5\% bound. All 60 single/eight-request A--E cases across the six sets pass
 both models with identical instruction counts and at most
 \HeadlineParityMax{}\% cycle difference. Their five board repetitions also
 match the XRT instruction counts. Independent post-route cores measure each
 hardware choice.
 
+\begin{figure*}[t]
+\centering\input{figures/eval_requests.tex}
+\caption{200-MHz V80 complete-request speedups over matched cooperative
+software (A). B enables Keccak Stage; C enables shared NTT; D enables both;
+E also uses modular products outside transforms. Blue/teal denote one/eight
+requests. (a,b) A--E ablations; (c) A/E across all six sets. Every arm uses the
+same complete software mapping; speedups divide five-run median makespans.}
+\label{fig:requests}
+\end{figure*}
+
 \section{Evaluation}
+\label{sec:evaluation}
 \subsection{Methodology}
 The board experiments use one RV32IM Vortex core with eight 32-thread warps,
 16-KiB instruction/data caches and local memory, a write-through D-cache,
@@ -426,15 +453,7 @@ Physical flow & Alveo V80, 200 MHz, Vivado 2025.1\\
 \end{tabular}
 \end{table}
 
-\begin{figure*}[t]
-\centering\input{figures/eval_requests.tex}
-\caption{200-MHz V80 complete-request speedups over matched cooperative
-software (A). B enables Keccak Stage; C enables shared NTT; D enables both;
-E also uses modular products outside transforms. Blue/teal denote one/eight
-requests. (a,b) A--E ablations; (c) A/E across all six sets. Every arm uses the
-same complete software mapping; speedups divide five-run median makespans.}
-\label{fig:requests}
-\end{figure*}
+
 
 \subsection{Communication collectives improve complete requests}
 Figure~\ref{fig:requests} uses a single complete-mapping cohort. At one
@@ -549,7 +568,6 @@ they do not establish an optimal bank size for every parameter and workload.
 Energy requires workload activity; device timings do not measure host-to-host
 latency.
 
-\noindent\begin{minipage}{\columnwidth}
 \section{Conclusion}
 Communication-matched collectives keep Keccak and NTT state in ordinary lane
 registers and share one modular unit across ML-KEM and ML-DSA. At 200 MHz,
@@ -559,7 +577,6 @@ ablations show incremental NTT benefit after Stage, while bank sizing and
 batch sweeps favor modest hardware and explicit warp concurrency. Primitive
 throughput alone does not predict the best complete-request design.
 
-\end{minipage}
 \clearpage
 \bibliographystyle{IEEEtran}
 \bibliography{references}

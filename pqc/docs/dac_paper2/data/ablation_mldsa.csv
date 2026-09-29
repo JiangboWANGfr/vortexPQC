@@ -1,0 +1,105 @@
+# Amdahl bounds for ML-DSA-65. tests/pqc/mldsa_profile, simx, 1 core / 4 warps /
+# 4 threads, one lane, L2-L3 off.
+#
+# ONLY KEYPAIR CAN BE ABLATED, and this is structural rather than a shortcut.
+# Signing is a Fiat-Shamir rejection loop: with a primitive stubbed the candidate
+# never passes its norm check, so it runs to MLD_MAX_SIGNING_ATTEMPTS and the
+# ablated build does MORE work than the baseline. Verification cannot be ablated
+# either -- SampleInBall carries its own rejection loop (do { j = buf[pos++] }
+# while (j > i)) which spins on the constant bytes a stubbed squeeze returns.
+# So the keypair bound is measured and the round-trip bound is an extrapolation,
+# labelled as one.
+#
+# Both budgets run 190 permutations in keypair and the measured Keccak deltas
+# agree to 0.4% -- the same work costing the same amount, which is the
+# consistency check the method needs.
+scope,ram,baseline_cycles,ablated_cycles,delta,fraction,amdahl,basis
+keypair,low,42022206,12790540,29231666,0.6956,3.285,measured (ablation)
+keypair,low,42022206,39024818,2997388,0.0713,1.077,"measured (ablation, NTT)"
+roundtrip,low,189935043,,120311383,0.6334,2.728,"extrapolated: 782 perms x 153851 cyc, per-perm cost from the keypair ablation"
+roundtrip,low,189935043,,28066451,0.1478,1.173,"extrapolated: 103 transforms x 272490 cyc, NTT"
+keypair,full,39121351,10001356,29119995,0.7444,3.912,measured (ablation)
+keypair,full,39121351,36139656,2981695,0.0762,1.083,"measured (ablation, NTT)"
+roundtrip,full,142119160,,89199142,0.6276,2.686,"extrapolated: 582 perms x 153263 cyc, per-perm cost from the keypair ablation"
+roundtrip,full,142119160,,25751002,0.1812,1.221,"extrapolated: 95 transforms x 271063 cyc, NTT"
+#
+# CALIBRATION, and the fourth independent instance of the same bias. The
+# ablation puts one permutation at 153851 cycles (low) and 153263 (full);
+# the microbenchmark reports 151,873. The ablation is 1.3% higher, and the three
+# earlier comparisons were 1.4%, 1.3% and 1.30% in the same direction. A
+# microbenchmark of a primitive cannot see the call overhead around it, so
+# count x microbenchmark-cost systematically understates -- explainable, not noise.
+#
+# THE MEMORY BUDGET CHANGES THE COMPOSITION, NOT JUST THE TOTAL. Going from low
+# to full, NTT's share of the round trip rises from 14.8% to 18.1% while Keccak's
+# barely moves. Optimising the software moved which primitive is worth
+# accelerating -- the bottleneck migration OpenTitan reports after their hash
+# acceleration, arriving here from a compile flag instead.
+#
+# ============================================================================
+# WHAT IS STILL MISSING HERE, checked 2026-09-07 after the ML-KEM coins fix.
+# ============================================================================
+#
+# NOT MISSING: the coin mismatch that invalidated every ML-KEM figure does NOT
+# exist on this scheme. tests/pqc/mldsa/main.cpp:107-109 and
+# tests/pqc/mldsa_profile/main.cpp:93-95 are byte-identical --
+# seed[i] = i+1, rnd[i] = 0x40+i, msg[i] = 0x80+i -- so profile and baseline have
+# always described the same input. Nothing above needs re-running for that reason.
+#
+# NOT MISSING EITHER: the keypair rows. ML-DSA keypair is seed-stable, 190
+# permutations on 19,999 of 20,000 random seeds (host sweep,
+# next_steps_recipes.md:953), so 3.285x (low) and 3.912x (full) are as
+# representative as they will ever be.
+#
+# (1) THE ASYMMETRY THIS FILE USED TO SUPPORT IS GONE. It was written when ML-KEM
+#     measured 67.72% / 3.098x, against ML-DSA's 63.34% / 2.728x. ML-KEM is now
+#     65.65% / 2.911x on its own coins, so the two schemes are within 2.3
+#     percentage points and the "ML-KEM is more Keccak-bound" line no longer
+#     holds. Anywhere that contrast is drawn needs rewriting.
+#
+# (2) THE ROUND-TRIP SEED IS NOT REPRESENTATIVE AND NO SINGLE SEED CAN BE.
+#     782 permutations is the 35th percentile; the host sweep gives mode 574
+#     (19.18%), median 1173, mean 1414, p95 3243. The mean is 2.5x the mode, so
+#     unlike ML-KEM -- where 144 is the mode at 92.6% and switching to it was
+#     simply correct -- there is no modal seed worth switching to. The right
+#     deliverable is a DISTRIBUTION, which is also what Riou et al. demand for
+#     migration planning. Every absolute round-trip cycle count in this file is
+#     one seed's rejection-loop outcome and must be labelled as such.
+#
+# (3) THE DISTRIBUTION IS NOT ARCHIVED, AND ITS TAIL IS SUSPECT. The 20,000-seed
+#     sweep lives only in next_steps_recipes.md:951-954, not in pqc/results/, and
+#     the scanner was a one-off that is not in the tree. Worse, that entry records
+#     its own defect: the 8192-bin histogram overflowed on 6 of 20,000 round trips
+#     and dropped them, so n = 19,994 and the apparent max 8090 is a floor.
+#     **p95 = 3243 therefore comes from a truncated sample and must be re-derived**
+#     before the paper prints it.
+#
+# (4) SIGN AND VERIFY CANNOT BE ABLATED, STRUCTURALLY. See the header. This is not
+#     a gap that more runs close; the round-trip bound stays an extrapolation
+#     calibrated against the keypair ablation, and stays labelled as one.
+#
+# COST OF CLOSING THEM: (1) is a documentation edit. (3) is a host-side program,
+# no simulation, ~100 lines against mldsa-native with a counting FIPS-202 hook.
+# A modal-seed DEVICE run is a separate and larger job -- next_steps_recipes.md:1004
+# scopes it: both ML-DSA hosts hardcode the seed (getopt "k:h"), so it needs a -s
+# option plumbed through the kernel arg plus a host search for a seed yielding 574.
+# (2) is answered by (3) plus honest labelling, not by another SimX run.
+#
+# ============================================================================
+# UPDATE: THE ROUND-TRIP EXTRAPOLATION IS NOW CROSS-CHECKED (keccak_ise_mldsa.csv)
+# ============================================================================
+# Gap (4) above -- sign and verify cannot be ablated -- is structural and stands.
+# But the extrapolation it forces is no longer unverified. The KECCAKF PE arm
+# computes correct results, so it CAN run the round trip, and subtracting the
+# PE's own per-permutation cost from the PE's round trip estimates the same
+# free-Keccak total by a route that shares nothing with the ablation:
+#   ram=low    this file 2.728x     from the PE arm 2.729x     (0.04% apart)
+#   ram=full   this file 2.686x     from the PE arm 2.686x     (0.00%)
+# Gap (2) -- one seed is not a distribution -- and gap (3) -- the distribution is
+# not archived and its tail is truncated -- are untouched by this.
+#
+# DENOMINATOR NOTE. The rows above were taken before mldsa_profile gained the
+# MLD_PROF_ARM stamp; the same arms now measure 42,022,203 / 39,121,420 for the
+# baselines against 42,022,206 / 39,121,351 here, a 3- and 69-cycle shift from the
+# one extra store. Do not mix the two sets in one subtraction -- every figure in
+# keccak_ise_mldsa.csv uses its own build's numbers throughout.

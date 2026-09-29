@@ -19,8 +19,8 @@ The page allocation is:
 
 | Pages | Content |
 | --- | --- |
-| 1--2 | Introduction, communication graphs, prior work, and SIMT design requirements |
-| 2 (end)--4 | Collective contract, Keccak Stage/Round, shared K/D NTT, native-library integration, and verification |
+| 1--2 | Expanded introduction, related work, initial hotspot diagnosis, and communication graphs |
+| 3--4 | Baseline definitions, collective contract, Keccak Stage/Round, shared K/D NTT, library integration, and verification |
 | 4 (end)--6 | Methodology, complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, post-route cost, scope, and conclusion |
 | 7 | References only |
 
@@ -38,8 +38,8 @@ the captions.
 | 5 | `figures/eval_tradeoffs.tex` | Fusion gap and the M16/M8/M4/M2/M1 performance-resource sweep |
 | 6 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
-The manuscript contains three tables: the collective interfaces, the experimental setup,
-and matched post-route cost cohorts.
+The manuscript contains four tables: the initial software cost diagnosis, collective
+interfaces, experimental setup, and matched post-route cost cohorts.
 
 Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
@@ -88,11 +88,36 @@ equality, parity bounds, configuration, and routing status before generating:
 - `assets/cost_rows.tex` for the post-route table;
 - `assets/source_manifest.json` with source hashes and derived values.
 
+The motivation table derives its values from `ablation_mlkem.csv` and
+`ablation_mldsa.csv`: historical single-lane RV32 SimX, one core, W4T4, no L2/L3.
+Keccak and NTT/INTT independent ablation deltas are 65.65%/12.67% for a complete
+ML-KEM-768 request and 74.44%/7.62% for full-RAM ML-DSA-65 key generation.
+The generator recomputes each delta from the matching baseline and ablated cycles.
+These intentionally incorrect diagnostic runs motivate the selected primitives;
+they are not current cooperative-board phase fractions, additive exclusive timing,
+or hardware speedups. Extrapolated DSA signing/verification shares are not used.
+
+Section II distinguishes portable C references, historical PQRV scalar controls,
+and the primary register-resident cooperative baseline A. A--E use the same
+surrounding software mapping; separate granularity and bank controls have their
+own matched configurations. The introduction now states that denominator before
+reporting hardware gains.
+
 The M16 rows include Stage, Round, and Pointer; M2 includes a directly routed
 Stage+M2 core. The full board image
 contains additional optional Keccak units; its AFU area is reported separately
 from the lean core sweep. Power and energy are excluded because no
 workload-activity-based measurement is available.
+
+## Literature coverage
+
+The introduction is approximately 900 English words and extends into page 2.
+The bibliography has 25 cited entries. Additions cover GPU Kyber/Dilithium
+software, modular RISC-V extensions, unified lattice hardware, and hash-interface
+cost. Two unrelated SIMT application references were removed from the manuscript;
+their figure styles remain useful drawing references. `literature_audit.md`
+records the local DAC sample and the claim/source checks. Reference count is a
+coverage check, not a target to fill with unrelated work.
 
 ## Build
 

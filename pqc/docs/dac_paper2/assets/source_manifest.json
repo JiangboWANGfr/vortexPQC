@@ -1,6 +1,7 @@
 {
   "mlkem_native_commit": "1d7b486c4db3bbc620b009d05e4f69eca9e68d22",
   "measurements": {
+    "ablation_mldsa.csv": "1bbfdd459cb5541d9c64892e16755c837e402aef34c415a457dad40a2c1201c6",
     "ablation_mlkem.csv": "ca8e88d2f9640ddf3479a1e67ec748dbb5b73acce26f54ce2080b964b0405984",
     "aved_resources_200mhz.json": "ab8b9b8651d4b4b7559f93ad22cd1067124eca54977ca6d10ca45edf78389ff7",
     "core_ppa_200mhz.csv": "4c216c06eb047101f8c1d7e9c65d4a401e83dc606a2fc9220db78646f116ebf6",
@@ -137,6 +138,10 @@
     "ParameterBatchMin": 0.9980554681121239,
     "ParameterBatchMax": 1.0469175233137364,
     "ParameterBatchPeak": 1.1194835748440404,
+    "MotivationKemKeccak": 65.6466456486091,
+    "MotivationKemNtt": 12.66918253956382,
+    "MotivationDsaKeccak": 74.4350444339205,
+    "MotivationDsaNtt": 7.621656522035755,
     "KemNttSaved": 4.912886949873618,
     "DsaNttSaved": 5.939065248857977,
     "SharedParityMax": 0.878635364724045,
