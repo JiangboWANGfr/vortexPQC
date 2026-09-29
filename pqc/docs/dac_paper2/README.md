@@ -24,6 +24,25 @@ The page allocation is:
 | 4 (end)--6 | Methodology, complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, post-route cost, scope, and conclusion |
 | 7 | References only |
 
+## ISA and hardware organization
+
+Section III introduces the collective ISA before its implementation. Table II
+defines explicit source operands and per-lane outputs for the four Keccak
+families, NTTBF, and NTTMUL. The five subsections cover the ISA, Keccak datapath,
+shared K/D modular datapath, execution control and core integration, and brief
+software integration. Verification methods and model-parity results are in
+Evaluation Methodology.
+
+The interface and pipeline descriptions were checked against the kernel
+intrinsics, `VX_decode.sv`, `VX_alu_ksg25.sv`, `VX_alu_kround25.sv`,
+`VX_pqc_nttmul.sv`, and `VX_alu_unit.sv`. Stage/NTT use custom-0; Round uses
+custom-2. KCHII consumes a selected half and a uniform register round number;
+the other Keccak families consume both RV32 halves. K/D share the multiplier
+bank but differ in operand preparation as well as reduction. K-GS requires
+both Montgomery and Barrett products, explaining its doubled beat count.
+The stated NTT `B+6` latency is the unstalled integrated-ALU acceptance-to-commit
+measurement, not the isolated PE pipeline depth.
+
 ## Figures and tables
 
 All six figures are native TikZ/PGFPlots sources with restrained labels and explanations in
