@@ -256,33 +256,35 @@ as an immediate. Software preserves the old register pair until both L/H
 results have been computed (Fig.~\ref{fig:detail}b).
 
 \begin{table}[t]
-\caption{RV32 collective ISA; one $rd$ per active lane.
-$\{L,H\}$ lists separate low/high forms; $h$ is the selected half.
-$Q\in\{K,D\}$ selects the modulus; NTTBF uses XOR distance $2^s$.}
+\caption{RV32 ISA with per-lane operands and results.
+Slashes denote separate forms: L/H select half $h$; K/D select modulus
+$Q$. NTTBF uses XOR distance $2^s$.}
 \label{tab:isa}
-\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\centering\small\setlength{\tabcolsep}{4pt}
 \begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}l c c l@{}}
 \toprule
-Instruction & $rs_1$ & $rs_2$ & Result at lane $l$\\
+Instruction & $rs_1[l]$ & $rs_2[l]$ & $rd[l]$\\
 \midrule
-\code{KTHETA.\{L,H\}} & $A_L$ & $A_H$ & $\theta(A)_h[l]$\\
-\code{KRHOPI.\{L,H\}} & $A_L$ & $A_H$ & $\rho\pi(A)_h[l]$\\
-\code{KCHII.\{L,H\}} & $A_h$ & $r$ & $\chi\iota_r(A_h)[l]$\\
-\code{KROUND.\{L,H\}} $r$ & $A_L$ & $A_H$ & $\mathrm{Round}_r(A)_h[l]$\\
-\code{NTTBF.CT}.$Q$ & $v$ & $z$ & CT output, \eqref{eq:ntt-ct}\\
-\code{NTTBF.GS}.$Q$ & $v$ & $z$ & GS output, \eqref{eq:ntt-gs}\\
-\code{NTTMUL}.$Q$ & $a$ & $b$ & $\Mont_Q(a_l b_l)$\\
+\code{KTHETA.L/H} & $A_{L,l}$ & $A_{H,l}$ & $\theta(A)_h[l]$\\
+\code{KRHOPI.L/H} & $A_{L,l}$ & $A_{H,l}$ & $\rho\pi(A)_h[l]$\\
+\code{KCHII.L/H} & $A_{h,l}$ & $r$ & $\chi\iota_r(A_h)[l]$\\
+\code{KROUND.L/H} $r$ & $A_{L,l}$ & $A_{H,l}$ & $\mathrm{Round}_r(A)_h[l]$\\
+\midrule
+\code{NTTMUL.K/D} & $a_l$ & $b_l$ & $\Mont_Q(a_l b_l)$\\
+\code{NTTBF.CT.K/D} & $a_l$ & $\zeta_l$ & $r_l^{\mathrm{CT}}$, \eqref{eq:ntt-ct}\\
+\code{NTTBF.GS.K/D} & $a_l$ & $\zeta_l$ & $r_l^{\mathrm{GS}}$, \eqref{eq:ntt-gs}\\
 \bottomrule
 \end{tabular*}
 \end{table}
 
 For NTTBF, choose pair-low lane $p$ with bit $s$ clear and partner
-$h=p\mathbin{\mathrm{xor}}2^s$. The sources supply
-$a=v[p]$, $b=v[h]$, and $\zeta=z[p]$; the pair-high twiddle is unused.
+$h=p\mathbin{\mathrm{xor}}2^s$. The operation uses
+$a=a_p$, $b=a_h$, and $\zeta=\zeta_p$; the pair-high $\zeta_h$ is unused.
 The forward CT form computes
 \begin{equation}
 \label{eq:ntt-ct}
-t=\Mont_Q(b\zeta),\qquad (rd_p,rd_h)=(a+t,a-t).
+t=\Mont_Q(b\zeta),\qquad
+(r_p^{\mathrm{CT}},r_h^{\mathrm{CT}})=(a+t,a-t).
 \end{equation}
 Thus two source vectors express three butterfly inputs, while one destination
 vector carries both outputs. GS forms preserve each library's inverse
@@ -326,8 +328,9 @@ Pointer comparison; it does not use the register-collective interface.
 \label{sec:ntt-hw}
 Figure~\ref{fig:architecture}b separates pair preparation, a shared signed
 $32\times32$ multiplier bank, modular reduction, and lane-result assembly.
-For CT, one Montgomery product supplies both lane results through add/subtract
-logic. Inverse GS preparation preserves the libraries' different conventions:
+CT uses one Montgomery product for both outputs. The inverse pair
+$(r_p^{\mathrm{GS}},r_h^{\mathrm{GS}})=\mathrm{GS}_Q(a,b,\zeta)$ follows
+the libraries' different conventions:
 \begin{align}
 \label{eq:ntt-gs}
 \mathrm{GS}_K(a,b,\zeta)&=(\mathrm{Barrett}_K(a+b),\Mont_K((b-a)\zeta)),\nonumber\\
