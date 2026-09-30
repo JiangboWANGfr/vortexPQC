@@ -48,23 +48,23 @@
 \node[anchor=east,inner sep=0pt] at (9.5,14.0) {$I_1$};
 \foreach \i in {0,...,7} {
   \pgfmathsetmacro{\xx}{13+3*\i}
-  \draw[block,fill=cTeal!16] (\xx,24.0) rectangle (\xx+3,30.0);
+  \draw[block,fill=cTeal!15] (\xx,24.0) rectangle (\xx+3,30.0);
   \node[inner sep=0pt,font=\fontsize{7.5}{8.5}\selectfont]
     at (\xx+1.5,27.0) {$\i$};
   \pgfmathsetmacro{\jx}{37+3*\i}
-  \draw[block,fill=cBlue!13] (\jx,11.0) rectangle (\jx+3,17.0);
+  \draw[block,fill=cTeal!15] (\jx,11.0) rectangle (\jx+3,17.0);
   \node[inner sep=0pt,font=\fontsize{7.5}{8.5}\selectfont]
     at (\jx+1.5,14.0) {$\i$};
 }
-\draw[block,fill=black!10] (37,24.0) rectangle (55,30.0);
-\draw[block,fill=black!10] (61,11.0) rectangle (79,17.0);
+\draw[block,fill=cOrange!17] (37,24.0) rectangle (55,30.0);
+\draw[block,fill=cOrange!17] (61,11.0) rectangle (79,17.0);
 \node[font=\fontsize{7}{8}\selectfont] at (46,27.0) {drain / return};
 \node[font=\fontsize{7}{8}\selectfont] at (70,14.0) {drain / return};
-\filldraw[draw=cTeal!90!black,fill=cTeal,line width=.5pt]
+\filldraw[draw=cBlue,fill=cBlue,line width=.5pt]
   (55,27.0) circle (.75mm);
 \filldraw[draw=cBlue,fill=cBlue,line width=.5pt]
   (79,14.0) circle (.75mm);
-\node[anchor=south,inner sep=.4pt,text=cTeal!80!black]
+\node[anchor=south,inner sep=.4pt,text=cBlue]
   at (55,30.7) {$r_d^0$};
 \node[anchor=south,inner sep=.4pt,text=cBlue]
   at (79,17.7) {$r_d^1$};
