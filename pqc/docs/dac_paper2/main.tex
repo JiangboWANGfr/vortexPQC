@@ -249,32 +249,31 @@ all 32 lanes active, with state in
 lanes 0--24 and zero results in lanes 25--31. NTT butterflies require a
 pair-closed mask: either both XOR partners participate or neither does.
 
-Table~\ref{tab:isa} defines the instruction families. Keccak Stage exposes
-\code{KTHETA}, \code{KRHOPI}, and \code{KCHII}; \code{KROUND} fuses one round.
-RV32 L/H forms return one half of each 64-bit word. Theta, rho/pi, and Round
-read both old halves; chi/iota reads only its selected half and a warp-uniform
-round $r\in[0,23]$. Round encodes $r$ as an immediate. Software saves the
-first result until the second instruction has read the old pair
-(Fig.~\ref{fig:detail}b).
+Table~\ref{tab:isa} lists Stage's three steps and the fused Round.
+Theta, rho/pi, and Round read both old halves; chi/iota reads only its
+selected half and a warp-uniform round $r\in[0,23]$. Round encodes $r$
+as an immediate. Software preserves the old register pair until both L/H
+results have been computed (Fig.~\ref{fig:detail}b).
 
 \begin{table}[t]
-\caption{RV32 collective ISA. All forms write one $rd$ per active lane.
-$h\in\{L,H\}$ selects a half; $Q\in\{K,D\}$ selects a modulus.
-NTTBF additionally selects CT/GS and XOR distance $2^s$.}
+\caption{RV32 collective ISA; one $rd$ per active lane.
+$\{L,H\}$ lists separate low/high forms; $h$ is the selected half.
+$Q\in\{K,D\}$ selects the modulus; NTTBF uses XOR distance $2^s$.}
 \label{tab:isa}
 \centering\footnotesize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}lll@{}}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}l c c l@{}}
 \toprule
-Instruction & $rs_1,rs_2$ & Result at lane $l$\\
+Instruction & $rs_1$ & $rs_2$ & Result at lane $l$\\
 \midrule
-\code{KTHETA}.$h$ & $A_L,A_H$ & $\theta(A)_h[l]$\\
-\code{KRHOPI}.$h$ & $A_L,A_H$ & $\rho\pi(A)_h[l]$\\
-\code{KCHII}.$h$ & $A_h,r$ & $\chi\iota_r(A_h)[l]$\\
-\code{KROUND}.$h$ $r$ & $A_L,A_H$ & $\mathrm{Round}_r(A)_h[l]$\\
-\code{NTTBF}.$Q$ & $v,z$ & Paired CT/GS result\\
-\code{NTTMUL}.$Q$ & $a,b$ & $\Mont_Q(a_l b_l)$\\
+\code{KTHETA.\{L,H\}} & $A_L$ & $A_H$ & $\theta(A)_h[l]$\\
+\code{KRHOPI.\{L,H\}} & $A_L$ & $A_H$ & $\rho\pi(A)_h[l]$\\
+\code{KCHII.\{L,H\}} & $A_h$ & $r$ & $\chi\iota_r(A_h)[l]$\\
+\code{KROUND.\{L,H\}} $r$ & $A_L$ & $A_H$ & $\mathrm{Round}_r(A)_h[l]$\\
+\code{NTTBF.CT}.$Q$ & $v$ & $z$ & CT output, \eqref{eq:ntt-ct}\\
+\code{NTTBF.GS}.$Q$ & $v$ & $z$ & GS output, \eqref{eq:ntt-gs}\\
+\code{NTTMUL}.$Q$ & $a$ & $b$ & $\Mont_Q(a_l b_l)$\\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \end{table}
 
 For NTTBF, choose pair-low lane $p$ with bit $s$ clear and partner
@@ -282,6 +281,7 @@ $h=p\mathbin{\mathrm{xor}}2^s$. The sources supply
 $a=v[p]$, $b=v[h]$, and $\zeta=z[p]$; the pair-high twiddle is unused.
 The forward CT form computes
 \begin{equation}
+\label{eq:ntt-ct}
 t=\Mont_Q(b\zeta),\qquad (rd_p,rd_h)=(a+t,a-t).
 \end{equation}
 Thus two source vectors express three butterfly inputs, while one destination
@@ -329,6 +329,7 @@ $32\times32$ multiplier bank, modular reduction, and lane-result assembly.
 For CT, one Montgomery product supplies both lane results through add/subtract
 logic. Inverse GS preparation preserves the libraries' different conventions:
 \begin{align}
+\label{eq:ntt-gs}
 \mathrm{GS}_K(a,b,\zeta)&=(\mathrm{Barrett}_K(a+b),\Mont_K((b-a)\zeta)),\nonumber\\
 \mathrm{GS}_D(a,b,\zeta)&=(a+b,\Mont_D((a-b)\zeta)).
 \end{align}

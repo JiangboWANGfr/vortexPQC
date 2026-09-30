@@ -59,6 +59,13 @@ shared K/D modular datapath, execution control and core integration, and brief
 software integration. Verification methods and model-parity results are in
 Evaluation Methodology.
 
+Table II fills one column with separate `rs1` and `rs2` columns. The explicit
+`.{L,H}` notation denotes two Keccak instruction forms, not a two-register
+destination. NTTBF CT and GS have separate rows linked to their forward and
+inverse equations; K/D remain modulus parameters. NTT operations have no L/H
+forms on RV32. KCHII obtains its round number from `rs2`, while KROUND encodes
+the round as an immediate and uses `rs2` for the old high half.
+
 The interface and pipeline descriptions were checked against the kernel
 intrinsics, `VX_decode.sv`, `VX_alu_ksg25.sv`, `VX_alu_kround25.sv`,
 `VX_pqc_nttmul.sv`, and `VX_alu_unit.sv`. Stage/NTT use custom-0; Round uses
