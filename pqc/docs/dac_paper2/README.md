@@ -19,10 +19,26 @@ The page allocation is:
 
 | Pages | Content |
 | --- | --- |
-| 1--2 | Expanded introduction, related work, initial hotspot diagnosis, and communication graphs |
-| 3--4 | Baseline definitions, collective contract, Keccak Stage/Round, shared K/D NTT, library integration, and verification |
+| 1--3 | Introduction, related work, shared primitives, software communication, and architectural requirements |
+| 3--4 | Collective ISA, Keccak Stage/Round, shared K/D NTT, execution control, and software integration |
 | 4 (end)--6 | Methodology, complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, post-route cost, scope, and conclusion |
 | 7 | References only |
+
+## Background and motivation
+
+Section II connects shared primitive cost to the hardware requirements:
+
+1. Shared primitives and computational cost: coefficient representations,
+   Keccak state, and the scoped historical ablation in Table I.
+2. Register mapping and communication cost: Figure 1's NTT/Keccak layouts
+   and cooperative software baseline A. The comparison measures the combined
+   communication-and-arithmetic specialization, not an isolated routing gain.
+3. Architectural requirements: ordinary register semantics, shared modular
+   arithmetic, and independently selectable granularity and physical capacity.
+
+The full A--E definitions and the distinction between portable-C references,
+historical PQRV controls, and the headline baseline are in Evaluation Methodology.
+The motivation does not select Stage or M2 before presenting the measurements.
 
 ## ISA and hardware organization
 
@@ -129,11 +145,11 @@ These intentionally incorrect diagnostic runs motivate the selected primitives;
 they are not current cooperative-board phase fractions, additive exclusive timing,
 or hardware speedups. Extrapolated DSA signing/verification shares are not used.
 
-Section II distinguishes portable C references, historical PQRV scalar controls,
-and the primary register-resident cooperative baseline A. A--E use the same
-surrounding software mapping; separate granularity and bank controls have their
-own matched configurations. The introduction now states that denominator before
-reporting hardware gains.
+Section II defines the register-resident cooperative baseline A. Evaluation
+Methodology distinguishes it from portable-C references and historical PQRV
+scalar controls, and defines all five A--E modes. They use the same surrounding
+software mapping; separate granularity and bank controls have their own matched
+configurations. The introduction states the denominator before reporting gains.
 
 The M16 rows include Stage, Round, and Pointer; M2 includes a directly routed
 Stage+M2 core. The full board image

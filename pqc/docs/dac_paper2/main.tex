@@ -168,16 +168,21 @@ batch throughput, and routed hardware cost.
 
 \section{Background and Motivation}
 \label{sec:motivation}
-\subsection{Shared hotspots and the scope of profiling}
-ML-KEM uses degree-256 polynomials modulo $q_K=3329$; ML-DSA uses
-$q_D=8380417$. Both use SHA-3/SHAKE for hashing and pseudorandom expansion,
-including polynomial sampling~\cite{fips203,fips204,fips202}.
-Table~\ref{tab:motivation} reports our initial single-lane RV32 SimX diagnosis:
-one core, four warps of four threads, and no L2/L3. Each independent
-ablation removes one primitive's body while preserving its call interface;
-the reported fraction is $(C_0-C_{-i})/C_0$. The instrumented baseline and
-its ablated variant share inputs and configuration. These are diagnostic
-runs with intentionally invalid outputs, not accelerated implementations.
+\subsection{Shared Primitives and Computational Cost}
+Both schemes operate on 256-coefficient polynomials, with $q_K=3329$ for
+ML-KEM and $q_D=8380417$ for ML-DSA~\cite{fips203,fips204}. Our library
+mappings use 16-bit KEM and 32-bit DSA coefficients. Both also invoke
+SHA-3/SHAKE, whose Keccak permutation updates a $25\times64$-bit
+state~\cite{fips202}. Complete requests additionally execute sampling,
+encoding, and protocol control.
+
+Table~\ref{tab:motivation} diagnoses a historical single-lane RV32 SimX
+baseline: one core, W4T4, no L2/L3. Removing primitive $i$'s body changes
+cycles from $C_0$ to $C_{-i}$ under matched inputs and configuration. The fraction
+$(C_0-C_{-i})/C_0$ includes resulting scheduling and memory effects.
+Outputs are intentionally invalid.
+DSA covers full-RAM key generation because stubbing hashing disrupts signing
+retries and verification.
 
 \begin{table}[t]
 \caption{Initial software cost diagnosis. Independent ablation deltas,
@@ -194,18 +199,11 @@ ML-DSA-65 key generation (full RAM) & \MotivationDsaKeccak{}\% & \MotivationDsaN
 \end{tabular}
 \end{table}
 
-KEM has 144 permutations and 24 transforms for the selected known-answer
-input. DSA is restricted to key generation: stubbing hashing changes signing
-retries and can prevent verification from terminating. The deltas include
-dependent scheduling and memory effects; they motivate specialization of
-both primitives, with benefit tested on correct complete requests.
-
-\subsection{Register placement defines the communication}
+\subsection{Register Mapping and Communication Cost}
 With lane $l$ holding $a[l+32k]$, $0\le k<8$, the first three forward NTT
 layers exchange registers within one lane. The remaining layers exchange
 lane $l$ with $l\mathbin{\mathrm{xor}}d$: $d=16,8,4,2$ for seven-layer ML-KEM,
-and additionally $d=1$ for eight-layer ML-DSA. Coalesced loads and stores
-surround a transform whose intermediate state remains in GPRs.
+and additionally $d=1$ for eight-layer ML-DSA. Initial and final accesses coalesce.
 
 \begin{figure}[t]
 \centering\input{figures/thesis.tex}
@@ -217,25 +215,32 @@ and 16. (b) Keccak uses column parity ($\theta$), a fixed permutation
 \end{figure}
 
 Mapping Keccak word $A[x,y]$ to lane $x+5y$ exposes column parity
-($\theta$), rotate-and-gather ($\rho\pi$), and row logic ($\chi\iota$).
-Each 64-bit word occupies two RV32 GPRs; rotations may need both halves even
-when an instruction returns one. Figure~\ref{fig:thesis} contrasts these
-neighborhoods with NTT pairs. Prior polynomial accelerators organize
-computation around memory rows or accelerator-owned storage
-~\cite{nttpim,bpntt,cham,zkflex}; here the architectural lane vector is the
-boundary. Fixed communication can replace generic shuffles while leaving
-sampling and request control on the programmable core.
+($\theta$), fixed rotation/permutation ($\rho\pi$), and row-neighbor logic
+($\chi\iota$). Each word occupies two RV32 GPRs. Figure~\ref{fig:thesis}
+contrasts these neighborhoods with NTT pairs. Memory rows and private storage
+provide other placement choices in polynomial accelerators~\cite{nttpim,bpntt,cham,zkflex}.
 
-\subsection{From software references to matched baselines}
-Portable C provides byte-exact reference outputs and the historical diagnosis.
-PQRV's optimized scalar RISC-V Keccak~\cite{pqrv} provides a separate scalar
-comparison, not the denominator of the main board results. Our primary
-baseline, A, uses the register layouts above with software shuffles and the
-same surrounding warp optimizations as the hardware arms. B adds Keccak
-Stage; C adds shared NTT; D adds both; E additionally reuses modular hardware
-outside transforms. A--E isolate hardware gains under one software mapping.
-Separate matched configurations evaluate Keccak granularity and
-multiplier-bank size (Section~\ref{sec:evaluation}).
+Our cooperative software baseline A uses these GPR layouts, ordinary
+arithmetic, and shuffles, with the same surrounding warp optimizations as the
+hardware modes. Register residency removes intermediate state traffic, while
+fixed exchanges still require shuffle instructions and dependent arithmetic.
+Collectives specialize both communication and computation; the ablations
+measure their combined benefit (Section~\ref{sec:evaluation}).
+
+\subsection{Architectural Requirements}
+\emph{Ordinary register semantics.} A butterfly has three logical inputs and
+two outputs; Keccak combines many lanes. Both must fit existing operand
+collection, dependency tracking, and single-destination writeback while
+keeping state in GPRs.
+
+\emph{Shared modular arithmetic.} Different coefficient widths, moduli, and
+inverse conventions require selective handling. Sharing must preserve each
+scheme's residue representation.
+
+\emph{Independent granularity and capacity.} Keccak stages can be fused;
+16 logical NTT pair products can use fewer physical multipliers. These
+choices require complete-request timing, warp concurrency, and hardware cost
+to be considered together.
 
 \section{Design and Implementation}
 \subsection{Collective ISA}
@@ -416,13 +421,16 @@ before and after measurement. A request includes keypair/encapsulation/decapsula
 for KEM or keypair/sign/verify for DSA. Device makespan excludes host transfers;
 we report the median of five runs after one warmup.
 
-A--E retain the same warp sampling, KEM encoding/noise/linear arithmetic,
-and DSA SHAKE extraction, accumulation, and signing arithmetic. Zeroization
-uses the warp with one worker and the leader otherwise. Opcode audits verify
-no PQC instructions in A and no NTT instructions in A/B, including Montgomery
-conversion. Modes share the ordered inputs and board image. All 156 board
-cells (780 timed runs) pass byte-exact checks. Separate fusion and bank
-controls retain their archived write-back configurations, identified below.
+Portable C supplies byte-exact references; PQRV's scalar Keccak~\cite{pqrv}
+is a separate historical control. Headline ratios use cooperative software A.
+B adds Stage; C adds shared NTT; D adds both; E extends D with NTTMUL outside
+transforms. All modes share warp sampling, KEM encoding/noise/linear arithmetic,
+and DSA SHAKE extraction, accumulation, and signing arithmetic. Zeroization uses
+the warp with one worker and the leader otherwise. Opcode audits verify no
+PQC instructions in A and no NTT instructions in A/B, including Montgomery
+conversion. Inputs and board image are matched; all 156 configurations
+(780 timed runs) pass byte-exact checks. Separate fusion/bank controls retain
+their archived write-back configurations, identified below.
 
 The SimX timing model mirrors bank beats, pipeline latency, and stalls.
 RTL tests cover both moduli and directions, all XOR distances, masks,
