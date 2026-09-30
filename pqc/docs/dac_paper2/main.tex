@@ -1,6 +1,6 @@
 \documentclass[conference,letterpaper]{IEEEtran}
 \usepackage[T1]{fontenc}
-\usepackage{amsmath,amssymb,booktabs,array,cite,xcolor}
+\usepackage{amsmath,amssymb,booktabs,array,cite,xcolor,capt-of}
 \usepackage{tikz,pgfplots,pgfplotstable}
 \pgfplotsset{compat=1.18}
 \setcounter{dbltopnumber}{2}
@@ -240,20 +240,29 @@ referenced producer to participate. Section~\ref{sec:isa} resolves these
 operand, dependency, and participation constraints.
 
 \section{Design and Implementation}
+\label{sec:design}
+We expose the register layouts in Section~\ref{sec:motivation} through a
+collective ISA, then implement specialized Keccak and NTT datapaths behind
+the core's ordinary operand and writeback interfaces. ML-KEM and ML-DSA share
+the modular datapath; Keccak uses a separate fixed-routing unit.
+
 \subsection{Collective ISA}
 \label{sec:isa}
-On W32, each collective reads two source register vectors and writes one ordinary
-GPR per active lane. State persists in these GPRs; the instruction neither
-accesses memory nor retains a private cryptographic context. Keccak requires
-all 32 lanes active, with state in
-lanes 0--24 and zero results in lanes 25--31. NTT butterflies require a
-pair-closed mask: either both XOR partners participate or neither does.
+On W32, each collective reads two source-register vectors and writes one
+ordinary GPR per active lane. State persists in these GPRs: the instruction
+neither accesses memory nor retains a private cryptographic context. Keccak
+requires all 32 lanes active, with state in lanes 0--24 and zero results in
+lanes 25--31. NTT butterflies require a pair-closed mask: either both XOR
+partners participate or neither does. Lane-local NTTMUL requires no partner.
 
-Table~\ref{tab:isa} lists Stage's three steps and the fused Round.
-Theta, rho/pi, and Round read both old halves; chi/iota reads only its
-selected half and a warp-uniform round $r\in[0,23]$. Round encodes $r$
-as an immediate. Software preserves the old register pair until both L/H
-results have been computed (Fig.~\ref{fig:detail}b).
+Table~\ref{tab:isa} lists the implemented families. Stage is the primary
+Keccak design; Round is a fusion comparator. Theta, rho/pi, and Round read
+both old RV32 halves $(L,H)$; chi/iota reads its selected half and a
+warp-uniform round $r\in[0,23]$. Only lane zero receives the selected
+round-constant half. Round encodes $r$ as an immediate. Software preserves
+the first result in a temporary until the second instruction has captured
+the same old pair (Fig.~\ref{fig:detail}b). Round likewise recomputes from
+both old halves for each output, without hidden half-round state.
 
 \begin{table}[t]
 \caption{RV32 ISA with per-lane operands and results.
@@ -287,80 +296,60 @@ t=\Mont_Q(b\zeta),\qquad
 (r_p^{\mathrm{CT}},r_h^{\mathrm{CT}})=(a+t,a-t).
 \end{equation}
 Thus two source vectors express three butterfly inputs, while one destination
-vector carries both outputs. GS forms preserve each library's inverse
-convention (Section~\ref{sec:ntt-hw}). Lane-local NTTMUL multiplies the two
-sources independently in every active lane. Stage and NTT use custom-0
-(opcode \code{0x0B}); function fields select operation, half, modulus,
-direction, and $s\in[0,4]$. Round uses custom-2 (\code{0x5B}), with its
-round $r\in[0,23]$ in \code{funct7}. All register dependencies are explicit.
-
-\begin{figure*}[t]
-\centering\input{figures/architecture_v2.tex}
-\caption{Core integration and collective datapaths. (a) Dedicated PEs share
-operand dispatch and result arbitration with INT and multiply/divide.
-(b) Pair preparation includes GS pre-add/subtract. Both moduli share the
-multiplier bank, coefficient bypass, and result assembly.
-(c) Stage forms column parity $C$ before its first register and completes
-$\theta$ after it; Round pipelines all four steps. Thin vertical bars denote
-pipeline registers.}
-\label{fig:architecture}
-\end{figure*}
-
-\subsection{Keccak Collective Datapath}
-Figure~\ref{fig:architecture}c implements fixed connections among the 25
-state lanes. Theta first XOR-reduces each five-word column to $C[x]$, then
-injects $C[x-1]\oplus\mathrm{rol}(C[x+1],1)$ into that column. Rho/pi uses
-constant bit rotations and fixed word wiring. Chi combines three neighboring
-words in each row; iota XORs the selected round constant into word zero.
-
-Stage has two pipeline registers. Column parity is captured at the first,
-and the following logic completes theta before the result register; rho/pi
-and chi/iota select their corresponding paths through the same interface.
-Round instead pipelines column parity, theta, rho/pi, and chi/iota across
-four stages. Both units accept one instruction per cycle without backpressure.
-Stage needs six collective issues per RV32 round, while Round needs two.
-Each Round half instruction recomputes the full internal round and selects
-its output half, keeping the two issues independent of hidden state.
-A separate memory-coupled engine reads and writes a 200-byte state as the
-Pointer comparison; it does not use the register-collective interface.
-
-\subsection{Shared K/D Modular Datapath}
-\label{sec:ntt-hw}
-Figure~\ref{fig:architecture}b separates pair preparation, a shared signed
-$32\times32$ multiplier bank, modular reduction, and lane-result assembly.
-CT uses one Montgomery product for both outputs. The inverse pair
-$(r_p^{\mathrm{GS}},r_h^{\mathrm{GS}})=\mathrm{GS}_Q(a,b,\zeta)$ follows
+vector carries both outputs. Lane-local NTTMUL multiplies its two sources
+independently in each active lane. The inverse pair
+$(r_p^{\mathrm{GS}},r_h^{\mathrm{GS}})=\mathrm{GS}_Q(a,b,\zeta)$ preserves
 the libraries' different conventions:
 \begin{align}
 \label{eq:ntt-gs}
 \mathrm{GS}_K(a,b,\zeta)&=(\mathrm{Barrett}_K(a+b),\Mont_K((b-a)\zeta)),\nonumber\\
 \mathrm{GS}_D(a,b,\zeta)&=(a+b,\Mont_D((a-b)\zeta)).
 \end{align}
-K mode uses signed low-16-bit operands and arithmetic, then sign-extends
-its result; D mode uses signed 32-bit coefficients. The paths preserve native
-residue representations rather than forcing canonical residues at the boundary.
-Montgomery radices are $2^{16}$ for K and $2^{32}$ for D.
+K uses signed low-16-bit operands and arithmetic, then sign-extends its
+results; D uses signed 32-bit arithmetic. Montgomery radices are $2^{16}$
+and $2^{32}$, respectively. Outputs preserve the libraries' native residue
+representations rather than forcing canonical values in $[0,q)$.
 
-The same multiplier bank serves both moduli. K mode sign-extends its inputs
-and uses shift--add Montgomery constants; K-GS also sends the sum through a
-product with 20159 for Barrett reduction. D mode uses the full product with
-its own Montgomery constants. Mode selection controls operand preparation
-and reduction; capture, multipliers, beat scheduling, coefficient bypass,
-and result assembly remain shared. NTTMUL selects lane-local operands for
-this datapath, supporting inverse scaling, KEM base multiplication, and DSA
-pointwise products without a second modular unit. Twiddles arrive in $rs_2$;
-there is no internal twiddle ROM or transform-layer state.
+Stage and NTT use custom-0 (opcode \code{0x0B}); function fields select
+operation, half, modulus, direction, and $s=\log_2d\in[0,4]$ as applicable.
+Round uses custom-2 (\code{0x5B}), with $r$ in \code{funct7}. Intrinsics emit
+R-type forms through inline \code{.insn}, exposing ordinary register
+dependencies to the compiler.
 
-A bank of $M$ physical multipliers serializes the logical products without
-changing instruction semantics or the binary. CT and D-GS require $B=16/M$
-beats. K-GS requires $B=32/M$ because each pair needs both a Montgomery and
-a Barrett product; 32-lane NTTMUL also uses $32/M$ beats.
-Figure~\ref{fig:detail}a shows M2 issuing 16 CT products in eight beats.
-Tagged products traverse the factor and reduction registers; indexed assembly
-collects the results and emits one vector after the last beat. Without stalls,
-the bank accepts an instruction every $B$ cycles; the measured ALU
-acceptance-to-commit latency is $B+6$ cycles in this configuration. Physical
-capacity is a microarchitectural choice, evaluated separately in Section~\ref{sec:evaluation}.
+\subsection{Hardware Implementation}
+Figure~\ref{fig:architecture} separates core integration, shared K/D
+arithmetic, and Keccak's fixed connections. The implementation consumes all
+lane operands together and requires 32-wide SIMD and ALU datapaths. It does
+not assume physical reuse of the general shuffle network.
+
+\begin{figure*}[t]
+\centering\input{figures/architecture_v2.tex}
+\caption{Core integration and collective datapaths. (a) Dedicated PEs share
+operand dispatch and result arbitration with INT and multiply/divide.
+(b) K/D share pair preparation, capture, two shown multipliers, reduction,
+coefficient bypass, and indexed assembly; CT operands/results are illustrated.
+(c) Stage selects three alternative paths across $R_1/R_2$;
+$\mathrm{RC}_l$ is zero except at lane zero.}
+\label{fig:architecture}
+\end{figure*}
+
+\subsubsection{Keccak Datapath}
+Figure~\ref{fig:architecture}c implements fixed connections among the 25
+state lanes. Theta first XOR-reduces each column to $C[x]$, then injects
+$C[x-1]\oplus\mathrm{rol}_{64}(C[x+1],1)$ into that column. Rho/pi uses a
+fixed gather and the source word's rotation constant. Chi combines neighboring
+words within a row; iota injects the selected constant into word zero.
+
+Stage has two registered steps. The first captures column parity and the
+selected input half for theta, the rotated/gathered result for rho/pi, or row
+logic and the constant for chi/iota. The second completes theta or constant
+injection; rho/pi passes through. These are alternative paths, not a serial
+three-operation pipeline. Round instead registers parity, theta, rho/pi, and
+chi/iota across four steps. Without stalls, both accept one instruction per
+cycle; unit latencies are two and four cycles, respectively, plus one shared
+return cycle. Stage requires six RV32 issues per round and Round two.
+The separate Pointer comparator loads and stores a 200-byte state through the
+LSU rather than using the register-collective interface.
 
 \begin{figure}[t]
 \centering\input{figures/datapath_detail.tex}
@@ -371,35 +360,71 @@ low result remains in $T$, and the final move updates $A_L$.}
 \label{fig:detail}
 \end{figure}
 
-\subsection{Execution Control and Core Integration}
+\subsubsection{Shared K/D Modular Datapath}
+\label{sec:ntt-hw}
+Figure~\ref{fig:architecture}b separates pair preparation, variable
+multiplication, modular reduction, and lane-result assembly. K mode
+sign-extends its inputs and uses Montgomery reduction for $q_K=3329$; K-GS
+additionally multiplies each pair sum by 20159 for Barrett reduction. D uses
+the full signed product and its own Montgomery constants for $q_D=8380417$.
+Mode selection controls preparation and reduction, while capture, multipliers,
+beat scheduling, coefficient bypass, and assembly remain shared. NTTMUL
+selects lane-local inputs for the same datapath. Explicit twiddles require no
+internal twiddle ROM or transform-layer state.
+
+A bank of $M$ signed $32\times32$ multipliers serializes logical products
+without changing the instruction or binary; $M$ counts general product
+multipliers, not FPGA DSP blocks. CT and D-GS require $B=16/M$ beats. K-GS
+requires $B=32/M$ for twiddle and Barrett products; 32-lane NTTMUL also uses
+$32/M$. Inactive pairs do not compress these slots. Figure~\ref{fig:detail}a
+shows M2 assigning 16 CT products to eight beats. Products traverse factor
+and reduction registers; retained coefficients bypass multiplication into
+butterfly finishing.
+
+\subsubsection{Execution Control and Core Integration}
 Figure~\ref{fig:architecture}a places Stage, Round, and NTT beside the
 integer and multiply/divide PEs. Decode names the ordinary source and
 destination registers for scoreboard tracking; ALU dispatch selects the PE,
 and a round-robin result arbiter feeds the existing commit path. No additional
 register-file port or private architectural register bank is required.
 
-A serialized NTT instruction captures its operands and warp metadata on the
-first handshake. Saved operands feed subsequent beats; a new vector can be
-accepted once those beats have launched. Warp ID, destination, mask, and beat
-tags follow the products through the pipeline. Output backpressure freezes
-the serializer, pipeline, and partial-result assembly together, preserving
-identity across stalls. Each instruction writes back one vector exactly once.
-Other ready warps can issue to available PEs while its destination remains
-pending.
+A serialized NTT instruction feeds the first product group and captures the
+remaining groups, retained coefficients, and warp metadata on its first
+handshake. Saved operands feed subsequent beats; a new instruction can enter
+after those beats launch while its predecessor drains. Warp, destination,
+mask, and beat indices follow the products. Indexed assembly collects partial
+results and releases one destination vector after the last beat. Backpressure
+freezes the serializer, pipeline, and assembly together. Without stalls,
+initiation interval is $B$ and latency including the shared return is $B+6$
+cycles: M2 CT takes eight beats and 14 cycles. The destination remains pending
+in the scoreboard until the vector returns; intermediate beats never update
+architectural registers. Other ready warps can issue to available PEs during
+this interval. Retained operands and partial results are in-flight state, not
+persistent accelerator-private context.
 
 \subsection{Software Integration}
-The native libraries retain their APIs and byte-exact outputs~\cite{mlkemnative,mldsanative}.
-Lane zero broadcasts hook arguments, enters the cooperative region, and
-resumes scalar control afterward. One-shot SHAKE keeps state in registers
-across absorb, permutation, and squeeze; incremental contexts are stored
-between calls. NTT loads eight coefficients per lane and completes the
-transform without intermediate memory. Lane-local butterflies use NTTMUL
-plus scalar arithmetic; XOR-paired butterflies use NTTBF.
+Native hooks preserve the mlkem-native/mldsa-native APIs and byte-exact outputs
+across all six parameter sets~\cite{mlkemnative,mldsanative}. Lane zero
+broadcasts arguments, enters the cooperative region, and resumes scalar
+control afterward. Each resident warp handles one request at a time; the
+leader controls allocation and signing rejection. One-shot SHAKE retains state
+in registers across absorb, permutation, and squeeze; incremental contexts are
+stored between calls. NTT loads eight coefficients per lane and completes the
+transform without intermediate memory, using lane-local multiplication or
+XOR-paired butterflies as required. Kernels enforce participation and old-half
+dependencies.
 
-The leader controls allocation and rejection loops, reclaiming temporaries
-after every signing attempt. Intrinsics expose register operands to the
-compiler; cooperative kernels enforce the mask and old-half requirements
-of Section~\ref{sec:isa}.
+Transform-external reuse preserves reduction boundaries. DSA pointwise
+products use NTTMUL.D; matrix-vector products first accumulate
+$L\in\{4,5,7\}$ raw products in 64-bit software, then perform one Montgomery
+reduction per coefficient. KEM basemul retains software products and
+accumulation, optionally reusing NTTMUL.K for Montgomery correction. Thus reuse
+does not replace every raw product with an independently reduced product.
+
+RTL assertions and unit/processor tests cover participation, both moduli, XOR
+distances, dependencies, metadata, and backpressure. Library outputs match
+portable C byte for byte; SimX models the same beats and stalls, with matched
+binaries checked through XRT integration.
 
 \begin{figure*}[t]
 \centering\input{figures/eval_requests.tex}
@@ -506,13 +531,30 @@ Bank comparisons use M16 as reference; gold bands mark M2.}
 \label{fig:tradeoffs}
 \end{figure*}
 
-\begin{figure}[t]
+\begin{figure*}[t]
+\begin{minipage}[t]{0.48\textwidth}
+\vspace{0pt}
 \centering\input{figures/eval_scaling.tex}
-\caption{200-MHz board throughput for E. (a) Eight fixed inputs, normalized
-to one worker. (b) Eight workers, normalized to an eight-request batch.
-Curves cover all six parameter sets.}
+\captionof{figure}{200-MHz board throughput for E. (a) Eight fixed inputs,
+normalized to one worker. (b) Eight workers, normalized to an eight-request
+batch. Curves cover all six parameter sets.}
 \label{fig:scaling}
-\end{figure}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\vspace{0pt}
+\captionof{table}{Independent RV32IM post-route cores at 200 MHz. M16 varies
+Keccak granularity; M2 is measured both alone and with Stage.}
+\label{tab:cost}
+\centering\footnotesize\setlength{\tabcolsep}{3.4pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Variant & LUT & FF & DSP & WNS (ns)\\
+\midrule
+\tablerows{assets/cost_rows.tex}
+\bottomrule
+\end{tabular}
+\end{minipage}
+\end{figure*}
 
 Figures~\ref{fig:tradeoffs}(b,c) distinguish test-program cycles from
 complete requests. The former uses historical RV32IMF W4T32 processor RTL,
@@ -546,20 +588,6 @@ extending a batch also extends its input prefix, so its curve includes both
 amortization and workload variation.
 
 \subsection{Routed Cost and Design Scope}
-\begin{table}[t]
-\caption{Independent RV32IM post-route cores at 200 MHz. M16 varies Keccak
-granularity; M2 is measured both alone and with Stage.}
-\label{tab:cost}
-\centering\footnotesize\setlength{\tabcolsep}{3.4pt}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-Variant & LUT & FF & DSP & WNS (ns)\\
-\midrule
-\tablerows{assets/cost_rows.tex}
-\bottomrule
-\end{tabular}
-\end{table}
-
 All cores in Table~\ref{tab:cost} close without routing errors. M2 reduces
 whole-core LUTs/DSPs by \BankTwoCoreLutSaved{}\%/\BankTwoCoreDspSaved{}\%
 over M16; Stage adds \JointStageLutPct{}\% LUTs to M2. At M16, Round uses

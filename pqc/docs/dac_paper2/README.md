@@ -3,8 +3,11 @@
 Title: **Communication-Matched Warp Collectives for ML-KEM and ML-DSA on a RISC-V SIMT GPU**
 
 This directory is the submission-oriented rewrite of the VortexPQC paper. It uses the
-IEEE conference template and fixes the manuscript at **six body pages plus one reference
-page**. The source is independent of `../paper/` and does not modify the long IEEE draft.
+IEEE conference template and targets **six body pages plus one reference page**. The
+current design-complete draft intentionally occupies seven body pages plus one reference
+page; later editing will recover the submission limit without deleting the hardware
+description. The source is independent of `../paper/` and does not modify the long IEEE
+draft.
 
 ## Paper argument
 
@@ -19,10 +22,10 @@ The page allocation is:
 
 | Pages | Content |
 | --- | --- |
-| 1--3 | Introduction, related work, shared primitives, software communication, and architectural requirements |
-| 3--4 | Collective ISA, Keccak Stage/Round, shared K/D NTT, execution control, and software integration |
-| 4 (end)--6 | Methodology, complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, post-route cost, scope, and conclusion |
-| 7 | References only |
+| 1--3 | Introduction, related work, shared primitives, software communication, architectural requirements, and the start of the collective ISA |
+| 3--5 | Collective ISA, Keccak Stage/Round, shared K/D NTT, execution control, software integration, and the start of Evaluation |
+| 5--7 | Complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, concurrency, routed cost, scope, and conclusion |
+| 8 | References only |
 
 ## Background and motivation
 
@@ -54,10 +57,11 @@ remain design and evaluation questions rather than background requirements.
 
 Section III introduces the collective ISA before its implementation. Table II
 defines explicit source operands and per-lane outputs for the four Keccak
-families, NTTBF, and NTTMUL. The five subsections cover the ISA, Keccak datapath,
-shared K/D modular datapath, execution control and core integration, and brief
-software integration. Verification methods and model-parity results are in
-Evaluation Methodology.
+families, NTTBF, and NTTMUL. Its three top-level subsections cover Collective
+ISA, Hardware Implementation, and Software Integration. Hardware Implementation
+then separates the Keccak datapath, shared K/D modular datapath, and execution
+control/core integration. Verification methods and model-parity results remain
+in Evaluation Methodology.
 
 Table II fills one column at 9-point type with separate per-lane `rs1[l]` and
 `rs2[l]` columns. `.L/H` and `.K/D` explicitly list instruction variants;
@@ -86,7 +90,7 @@ the captions.
 | Figure | Source | Purpose |
 | --- | --- | --- |
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
-| 2 | `figures/architecture_v2.tex` | Full-width core context, expanded shared NTT datapath, and Keccak pipelines |
+| 2 | `figures/architecture_v2.tex` | Full-width Vortex ALU integration, detailed shared K/D capture/reduction/assembly, and the two-step Keccak Stage paths |
 | 3 | `figures/datapath_detail.tex` | Single-column M2 product schedule and RV32 Round register dependencies |
 | 4 | `figures/eval_requests.tex` | Six-parameter headline speedups first; B--E middle-set ablations relative to the 1x software reference |
 | 5 | `figures/eval_tradeoffs.tex` | 2x2 comparison of fusion, NTTBF test cycles, complete-request bank sensitivity, and NTT resources |
@@ -98,9 +102,11 @@ interfaces, experimental setup, and matched post-route cost cohorts.
 Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
 CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
-and explicit schedules replace sentence boxes. Figure 3 distinguishes pair
-products from beat numbers and uses Round as the old-half dependency example;
-the Stage chi/iota operation only reads its selected half.
+and explicit schedules replace sentence boxes. Figure 2 retains the compact
+core-integration panel and pairs it with the more detailed NTT and Keccak Stage
+datapaths. Figure 3 distinguishes pair products from beat numbers and uses Round
+as the old-half dependency example; the Stage chi/iota operation only reads its
+selected half.
 
 Figures 4--5 are authored at 178-mm width with 8-point labels. Figure 4
 allocates approximately 45/27.5/27.5 percent of its plotting width to the
@@ -110,9 +116,10 @@ three bank panels and retains signed request changes, including small
 negative values. Whole-core and AFU resources remain in the table.
 
 Evaluation has six subsections: methodology, complete-request acceleration,
-hardware contributions, granularity/capacity, concurrency/batches, and
-routed cost/scope. Repeated prose was condensed to keep the larger evidence
-figure within six body pages, without changing fonts or margins.
+hardware contributions, granularity/capacity, concurrency/batches, and routed
+cost/scope. Figure 6 and Table IV share one full-width float so the occupancy
+curves and the selected routed design point are visible together. The current
+draft preserves the complete Design section; final page-limit editing is deferred.
 
 ## Reproducible numbers
 
