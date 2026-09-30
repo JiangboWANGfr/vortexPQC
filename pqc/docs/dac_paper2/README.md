@@ -91,7 +91,7 @@ the captions.
 | --- | --- | --- |
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
 | 2 | `figures/architecture_v2.tex` | Full-width Vortex ALU integration, detailed shared K/D capture/reduction/assembly, and the two-step Keccak Stage paths |
-| 3 | `figures/datapath_detail.tex` | Single-column M2 product schedule and RV32 Round register dependencies |
+| 3 | `figures/datapath_detail.tex` | Single-column M2 product assignment and overlapped instruction lifetime |
 | 4 | `figures/eval_requests.tex` | Six-parameter headline speedups first; B--E middle-set ablations relative to the 1x software reference |
 | 5 | `figures/eval_tradeoffs.tex` | 2x2 comparison of fusion, NTTBF test cycles, complete-request bank sensitivity, and NTT resources |
 | 6 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
@@ -104,9 +104,9 @@ redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
 CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
 and explicit schedules replace sentence boxes. Figure 2 retains the compact
 core-integration panel and pairs it with the more detailed NTT and Keccak Stage
-datapaths. Figure 3 distinguishes pair products from beat numbers and uses Round
-as the old-half dependency example; the Stage chi/iota operation only reads its
-selected half.
+datapaths. Figure 3 maps 16 logical pair products onto two multipliers and shows
+how the following instruction enters while its predecessor drains, separating
+the eight-cycle initiation interval from the 14-cycle commit latency.
 
 Figures 4--5 are authored at 178-mm width with 8-point labels. Figure 4
 allocates approximately 45/27.5/27.5 percent of its plotting width to the

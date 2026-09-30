@@ -260,8 +260,8 @@ Keccak design; Round is a fusion comparator. Theta, rho/pi, and Round read
 both old RV32 halves $(L,H)$; chi/iota reads its selected half and a
 warp-uniform round $r\in[0,23]$. Only lane zero receives the selected
 round-constant half. Round encodes $r$ as an immediate. Software preserves
-the first result in a temporary until the second instruction has captured
-the same old pair (Fig.~\ref{fig:detail}b). Round likewise recomputes from
+the first result in an ordinary temporary until the second instruction has
+captured the same old pair. Round likewise recomputes from
 both old halves for each output, without hidden half-round state.
 
 \begin{table}[t]
@@ -351,15 +351,6 @@ return cycle. Stage requires six RV32 issues per round and Round two.
 The separate Pointer comparator loads and stores a 200-byte state through the
 LSU rather than using the register-collective interface.
 
-\begin{figure}[t]
-\centering\input{figures/datapath_detail.tex}
-\caption{Serialization and dependencies. (a) M2 assigns 16 pair products to
-two multipliers in eight CT or DSA-GS beats; pipeline latency is omitted.
-(b) Program order for an RV32 Round: both issues read the old halves, the
-low result remains in $T$, and the final move updates $A_L$.}
-\label{fig:detail}
-\end{figure}
-
 \subsubsection{Shared K/D Modular Datapath}
 \label{sec:ntt-hw}
 Figure~\ref{fig:architecture}b separates pair preparation, variable
@@ -381,6 +372,15 @@ shows M2 assigning 16 CT products to eight beats. Products traverse factor
 and reduction registers; retained coefficients bypass multiplication into
 butterfly finishing.
 
+\begin{figure}[t]
+\centering\input{figures/datapath_detail.tex}
+\caption{M2 serialization. (a) At beat $t$, the multipliers accept pair
+products $P_{2t}$ and $P_{2t+1}$, so CT/D-GS use eight beats. (b) $I_1$
+begins as $I_0$ drains: the initiation interval is 8 cycles and the
+acceptance-to-commit latency is 14 cycles. K-GS/NTTMUL use 16 beats.}
+\label{fig:detail}
+\end{figure}
+
 \subsubsection{Execution Control and Core Integration}
 Figure~\ref{fig:architecture}a places Stage, Round, and NTT beside the
 integer and multiply/divide PEs. Decode names the ordinary source and
@@ -388,7 +388,8 @@ destination registers for scoreboard tracking; ALU dispatch selects the PE,
 and a round-robin result arbiter feeds the existing commit path. No additional
 register-file port or private architectural register bank is required.
 
-A serialized NTT instruction feeds the first product group and captures the
+Figure~\ref{fig:detail}b shows the resulting instruction overlap. A serialized
+NTT instruction feeds the first product group and captures the
 remaining groups, retained coefficients, and warp metadata on its first
 handshake. Saved operands feed subsequent beats; a new instruction can enter
 after those beats launch while its predecessor drains. Warp, destination,
