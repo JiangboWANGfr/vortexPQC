@@ -26,19 +26,29 @@ The page allocation is:
 
 ## Background and motivation
 
-Section II connects shared primitive cost to the hardware requirements:
+Section II connects the common computations to communication and ISA constraints:
 
-1. Shared primitives and computational cost: coefficient representations,
-   Keccak state, and the scoped historical ablation in Table I.
-2. Register mapping and communication cost: Figure 1's NTT/Keccak layouts
-   and cooperative software baseline A. The comparison measures the combined
-   communication-and-arithmetic specialization, not an isolated routing gain.
-3. Architectural requirements: ordinary register semantics, shared modular
-   arithmetic, and independently selectable granularity and physical capacity.
+1. PQC Workloads and Common Primitives: the roles of NTT/INTT and Keccak,
+   coefficient representations, state sizes, and the historical diagnostic
+   evidence in Table I.
+2. Warp-Cooperative Execution and Communication: Figure 1's register layouts,
+   register-local and XOR-paired NTT layers, and Keccak neighborhoods. Baseline A
+   already uses these layouts and the same surrounding software optimizations;
+   dependent shuffle and arithmetic instructions remain specialization targets.
+3. Challenges for a Register-Collective ISE: a butterfly's three logical inputs
+   and two outputs versus the target's two source register names and one
+   destination; K/D representation differences; RV32 old-half dependencies;
+   and participation of referenced producer lanes. Theta, rho/pi, and Round
+   require both old halves, whereas chi/iota consumes its selected half.
 
 The full A--E definitions and the distinction between portable-C references,
 historical PQRV controls, and the headline baseline are in Evaluation Methodology.
-The motivation does not select Stage or M2 before presenting the measurements.
+Section II poses the interface constraints; Section III supplies the instruction
+semantics and hardware mechanisms. Neither historical deletion diagnostics nor
+the presence of shuffles establishes that communication dominates the current
+baseline. The comparison measures combined communication-and-arithmetic
+specialization, not an isolated routing gain. Granularity and multiplier sizing
+remain design and evaluation questions rather than background requirements.
 
 ## ISA and hardware organization
 
@@ -140,10 +150,14 @@ The motivation table derives its values from `ablation_mlkem.csv` and
 `ablation_mldsa.csv`: historical single-lane RV32 SimX, one core, W4T4, no L2/L3.
 Keccak and NTT/INTT independent ablation deltas are 65.65%/12.67% for a complete
 ML-KEM-768 request and 74.44%/7.62% for full-RAM ML-DSA-65 key generation.
-The generator recomputes each delta from the matching baseline and ablated cycles.
-These intentionally incorrect diagnostic runs motivate the selected primitives;
+The generator recomputes each reduction as `(C0 - C_without_i) / C0`, using the
+matching instrumented baseline and the run with only primitive `i`'s body removed.
+Deleting a body can also change scheduling and memory behavior. These intentionally
+incorrect diagnostic runs motivate the selected primitives;
 they are not current cooperative-board phase fractions, additive exclusive timing,
-or hardware speedups. Extrapolated DSA signing/verification shares are not used.
+or hardware speedups. DSA is limited to the full-RAM KeyGen diagnostic: replacing
+hash computations invalidates signing rejection and verification behavior, so
+extrapolated signing/verification shares are not used.
 
 Section II defines the register-resident cooperative baseline A. Evaluation
 Methodology distinguishes it from portable-C references and historical PQRV

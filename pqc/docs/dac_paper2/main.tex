@@ -168,25 +168,23 @@ batch throughput, and routed hardware cost.
 
 \section{Background and Motivation}
 \label{sec:motivation}
-\subsection{Shared Primitives and Computational Cost}
-Both schemes operate on 256-coefficient polynomials, with $q_K=3329$ for
-ML-KEM and $q_D=8380417$ for ML-DSA~\cite{fips203,fips204}. Our library
-mappings use 16-bit KEM and 32-bit DSA coefficients. Both also invoke
-SHA-3/SHAKE, whose Keccak permutation updates a $25\times64$-bit
-state~\cite{fips202}. Complete requests additionally execute sampling,
-encoding, and protocol control.
+\subsection{PQC Workloads and Common Primitives}
+ML-KEM establishes keys; ML-DSA provides digital signatures~\cite{fips203,fips204}.
+Both use NTT/INTT for polynomial products and Keccak-f[1600] through
+SHA-3/SHAKE for hashing and sampling~\cite{fips202}. Their polynomials
+have 256 coefficients, with
+$q_K=3329$ and $q_D=8380417$; our library mappings use 16-bit KEM and
+32-bit DSA coefficients. Keccak updates a $25\times64$-bit state on RV32.
+Requests also include encoding and signing retries.
 
-Table~\ref{tab:motivation} diagnoses a historical single-lane RV32 SimX
-baseline: one core, W4T4, no L2/L3. Removing primitive $i$'s body changes
-cycles from $C_0$ to $C_{-i}$ under matched inputs and configuration. The fraction
-$(C_0-C_{-i})/C_0$ includes resulting scheduling and memory effects.
-Outputs are intentionally invalid.
-DSA covers full-RAM key generation because stubbing hashing disrupts signing
-retries and verification.
+Historical diagnostics in Table~\ref{tab:motivation} support studying both
+primitive families, with a larger reduction for Keccak. These reductions
+do not describe the later cooperative software baseline.
 
 \begin{table}[t]
-\caption{Initial software cost diagnosis. Independent ablation deltas,
-not additive phase fractions of the current board baseline.}
+\caption{Historical single-lane SimX diagnostics: independently removing a
+primitive's body produces invalid outputs. Cycle reductions are not additive
+phase fractions; DSA covers key generation only.}
 \label{tab:motivation}
 \centering\footnotesize\setlength{\tabcolsep}{3.2pt}
 \begin{tabular}{@{}lrr@{}}
@@ -199,11 +197,14 @@ ML-DSA-65 key generation (full RAM) & \MotivationDsaKeccak{}\% & \MotivationDsaN
 \end{tabular}
 \end{table}
 
-\subsection{Register Mapping and Communication Cost}
-With lane $l$ holding $a[l+32k]$, $0\le k<8$, the first three forward NTT
-layers exchange registers within one lane. The remaining layers exchange
-lane $l$ with $l\mathbin{\mathrm{xor}}d$: $d=16,8,4,2$ for seven-layer ML-KEM,
-and additionally $d=1$ for eight-layer ML-DSA. Initial and final accesses coalesce.
+\subsection{Warp-Cooperative Execution and Communication}
+Vortex lanes share an instruction stream over private GPRs~\cite{vortex}.
+We assign one primitive to a 32-lane warp and independent requests to
+resident warps. Figure~\ref{fig:thesis} shows the resulting communication.
+Lane $l$ holds eight coefficients $a[l+32k]$, $0\le k<8$. The first three
+forward NTT layers pair registers locally; later layers pair lanes
+$l\mathbin{\mathrm{xor}}d$, with $d=16,8,4,2$ for ML-KEM and additionally
+$d=1$ for ML-DSA. Inverse traversal reverses this progression.
 
 \begin{figure}[t]
 \centering\input{figures/thesis.tex}
@@ -214,33 +215,29 @@ and 16. (b) Keccak uses column parity ($\theta$), a fixed permutation
 \label{fig:thesis}
 \end{figure}
 
-Mapping Keccak word $A[x,y]$ to lane $x+5y$ exposes column parity
-($\theta$), fixed rotation/permutation ($\rho\pi$), and row-neighbor logic
-($\chi\iota$). Each word occupies two RV32 GPRs. Figure~\ref{fig:thesis}
-contrasts these neighborhoods with NTT pairs. Memory rows and private storage
-provide other placement choices in polynomial accelerators~\cite{nttpim,bpntt,cham,zkflex}.
+Keccak places $A[x,y]$ in lane $x+5y$: 25 lanes hold state, and seven are
+padding. Each word occupies two RV32 GPRs. This layout exposes column
+reductions, fixed rotation/permutation, and row-neighbor accesses. Other
+polynomial accelerators use memory rows or private storage~\cite{nttpim,bpntt,cham,zkflex}.
 
-Our cooperative software baseline A uses these GPR layouts, ordinary
-arithmetic, and shuffles, with the same surrounding warp optimizations as the
-hardware modes. Register residency removes intermediate state traffic, while
-fixed exchanges still require shuffle instructions and dependent arithmetic.
-Collectives specialize both communication and computation; the ablations
-measure their combined benefit (Section~\ref{sec:evaluation}).
+Software baseline A uses these layouts and the same surrounding warp optimizations
+as the hardware modes. Register residency removes intermediate state traffic;
+fixed exchanges still require dependent shuffle and arithmetic instructions.
+These repeated sequences are our specialization target.
 
-\subsection{Architectural Requirements}
-\emph{Ordinary register semantics.} A butterfly has three logical inputs and
-two outputs; Keccak combines many lanes. Both must fit existing operand
-collection, dependency tracking, and single-destination writeback while
-keeping state in GPRs.
+\subsection{Challenges for a Register-Collective ISE}
+An NTT butterfly consumes two coefficients and a twiddle, producing two
+coefficients. The target R-type interface names two source registers and one
+destination. Reconciling these operands requires considering their lane
+distribution and ordinary writeback. Shared KEM/DSA arithmetic must also
+preserve different coefficient widths and native reduction conventions.
 
-\emph{Shared modular arithmetic.} Different coefficient widths, moduli, and
-inverse conventions require selective handling. Sharing must preserve each
-scheme's residue representation.
-
-\emph{Independent granularity and capacity.} Keccak stages can be fused;
-16 logical NTT pair products can use fewer physical multipliers. These
-choices require complete-request timing, warp concurrency, and hardware cost
-to be considered together.
+Keccak's rotations cross RV32 halves: $\theta$, $\rho\pi$, and a fused
+round must derive both outputs from the same old $(L,H)$ state.
+Overwriting one half early can corrupt the other; $\chi\iota$ instead
+operates on each selected half. Cross-lane operations also require every
+referenced producer to participate. Section~\ref{sec:isa} resolves these
+operand, dependency, and participation constraints.
 
 \section{Design and Implementation}
 \subsection{Collective ISA}
