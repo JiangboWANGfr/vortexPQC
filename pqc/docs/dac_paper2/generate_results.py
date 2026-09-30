@@ -172,6 +172,23 @@ for scheme, parameter in (("kem", "K768"), ("dsa", "D65")):
     table("board_" + scheme + ".dat", ["index", "one", "eight"],
           [(i, gain(parameter, "A", arm, 1), gain(parameter, "A", arm, 8))
            for i, arm in enumerate("ABCDE")])
+headline_lines = []
+for parameter, label in zip(parameters,
+                            ("KEM-512", "KEM-768", "KEM-1024",
+                             "DSA-44", "DSA-65", "DSA-87")):
+    headline_lines.append(
+        f"{label} & {gain(parameter, 'A', 'E', 1):.3f} & "
+        f"{gain(parameter, 'A', 'E', 8):.3f} " + r"\\")
+(OUT / "headline_speedup_rows.tex").write_text("\n".join(headline_lines) + "\n")
+ablation_lines = []
+for arm, label in (("B", "B (Stage)"), ("C", "C (NTT)"),
+                   ("D", "D (both)"), ("E", "E (+ reuse)")):
+    values = [gain(parameter, "A", arm, batch)
+              for parameter in ("K768", "D65") for batch in (1, 8)]
+    ablation_lines.append(
+        f"{label} & " + " & ".join(f"{value:.3f}" for value in values) + " " + r"\\")
+(OUT / "representative_ablation_rows.tex").write_text(
+    "\n".join(ablation_lines) + "\n")
 for prefix, hierarchy in (("BoardCore", "vortex_core"), ("BoardAfu", "reconfigurable_afu")):
     for name, key in (("Luts", "luts"), ("Ffs", "ffs"), ("Dsps", "dsps")):
         board_numbers[prefix + name] = board_resources["resources"][hierarchy][key]
@@ -355,6 +372,10 @@ for scheme in ("mlkem", "mldsa"):
 table("ntt_bank_requests.dat", ["bank", "kem_one", "kem_eight", "dsa_one", "dsa_eight"],
       [(bank, *(request_changes[scheme, batch, bank]
                  for scheme in ("mlkem", "mldsa") for batch in (1, 8)))
+       for bank in bank_order])
+table("ntt_bank_request_max.dat", ["bank", "maximum"],
+      [(bank, max(request_changes[scheme, batch, bank]
+                  for scheme in ("mlkem", "mldsa") for batch in (1, 8)))
        for bank in bank_order])
 bank_two_ppa = one(ppa, multipliers=2, keccak="base")
 bank_two_perf = [r for r in bank_perf

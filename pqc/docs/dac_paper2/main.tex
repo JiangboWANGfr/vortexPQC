@@ -427,16 +427,6 @@ distances, dependencies, metadata, and backpressure. Library outputs match
 portable C byte for byte; SimX models the same beats and stalls, with matched
 binaries checked through XRT integration.
 
-\begin{figure*}[t]
-\centering\input{figures/eval_requests.tex}
-\caption{200-MHz V80 complete-request speedups over matched cooperative
-software (A). B enables Keccak Stage; C enables shared NTT; D enables both;
-E also uses modular products outside transforms. Blue/teal denote one/eight
-requests, with one worker per request. (a) A/E across all six sets; (b,c) B--E
-ablations for KEM-768 and DSA-65. Dashed lines mark software A at $1\times$.
-Every arm uses the same software mapping; ratios divide five-run median makespans.}
-\label{fig:requests}
-\end{figure*}
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -459,14 +449,11 @@ conversion. Inputs and board image are matched; all 156 configurations
 (780 timed runs) pass byte-exact checks. Separate fusion/bank controls retain
 their archived write-back configurations, identified below.
 
-The SimX timing model mirrors bank beats, pipeline latency, and stalls.
-RTL tests cover both moduli and directions, all XOR distances, masks,
-backpressure, and warp metadata. XRT exercises the AFU; complete-library
-outputs are checked byte for byte against portable C.
-All 60 single/eight-request A--E cases across six sets retire identical
-SimX/XRT instruction counts with at most \HeadlineParityMax{}\% cycle
-difference, below the fixed 5\% bound. Their five board repetitions also
-match the XRT instruction counts.
+SimX mirrors bank beats, latency, and stalls; RTL tests cover both moduli and
+directions, XOR distances, masks, backpressure, and warp metadata. Across all
+60 single/eight-request A--E cases, SimX/XRT instruction counts match and the
+cycle difference is at most \HeadlineParityMax{}\%, below 5\%. Five board
+repetitions preserve the XRT count, and complete outputs match portable C.
 
 \begin{table}[t]
 \caption{Primary experimental configuration.}
@@ -484,77 +471,81 @@ Physical flow & Alveo V80, 200 MHz, Vivado 2025.1\\
 \end{tabular}
 \end{table}
 
-\subsection{Complete-Request Acceleration}
-Figure~\ref{fig:requests} uses a single complete-mapping cohort. At one
-request, E accelerates ML-KEM by \KemParameterMinOne{}--\KemParameterMaxOne{}$\times$
-and ML-DSA by \DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$ over A.
-At eight requests, the ranges are
-\KemParameterMinEight{}--\KemParameterMaxEight{}$\times$ and
-\DsaParameterMinEight{}--\DsaParameterMaxEight{}$\times$, respectively.
-Accelerated single-request latency is \KemLatencyMin{}--\KemLatencyMax{} ms
-for KEM and \DsaLatencyMin{}--\DsaLatencyMax{} ms for DSA.
-
-\subsection{Contributions of the Hardware Paths}
-The ablation separates each hardware contribution. Across parameter sets and
-one/eight requests, Stage alone gives \KemStageMin{}--\KemStageMax{}$\times$
-for KEM and \DsaStageMin{}--\DsaStageMax{}$\times$ for DSA (A/B).
-With Stage fixed, shared NTT adds \KemNttMin{}--\KemNttMax{}$\times$ for KEM
-and \DsaNttMin{}--\DsaNttMax{}$\times$ for DSA (B/D). NTT therefore adds request-level value after Keccak acceleration.
-
-Reusing the modular unit outside transforms adds
-\DsaArithmeticMin{}--\DsaArithmeticMax{}$\times$ for DSA (D/E), with no new
-RTL. KEM's corresponding range is only \KemArithmeticMin{}--\KemArithmeticMax{}$\times$;
-set 768 is within 0.2\% of D. All headline results use E. Within a matched
-case, $(A/B)(B/D)(D/E)=A/E$; ratios from separate cohorts are not combined.
-
-\subsection{Granularity and Arithmetic Capacity}
-Figure~\ref{fig:tradeoffs}(a) compares Round with equally unrolled Stage.
-At one and eight active warps, fusion improves dependent permutation
-throughput by \FusionOne{}$\times$ and \FusionEight{}$\times$, respectively.
-Separate SimX complete-KEM launch-cycle gains are only
-\FusionKemOne{}$\times$ and \FusionKemEight{}$\times$; the eight-request
-fusion control has no paired XRT run.
-A separate instrumented XRT control attributes only \StagePermPct{}\% of
-request time to Stage permutation; sponge I/O, sampling, and other work limit
-further gains. This profile does not describe the six-parameter board cohort. Fixed-mapping XRT controls also find Round
-\RoundVsPointerOne{}$\times$ faster than Pointer at one request, but Pointer
-\PointerVsRoundEight{}$\times$ faster at eight. Fusion and offload therefore
-require request-level evaluation at the intended concurrency.
-
-\begin{figure*}[t]
-\centering\input{figures/eval_tradeoffs.tex}
-\caption{Granularity and capacity in separate controlled studies.
-(a) Round/Stage: XRT permutation intervals and SimX KEM launch cycles,
-with $N=1/8$ active warps. (b) Historical RV32IMF W4T32 NTTBF.K test-program
-cycles. (c) RV32IM W8T32 write-back XRT requests with Pointer Keccak:
-K=ML-KEM-768, D=ML-DSA-65. (d) Independent 200-MHz write-through NTT resources.
-Bank comparisons use M16 as reference; gold bands mark M2.}
-\label{fig:tradeoffs}
-\end{figure*}
-
-\begin{figure*}[t]
-\begin{minipage}[t]{0.48\textwidth}
-\vspace{0pt}
-\centering\input{figures/eval_scaling.tex}
-\captionof{figure}{200-MHz board throughput for E. (a) Eight fixed inputs,
-normalized to one worker. (b) Eight workers, normalized to an eight-request
-batch. Curves cover all six parameter sets.}
-\label{fig:scaling}
+\begin{table*}[t]
+\caption{Complete-request speedup over cooperative software A at 200 MHz.
+(a) Final E/A for all six sets. (b) Cumulative B--E/A for representative
+sets. $N$ requests use $N$ workers; values divide five-run median makespans.}
+\label{tab:requests}
+\centering\footnotesize
+\begin{minipage}[t]{0.37\textwidth}
+\centering
+\textbf{(a) Final E/A across all parameter sets}\par\smallskip
+\setlength{\tabcolsep}{7pt}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Parameter set & $N=1$ & $N=8$\\
+\midrule
+\tablerows{assets/headline_speedup_rows.tex}
+\bottomrule
+\end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.48\textwidth}
-\vspace{0pt}
-\captionof{table}{Independent RV32IM post-route cores at 200 MHz. M16 varies
-Keccak granularity; M2 is measured both alone and with Stage.}
-\label{tab:cost}
-\centering\footnotesize\setlength{\tabcolsep}{3.4pt}
+\begin{minipage}[t]{0.59\textwidth}
+\centering
+\textbf{(b) Representative cumulative ablation}\par\smallskip
+\setlength{\tabcolsep}{7pt}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-Variant & LUT & FF & DSP & WNS (ns)\\
+& \multicolumn{2}{c}{ML-KEM-768} & \multicolumn{2}{c}{ML-DSA-65}\\
+\cmidrule(lr){2-3}\cmidrule(l){4-5}
+Mode & $N=1$ & $N=8$ & $N=1$ & $N=8$\\
 \midrule
-\tablerows{assets/cost_rows.tex}
+\tablerows{assets/representative_ablation_rows.tex}
 \bottomrule
 \end{tabular}
 \end{minipage}
+\end{table*}
+
+\subsection{Complete-Request Acceleration}
+Table~\ref{tab:requests}(a) reports final E/A speedup from one
+complete-mapping cohort; part (b) separates the cumulative modes for two
+representative sets. E accelerates one-request KEM/DSA by
+\KemParameterMinOne{}--\KemParameterMaxOne{}$\times$/
+\DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$ over A; at eight
+requests the ranges are \KemParameterMinEight{}--\KemParameterMaxEight{}$\times$/
+\DsaParameterMinEight{}--\DsaParameterMaxEight{}$\times$. Accelerated
+single-request latency is \KemLatencyMin{}--\KemLatencyMax{} ms for KEM and
+\DsaLatencyMin{}--\DsaLatencyMax{} ms for DSA.
+
+\subsection{Contributions of the Hardware Paths}
+Across all sets and one/eight requests, Stage gives
+\KemStageMin{}--\KemStageMax{}$\times$ for KEM and
+\DsaStageMin{}--\DsaStageMax{}$\times$ for DSA (A/B). With Stage fixed,
+shared NTT adds \KemNttMin{}--\KemNttMax{}$\times$/
+\DsaNttMin{}--\DsaNttMax{}$\times$ (B/D), so NTT retains request-level value.
+Modular reuse outside transforms adds \DsaArithmeticMin{}--\DsaArithmeticMax{}$\times$
+for DSA without new RTL, but only \KemArithmeticMin{}--\KemArithmeticMax{}$\times$
+for KEM (D/E); KEM-768 is within 0.2\% of D. Headlines use E. Within one
+case, $(A/B)(B/D)(D/E)=A/E$; separate cohorts are not combined.
+
+\subsection{Granularity and Arithmetic Capacity}
+Figure~\ref{fig:tradeoffs}(a) compares Round with equally unrolled Stage.
+Fusion improves dependent permutation throughput by \FusionOne{}$\times$/
+\FusionEight{}$\times$ at one/eight warps, but separate SimX complete-KEM
+gains are only \FusionKemOne{}$\times$/\FusionKemEight{}$\times$; the latter
+has no paired XRT run. An instrumented XRT control attributes only
+\StagePermPct{}\% of a request to Stage permutation. A separate fixed-mapping
+control finds Round \RoundVsPointerOne{}$\times$ faster than Pointer at one
+request, whereas Pointer is \PointerVsRoundEight{}$\times$ faster at eight.
+Thus fusion and offload must be evaluated at request scope and target concurrency.
+
+\begin{figure*}[t]
+\centering\input{figures/eval_tradeoffs.tex}
+\caption{Controlled granularity and capacity studies. (a) Round/Stage for
+XRT Keccak intervals and SimX KEM launch cycles, $N=1/8$. (b) Historical
+W4T32 NTTBF.K test cycles. (c) Maximum W8T32 XRT request overhead across
+KEM-768/DSA-65 and $N=1/8$, with Pointer Keccak fixed. (d) Independent
+200-MHz NTT resources. M16 is the bank reference; gold marks M2.}
+\label{fig:tradeoffs}
 \end{figure*}
 
 Figures~\ref{fig:tradeoffs}(b,c) distinguish test-program cycles from
@@ -572,12 +563,18 @@ and \BankTwoNttDspSaved{}\% of DSPs. M1 saves only five more core DSPs and
 increases NTT FFs, while test cycles rise by \BankOneNttPenalty{}\% over M16.
 M2 retains most resource savings with little measured request penalty.
 
-All five NTTBF tests retire 59,534 instructions, pass 1,044 vectors, and show
-at most \BankParityMax{}\% SimX/RTL difference. Request sensitivity is much
-smaller than test-program sensitivity; identical instruction counts exclude
-a software change but do not isolate the contribution of latency hiding.
+All five NTTBF tests retire 59,534 instructions, pass 1,044 vectors, and stay
+within \BankParityMax{}\% SimX/RTL difference. Request sensitivity is much
+smaller than test-program sensitivity; matched instruction counts exclude a
+software change but do not isolate latency hiding.
 
 \subsection{Concurrency and Batch Size}
+\begin{figure}[t]
+\centering\input{figures/eval_scaling.tex}
+\caption{200-MHz throughput for E across six sets: (a) eight inputs versus
+workers, normalized at $W=1$; (b) batch size at $W=8$, normalized at $N=8$.}
+\label{fig:scaling}
+\end{figure}
 Figure~\ref{fig:scaling} separates occupancy from batch size. On eight fixed
 inputs, increasing workers from one to eight raises E throughput by
 \ParameterOccupancyMin{}--\ParameterOccupancyMax{}$\times$. With eight workers
@@ -589,6 +586,19 @@ extending a batch also extends its input prefix, so its curve includes both
 amortization and workload variation.
 
 \subsection{Routed Cost and Design Scope}
+\begin{table}[t]
+\caption{Independent 200-MHz post-route RV32IM cores; M16 varies Keccak and
+M2 is measured with and without Stage.}
+\label{tab:cost}
+\centering\footnotesize\setlength{\tabcolsep}{3.4pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Variant & LUT & FF & DSP & WNS (ns)\\
+\midrule
+\tablerows{assets/cost_rows.tex}
+\bottomrule
+\end{tabular}
+\end{table}
 All cores in Table~\ref{tab:cost} close without routing errors. M2 reduces
 whole-core LUTs/DSPs by \BankTwoCoreLutSaved{}\%/\BankTwoCoreDspSaved{}\%
 over M16; Stage adds \JointStageLutPct{}\% LUTs to M2. At M16, Round uses

@@ -4,10 +4,8 @@ Title: **Communication-Matched Warp Collectives for ML-KEM and ML-DSA on a RISC-
 
 This directory is the submission-oriented rewrite of the VortexPQC paper. It uses the
 IEEE conference template and targets **six body pages plus one reference page**. The
-current design-complete draft intentionally occupies seven body pages plus one reference
-page; later editing will recover the submission limit without deleting the hardware
-description. The source is independent of `../paper/` and does not modify the long IEEE
-draft.
+current draft occupies six body pages plus one reference page. The source is independent
+of `../paper/` and does not modify the long IEEE draft.
 
 ## Paper argument
 
@@ -24,8 +22,8 @@ The page allocation is:
 | --- | --- |
 | 1--3 | Introduction, related work, shared primitives, software communication, architectural requirements, and the start of the collective ISA |
 | 3--5 | Collective ISA, Keccak Stage/Round, shared K/D NTT, execution control, software integration, and the start of Evaluation |
-| 5--7 | Complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, concurrency, routed cost, scope, and conclusion |
-| 8 | References only |
+| 5--6 | Complete-request results, fusion and M16/M8/M4/M2/M1 tradeoffs, concurrency, routed cost, scope, and conclusion |
+| 7 | References only |
 
 ## Background and motivation
 
@@ -84,7 +82,7 @@ measurement, not the isolated PE pipeline depth.
 
 ## Figures and tables
 
-All six figures are native TikZ/PGFPlots sources with restrained labels and explanations in
+All five figures are native TikZ/PGFPlots sources with restrained labels and explanations in
 the captions.
 
 | Figure | Source | Purpose |
@@ -92,12 +90,13 @@ the captions.
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
 | 2 | `figures/architecture_v2.tex` | Full-width Vortex ALU integration, detailed shared K/D capture/reduction/assembly, and the two-step Keccak Stage paths |
 | 3 | `figures/datapath_detail.tex` | Single-column M2 product assignment and overlapped instruction lifetime |
-| 4 | `figures/eval_requests.tex` | Six-parameter headline speedups first; B--E middle-set ablations relative to the 1x software reference |
-| 5 | `figures/eval_tradeoffs.tex` | 2x2 comparison of fusion, NTTBF test cycles, complete-request bank sensitivity, and NTT resources |
-| 6 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
+| 4 | `figures/eval_tradeoffs.tex` | One-row comparison of fusion, NTTBF test cycles, maximum complete-request bank sensitivity, and NTT resources |
+| 5 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
-The manuscript contains four tables: the initial software cost diagnosis, collective
-interfaces, experimental setup, and matched post-route cost cohorts.
+The manuscript contains five tables: the initial software cost diagnosis, collective
+interfaces, experimental setup, complete-request results, and matched post-route cost
+cohorts. Table IV separates final E/A speedups for all six sets from cumulative B--E/A
+ablations for the representative KEM-768 and DSA-65 sets.
 
 Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
@@ -108,18 +107,16 @@ datapaths. Figure 3 maps 16 logical pair products onto two multipliers and shows
 how the following instruction enters while its predecessor drains, separating
 the eight-cycle initiation interval from the 14-cycle commit latency.
 
-Figures 4--5 are authored at 178-mm width with 8-point labels. Figure 4
-allocates approximately 45/27.5/27.5 percent of its plotting width to the
-headline and the two ablations. It uses 5-point bars, horizontal parameter
-labels, and a shared request/worker legend. Figure 5 highlights M2 in all
-three bank panels and retains signed request changes, including small
-negative values. Whole-core and AFU resources remain in the table.
+Figure 4 is authored at 178-mm width as four aligned compact panels. It retains
+the primitive/request fusion contrast, highlights M2 in each bank panel, and
+reduces complete-request sensitivity to the maximum overhead across KEM/DSA and
+one/eight requests. Figure 5 remains a single-column two-panel throughput plot.
+Whole-core and AFU resources remain in Table V.
 
 Evaluation has six subsections: methodology, complete-request acceleration,
 hardware contributions, granularity/capacity, concurrency/batches, and routed
-cost/scope. Figure 6 and Table IV share one full-width float so the occupancy
-curves and the selected routed design point are visible together. The current
-draft preserves the complete Design section; final page-limit editing is deferred.
+cost/scope. Figure 5 and Table V use independent single-column floats so the
+occupancy curves and routed design point remain adjacent to their discussion.
 
 ## Reproducible numbers
 
@@ -158,8 +155,9 @@ equality, parity bounds, configuration, and routing status before generating:
 - `assets/board_kem.dat`, `assets/board_dsa.dat`, `assets/parameter_speedup.dat`,
   `assets/parameter_occupancy.dat`, `assets/parameter_batch.dat`,
   `assets/fusion_scope.dat`, `assets/ntt_bank.dat`, and
-  `assets/ntt_bank_requests.dat` for plots;
-- `assets/cost_rows.tex` for the post-route table;
+  `assets/ntt_bank_requests.dat`, `assets/ntt_bank_request_max.dat` for plots;
+- `assets/headline_speedup_rows.tex`, `assets/representative_ablation_rows.tex`,
+  and `assets/cost_rows.tex` for result tables;
 - `assets/source_manifest.json` with source hashes and derived values.
 
 The motivation table derives its values from `ablation_mlkem.csv` and
@@ -187,7 +185,7 @@ contains additional optional Keccak units; its AFU area is reported separately
 from the lean core sweep. Power and energy are excluded because no
 workload-activity-based measurement is available.
 
-The Figure 5 timing controls are distinct from the main board cohort:
+The Figure 4 timing controls are distinct from the main board cohort:
 
 - Fusion uses XRT isolated-permutation intervals and SimX whole-KEM launch
   cycles. The eight-request KEM fusion point has no paired XRT run.
