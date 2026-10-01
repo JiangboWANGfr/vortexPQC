@@ -326,9 +326,11 @@ not assume physical reuse of the general shuffle network.
 \centering\input{figures/architecture_v2.tex}
 \caption{Core integration and collective datapaths. (a) Dedicated PEs share
 operand dispatch and result arbitration with INT and multiply/divide.
-(b) K/D share routing, capture, the two-multiplier bank, and indexed assembly;
-mode selects preparation and reduction. Retained coefficients bypass the bank.
-(c) Stage selects three alternative paths across $R_1/R_2$;
+(b) K/D share preparation, capture, M2, reduction, and indexed assembly.
+Beat zero bypasses capture; $c_i$ retains $a$ or the GS sum.
+CT writes are shown with $t=\mathrm{Mont}_Q(b\zeta)$.
+(c) Three alternative Stage paths cross $R_1/R_2$.
+$A_i=A[x,i]$ combines $L/H$; $u,v,w$ are row-neighbor halves;
 $\mathrm{RC}_l$ is zero except at lane zero.}
 \label{fig:architecture}
 \end{figure*}

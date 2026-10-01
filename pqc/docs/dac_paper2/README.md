@@ -88,7 +88,7 @@ the captions.
 | Figure | Source | Purpose |
 | --- | --- | --- |
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
-| 2 | `figures/architecture_v2.tex` | Rebalanced core integration, vertical shared K/D datapath with first-beat bypass and retained coefficients, and three aligned Keccak paths across R1/R2 |
+| 2 | `figures/architecture_v2.tex` | Core integration, symbol-level K/D preparation and indexed assembly, and expanded Keccak logic across R1/R2 |
 | 3 | `figures/datapath_detail.tex` | Single-column M2 product assignment and overlapped instruction lifetime |
 | 4 | `figures/eval_tradeoffs.tex` | One-row comparison of fusion, NTTBF test cycles, maximum complete-request bank sensitivity, and NTT resources |
 | 5 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
@@ -102,10 +102,14 @@ Figures 1--3 use compact labels at their native drawing sizes. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
 CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
 and explicit schedules replace sentence boxes. Figure 2 allocates approximately
-44/66/64 mm to core integration, NTT, and Keccak. Its NTT data path runs downward,
-with mode/beat control on the left and retained coefficients on the right;
-the first beat bypasses operand capture. Keccak's three alternative paths align
-across R1/R2. Figure 3 maps 16 logical pair products onto two multipliers and shows
+46/75/57 mm to core integration, NTT, and Keccak, retaining the external
+manuscript's symbol-level layout. NTT shows distributed operands, GS preparation,
+CT/MUL bypass, captured operands, first-beat bypass, and two indexed CT writes.
+Retained coefficients travel with the selected beat through a separate pipeline.
+Keccak expands the five-input column XOR, fixed gather/rotate, row NOT/AND/XOR,
+and second-stage correction/constant injection across R1/R2. The row operands,
+round index, and retained input use separate wires. Figure 3 maps 16 logical pair
+products onto two multipliers and shows
 how the following instruction enters while its predecessor drains, separating
 the eight-cycle initiation interval from the 14-cycle commit latency.
 
