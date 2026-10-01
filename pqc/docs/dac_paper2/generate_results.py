@@ -178,8 +178,12 @@ for batch, suffix in ((1, "one"), (8, "eight")):
     lines = []
     for parameter, label in zip(parameters, parameter_labels):
         values = [gain(parameter, "A", arm, batch) for arm in "BCDE"]
+        cells = [f"{value:.3f}" for value in values]
+        cells[-1] = r"\textbf{" + cells[-1] + "}"
         lines.append(
-            f"{label} & " + " & ".join(f"{value:.3f}" for value in values) + " " + r"\\")
+            f"{label} & " + " & ".join(cells) + " " + r"\\")
+        if parameter == parameters[2]:
+            lines.append(r"\midrule")
     (OUT / f"parameter_ablation_{suffix}_rows.tex").write_text(
         "\n".join(lines) + "\n")
 for prefix, hierarchy in (("BoardCore", "vortex_core"), ("BoardAfu", "reconfigurable_afu")):
