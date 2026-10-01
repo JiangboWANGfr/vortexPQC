@@ -472,43 +472,40 @@ Physical flow & Alveo V80, 200 MHz, Vivado 2025.1\\
 \end{table}
 
 \begin{table*}[t]
-\caption{Complete-request speedup over cooperative software A at 200 MHz.
-(a) Final E/A for all six sets. (b) Cumulative B--E/A for representative
-sets. $N$ requests use $N$ workers; values divide five-run median makespans.}
+\caption{Cumulative complete-request speedup over A at 200 MHz for all six
+sets: (a) $N=1$ and (b) $N=8$. B enables Stage, C shared NTT, D both, and
+E modular reuse; each value is a five-run median ratio.}
 \label{tab:requests}
 \centering\footnotesize
-\begin{minipage}[t]{0.37\textwidth}
+\begin{minipage}[t]{0.485\textwidth}
 \centering
-\textbf{(a) Final E/A across all parameter sets}\par\smallskip
-\setlength{\tabcolsep}{7pt}
-\begin{tabular}{@{}lrr@{}}
+\textbf{(a) One request ($N=1$)}\par
+\setlength{\tabcolsep}{4.2pt}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Parameter set & $N=1$ & $N=8$\\
+Parameter set & B/A & C/A & D/A & E/A\\
 \midrule
-\tablerows{assets/headline_speedup_rows.tex}
+\tablerows{assets/parameter_ablation_one_rows.tex}
 \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.59\textwidth}
+\begin{minipage}[t]{0.485\textwidth}
 \centering
-\textbf{(b) Representative cumulative ablation}\par\smallskip
-\setlength{\tabcolsep}{7pt}
+\textbf{(b) Eight requests ($N=8$)}\par
+\setlength{\tabcolsep}{4.2pt}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-& \multicolumn{2}{c}{ML-KEM-768} & \multicolumn{2}{c}{ML-DSA-65}\\
-\cmidrule(lr){2-3}\cmidrule(l){4-5}
-Mode & $N=1$ & $N=8$ & $N=1$ & $N=8$\\
+Parameter set & B/A & C/A & D/A & E/A\\
 \midrule
-\tablerows{assets/representative_ablation_rows.tex}
+\tablerows{assets/parameter_ablation_eight_rows.tex}
 \bottomrule
 \end{tabular}
 \end{minipage}
 \end{table*}
 
 \subsection{Complete-Request Acceleration}
-Table~\ref{tab:requests}(a) reports final E/A speedup from one
-complete-mapping cohort; part (b) separates the cumulative modes for two
-representative sets. E accelerates one-request KEM/DSA by
+Table~\ref{tab:requests} reports every cumulative mode for all six sets at
+one and eight requests. E accelerates one-request KEM/DSA by
 \KemParameterMinOne{}--\KemParameterMaxOne{}$\times$/
 \DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$ over A; at eight
 requests the ranges are \KemParameterMinEight{}--\KemParameterMaxEight{}$\times$/
@@ -613,10 +610,11 @@ favor another design point. Energy and host-to-host latency are unmeasured.
 
 \section{Conclusion}
 Communication-matched collectives expose Keccak neighborhoods and NTT pairs
-through ordinary lane registers, with shared K/D modular arithmetic. All six
-parameter sets gain \ParameterMinOne{}--\ParameterMaxOne{}$\times$ for complete
-single requests over cooperative software at 200 MHz. Independent granularity
-and bank studies connect primitive timing to request benefit and routed cost.
+through lane registers backed by shared K/D modular arithmetic. Across six
+parameter sets, complete single requests gain
+\ParameterMinOne{}--\ParameterMaxOne{}$\times$ over cooperative software at
+200 MHz. Primitive/request studies connect granularity and bank capacity to
+routed cost.
 
 \clearpage
 \bibliographystyle{IEEEtran}

@@ -172,23 +172,16 @@ for scheme, parameter in (("kem", "K768"), ("dsa", "D65")):
     table("board_" + scheme + ".dat", ["index", "one", "eight"],
           [(i, gain(parameter, "A", arm, 1), gain(parameter, "A", arm, 8))
            for i, arm in enumerate("ABCDE")])
-headline_lines = []
-for parameter, label in zip(parameters,
-                            ("KEM-512", "KEM-768", "KEM-1024",
-                             "DSA-44", "DSA-65", "DSA-87")):
-    headline_lines.append(
-        f"{label} & {gain(parameter, 'A', 'E', 1):.3f} & "
-        f"{gain(parameter, 'A', 'E', 8):.3f} " + r"\\")
-(OUT / "headline_speedup_rows.tex").write_text("\n".join(headline_lines) + "\n")
-ablation_lines = []
-for arm, label in (("B", "B (Stage)"), ("C", "C (NTT)"),
-                   ("D", "D (both)"), ("E", "E (+ reuse)")):
-    values = [gain(parameter, "A", arm, batch)
-              for parameter in ("K768", "D65") for batch in (1, 8)]
-    ablation_lines.append(
-        f"{label} & " + " & ".join(f"{value:.3f}" for value in values) + " " + r"\\")
-(OUT / "representative_ablation_rows.tex").write_text(
-    "\n".join(ablation_lines) + "\n")
+parameter_labels = ("KEM-512", "KEM-768", "KEM-1024",
+                    "DSA-44", "DSA-65", "DSA-87")
+for batch, suffix in ((1, "one"), (8, "eight")):
+    lines = []
+    for parameter, label in zip(parameters, parameter_labels):
+        values = [gain(parameter, "A", arm, batch) for arm in "BCDE"]
+        lines.append(
+            f"{label} & " + " & ".join(f"{value:.3f}" for value in values) + " " + r"\\")
+    (OUT / f"parameter_ablation_{suffix}_rows.tex").write_text(
+        "\n".join(lines) + "\n")
 for prefix, hierarchy in (("BoardCore", "vortex_core"), ("BoardAfu", "reconfigurable_afu")):
     for name, key in (("Luts", "luts"), ("Ffs", "ffs"), ("Dsps", "dsps")):
         board_numbers[prefix + name] = board_resources["resources"][hierarchy][key]

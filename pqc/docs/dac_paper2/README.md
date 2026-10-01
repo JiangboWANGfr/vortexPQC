@@ -95,8 +95,8 @@ the captions.
 
 The manuscript contains five tables: the initial software cost diagnosis, collective
 interfaces, experimental setup, complete-request results, and matched post-route cost
-cohorts. Table IV separates final E/A speedups for all six sets from cumulative B--E/A
-ablations for the representative KEM-768 and DSA-65 sets.
+cohorts. Table IV reports cumulative B--E/A speedups for all six parameter sets at
+one and eight requests.
 
 Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
@@ -156,8 +156,9 @@ equality, parity bounds, configuration, and routing status before generating:
   `assets/parameter_occupancy.dat`, `assets/parameter_batch.dat`,
   `assets/fusion_scope.dat`, `assets/ntt_bank.dat`, and
   `assets/ntt_bank_requests.dat`, `assets/ntt_bank_request_max.dat` for plots;
-- `assets/headline_speedup_rows.tex`, `assets/representative_ablation_rows.tex`,
-  and `assets/cost_rows.tex` for result tables;
+- `assets/parameter_ablation_one_rows.tex`,
+  `assets/parameter_ablation_eight_rows.tex`, and `assets/cost_rows.tex` for
+  result tables;
 - `assets/source_manifest.json` with source hashes and derived values.
 
 The motivation table derives its values from `ablation_mlkem.csv` and
