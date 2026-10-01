@@ -93,10 +93,10 @@ the captions.
 | 4 | `figures/eval_tradeoffs.tex` | One-row comparison of fusion, NTTBF test cycles, maximum complete-request bank sensitivity, and NTT resources |
 | 5 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
-The manuscript contains five tables: the initial software cost diagnosis, collective
-interfaces, experimental setup, complete-request results, and matched post-route cost
-cohorts. Table IV reports cumulative B--E/A speedups for all six parameter sets at
-one and eight requests.
+The manuscript contains six tables: the initial software cost diagnosis, collective
+interfaces, experimental setup, two single-column complete-request tables, and matched
+post-route cost cohorts. Tables IV--V report cumulative B--E/A speedups for all six
+parameter sets at one and eight requests.
 
 Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,

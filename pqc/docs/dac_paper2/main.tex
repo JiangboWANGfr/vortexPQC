@@ -471,15 +471,11 @@ Physical flow & Alveo V80, 200 MHz, Vivado 2025.1\\
 \end{tabular}
 \end{table}
 
-\begin{table*}[t]
-\caption{Cumulative complete-request speedup over A at 200 MHz for all six
-sets: (a) $N=1$ and (b) $N=8$. B enables Stage, C shared NTT, D both, and
-E modular reuse; each value is a five-run median ratio.}
-\label{tab:requests}
+\begin{table}[t]
+\caption{Cumulative complete-request speedup over A at 200 MHz for $N=1$.
+B enables Stage; C shared NTT; D both; E adds modular reuse to D.}
+\label{tab:requests-one}
 \centering\footnotesize
-\begin{minipage}[t]{0.485\textwidth}
-\centering
-\textbf{(a) One request ($N=1$)}\par
 \setlength{\tabcolsep}{4.2pt}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
@@ -488,10 +484,13 @@ Parameter set & B/A & C/A & D/A & E/A\\
 \tablerows{assets/parameter_ablation_one_rows.tex}
 \bottomrule
 \end{tabular}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.485\textwidth}
-\centering
-\textbf{(b) Eight requests ($N=8$)}\par
+\end{table}
+
+\begin{table}[t]
+\caption{Cumulative complete-request speedup over A at 200 MHz for $N=8$.
+Modes follow Table~\ref{tab:requests-one}.}
+\label{tab:requests-eight}
+\centering\footnotesize
 \setlength{\tabcolsep}{4.2pt}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
@@ -500,12 +499,11 @@ Parameter set & B/A & C/A & D/A & E/A\\
 \tablerows{assets/parameter_ablation_eight_rows.tex}
 \bottomrule
 \end{tabular}
-\end{minipage}
-\end{table*}
+\end{table}
 
 \subsection{Complete-Request Acceleration}
-Table~\ref{tab:requests} reports every cumulative mode for all six sets at
-one and eight requests. E accelerates one-request KEM/DSA by
+Tables~\ref{tab:requests-one} and~\ref{tab:requests-eight} report every
+cumulative mode for all six sets. E accelerates one-request KEM/DSA by
 \KemParameterMinOne{}--\KemParameterMaxOne{}$\times$/
 \DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$ over A; at eight
 requests the ranges are \KemParameterMinEight{}--\KemParameterMaxEight{}$\times$/
