@@ -1,0 +1,22 @@
+{
+  "completed": 312,
+  "planned": 312,
+  "planned_completed": 312,
+  "not_completed": [],
+  "pending": [],
+  "failed": [],
+  "paired": 156,
+  "parity_failures": [
+    {
+      "parameter": "D87",
+      "arm": "E",
+      "requests": 8,
+      "resident": 4,
+      "input_start": 1,
+      "instructions_match": true,
+      "device_gap_pct": 5.197157250375484,
+      "interval_gap_pct": 5.220825430617304,
+      "pass_5pct": false
+    }
+  ]
+}

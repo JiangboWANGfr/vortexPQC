@@ -26,7 +26,7 @@ All sweep inputs start at 1. Archived DSA reproduction uses input start 3 and is
 
 The resident image was reused without programming. The user clock reads back at 200 MHz; VRT metadata does not independently attest the resident PDI identity.
 
-Simulation coverage at report generation: 14/312 planned runs; 0 SimX/XRT pairs; 0 model-parity failures. Board/XRT instruction counts checked for 0 cells (five repetitions each).
+Simulation coverage at report generation: 312/312 planned runs; 156 SimX/XRT pairs; 1 model-parity failures. Board/XRT instruction counts checked for 156 cells (five repetitions each).
 
 The write-through simulator build produces byte-identical host/kernel binaries for all 30 apps measured on the board; `simulator_manifest.json` records that comparison. The earlier write-back diagnostic is retained separately and does not pass RTL/model validation.
 

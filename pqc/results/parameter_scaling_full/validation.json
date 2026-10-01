@@ -1,0 +1,31 @@
+{
+  "archive_kind": "completed_functional_evidence_with_timing_failure",
+  "validation_passed": false,
+  "source_build": "build32_pqc_parameters_full_wt",
+  "source_commit": "6e5cf178a9344779968dd3980806dd6730884c53",
+  "last_job_finished": "2026-09-30T05:33:26.716030+08:00",
+  "completed_runs": 312,
+  "functional_passed_runs": 312,
+  "byte_exact_requests": 3948,
+  "simx_runs": 156,
+  "xrt_runs": 156,
+  "instruction_matched_pairs": 156,
+  "timing_pairs_passed_5pct": 155,
+  "timing_failures": [
+    {
+      "parameter": "D87",
+      "arm": "E",
+      "requests": 8,
+      "resident": 4,
+      "input_start": 1,
+      "instructions_match": true,
+      "device_gap_pct": 5.197157250375484,
+      "interval_gap_pct": 5.220825430617304,
+      "pass_5pct": false
+    }
+  ],
+  "board_xrt_matched_cells": 156,
+  "board_xrt_matched_repetitions": 780,
+  "collector_exit_code": 1,
+  "note": "No simulation rerun and no timing-gate change. Historical supervisor state is preserved verbatim in raw/."
+}
