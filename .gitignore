@@ -1,4 +1,5 @@
 /build*
+/tmp/
 /.*
 # ...but not the CI definitions. `/.*` ignores every dotfile at the root, and
 # .github is one: the workflows already tracked are unaffected (ignore rules do
@@ -23,3 +24,14 @@ hw/syn/libs/asap7/install.sh
 # manifest and the derived numbers are the record and stay tracked.
 pqc/results/*/raw/
 pqc/results/*/figures/
+
+# Local Vivado/simulator outputs.
+/hd_visual/
+/wdi_info.xml
+/ramulator.stats.log
+
+# Editor builds and rendering scratch; named release PDFs remain tracked.
+/pqc/docs/dac_paper2/tmp/
+/pqc/docs/dac_paper2/out/
+/pqc/docs/dac_paper2/main.pdf
+/pqc/docs/dac_paper2/main.synctex.gz
