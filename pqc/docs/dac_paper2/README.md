@@ -88,7 +88,7 @@ the captions.
 | Figure | Source | Purpose |
 | --- | --- | --- |
 | 1 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
-| 2 | `figures/architecture_v2.tex` | Full-width Vortex ALU integration, detailed shared K/D capture/reduction/assembly, and the two-step Keccak Stage paths |
+| 2 | `figures/architecture_v2.tex` | Rebalanced core integration, vertical shared K/D datapath with first-beat bypass and retained coefficients, and three aligned Keccak paths across R1/R2 |
 | 3 | `figures/datapath_detail.tex` | Single-column M2 product assignment and overlapped instruction lifetime |
 | 4 | `figures/eval_tradeoffs.tex` | One-row comparison of fusion, NTTBF test cycles, maximum complete-request bank sensitivity, and NTT resources |
 | 5 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
@@ -98,12 +98,14 @@ interfaces, experimental setup, two single-column complete-request tables, and m
 post-route cost cohorts. Tables IV--V report cumulative speedups over A for all six
 parameter sets at one and eight requests as `S_B`--`S_E`; bold marks final mode E.
 
-Figures 1--3 use 7-point sans-serif labels at their native drawing size. The
+Figures 1--3 use compact labels at their native drawing sizes. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
 CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
-and explicit schedules replace sentence boxes. Figure 2 retains the compact
-core-integration panel and pairs it with the more detailed NTT and Keccak Stage
-datapaths. Figure 3 maps 16 logical pair products onto two multipliers and shows
+and explicit schedules replace sentence boxes. Figure 2 allocates approximately
+44/66/64 mm to core integration, NTT, and Keccak. Its NTT data path runs downward,
+with mode/beat control on the left and retained coefficients on the right;
+the first beat bypasses operand capture. Keccak's three alternative paths align
+across R1/R2. Figure 3 maps 16 logical pair products onto two multipliers and shows
 how the following instruction enters while its predecessor drains, separating
 the eight-cycle initiation interval from the 14-cycle commit latency.
 

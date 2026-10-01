@@ -326,8 +326,8 @@ not assume physical reuse of the general shuffle network.
 \centering\input{figures/architecture_v2.tex}
 \caption{Core integration and collective datapaths. (a) Dedicated PEs share
 operand dispatch and result arbitration with INT and multiply/divide.
-(b) K/D share pair preparation, capture, two shown multipliers, reduction,
-coefficient bypass, and indexed assembly; CT operands/results are illustrated.
+(b) K/D share routing, capture, the two-multiplier bank, and indexed assembly;
+mode selects preparation and reduction. Retained coefficients bypass the bank.
 (c) Stage selects three alternative paths across $R_1/R_2$;
 $\mathrm{RC}_l$ is zero except at lane zero.}
 \label{fig:architecture}
