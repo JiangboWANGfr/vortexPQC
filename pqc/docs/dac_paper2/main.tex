@@ -326,19 +326,21 @@ not assume physical reuse of the general shuffle network.
 \centering\input{figures/architecture_v2.tex}
 \caption{Core integration and collective datapaths. (a) Dedicated PEs share
 operand dispatch and result arbitration with INT and multiply/divide.
-(b) K/D share preparation, capture, M2, reduction, and indexed assembly.
-Beat zero bypasses capture; $c_i$ retains $a$ or the GS sum.
-CT writes are shown with $t=\mathrm{Mont}_Q(b\zeta)$.
+(b) Beat zero bypasses capture; later $(u_i,v_i,c_i)$ groups are replayed.
+M2 multiplies $u_i v_i$; registered $c_i$ ($a$ or the GS sum) feeds K-GS
+reduction and finishing. Op selects CT/GS/MUL. CT slots use
+$t=\mathrm{Mont}_Q(b\zeta)$; the vector returns after the last beat.
 (c) Three alternative Stage paths cross $R_1/R_2$.
-$A_i=A[x,i]$ combines $L/H$; $u,v,w$ are row-neighbor halves;
-$\mathrm{RC}_l$ is zero except at lane zero.}
+$A_{x,i}=A[x,i]$ combines $L/H$; $X$ is the retained half;
+$u,v,w$ are row-neighbor halves. Round index $r$ selects
+$\mathrm{RC}_{\ell}$, zero except at lane zero.}
 \label{fig:architecture}
 \end{figure*}
 
 \subsubsection{Keccak Datapath}
 Figure~\ref{fig:architecture}c implements fixed connections among the 25
-state lanes. Theta first XOR-reduces each column to $C[x]$, then injects
-$C[x-1]\oplus\mathrm{rol}_{64}(C[x+1],1)$ into that column. Rho/pi uses a
+state lanes. Theta first XOR-reduces each column to $C_x$, then injects
+$C_{x-1}\oplus\mathrm{rol}_{64}(C_{x+1},1)$ into that column. Rho/pi uses a
 fixed gather and the source word's rotation constant. Chi combines neighboring
 words within a row; iota injects the selected constant into word zero.
 

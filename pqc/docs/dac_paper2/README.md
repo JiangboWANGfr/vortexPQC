@@ -102,10 +102,11 @@ Figures 1--3 use compact labels at their native drawing sizes. The
 redraw follows the concrete layout and hierarchy of PacQ Fig. 3, SynGPU Fig. 6,
 CHAM Figs. 3--4, and NTT-PIM Fig. 6: indexed data, connected functional blocks,
 and explicit schedules replace sentence boxes. Figure 2 allocates approximately
-46/75/57 mm to core integration, NTT, and Keccak, retaining the external
-manuscript's symbol-level layout. NTT shows distributed operands, GS preparation,
-CT/MUL bypass, captured operands, first-beat bypass, and two indexed CT writes.
-Retained coefficients travel with the selected beat through a separate pipeline.
+46/75/57 mm to core integration, NTT, and Keccak. NTT uses four visual levels:
+operand preparation, first/remaining-beat selection, shared arithmetic,
+and indexed assembly. The multiplier pair feeds reduction and finishing
+vertically; the aligned coefficient pipeline runs down the right edge and
+also supplies K-GS reduction. Two short arrows show the CT lane writes.
 Keccak expands the five-input column XOR, fixed gather/rotate, row NOT/AND/XOR,
 and second-stage correction/constant injection across R1/R2. The row operands,
 round index, and retained input use separate wires. Figure 3 maps 16 logical pair

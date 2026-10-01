@@ -53,170 +53,164 @@
 \draw[ctrl] (issue.east)--(44,66.5)--(44,24)--(arb.east);
 \node[rotate=90,fill=white,inner sep=.4pt,text=cDark!80] at (44,51)
   {warp / mask / $r_d$};
-\draw[wire] (3,7)--(10,7);
-\node[anchor=west,inner sep=1pt,font=\fontsize{7.5}{8.5}\selectfont]
-  at (11,7) {data};
-\draw[ctrl] (24,7)--(31,7);
-\node[anchor=west,inner sep=1pt,font=\fontsize{7.5}{8.5}\selectfont]
-  at (32,7) {control};
 
-% (b) Distributed operands, first-beat bypass, shared products and indexed writes.
+% (b) Preparation, beat selection, shared arithmetic, and indexed assembly.
 \begin{scope}[xshift=48mm,font=\fontsize{7.5}{8.5}\selectfont]
-\node at (8,70.5) {$r_{s1}$};
-\node at (16,70.5) {$r_{s2}$};
-\foreach \yy/\ll/\aa/\bb in {65.5/p/a/\zeta,59.5/h/b/{-}} {
- \node[anchor=east,inner sep=.4pt] at (3,\yy) {$\ll$};
- \draw[box,fill=cTeal!9] (4,\yy-2.5) rectangle (12,\yy+2.5);
- \draw[box] (12,\yy-2.5) rectangle (20,\yy+2.5);
- \node at (8,\yy) {$\aa$};
- \node at (16,\yy) {$\bb$};
-}
-\draw[bus] (12,57)--(12,54);
-\draw[box,fill=cTeal!10] (4,54)--(20,54)--(17,49)--(7,49)--cycle;
-\node at (12,51.5) {pair / MUL};
+% Operand preparation stays above the serialization and arithmetic path.
+\node[reg,minimum width=13mm,minimum height=4.5mm] (ns1) at (8,67) {$r_{s1}$};
+\node[reg,minimum width=13mm,minimum height=4.5mm] (ns2) at (8,61) {$r_{s2}$};
+\draw[box,fill=cTeal!10] (19,70)--(19,58)--(33,61)--(33,67)--cycle;
+\node[align=center] at (25,64) {pair /\\lane};
+\draw[bus] (ns1.east)--(19,67);
+\draw[bus] (ns2.east)--(19,61);
 \node[circle,draw=cTeal,line width=.65pt,fill=cTeal!8,
- minimum size=5mm,inner sep=0pt] (gspre) at (12,43) {$+/-$};
-\draw[bus] (12,49)--(gspre.north);
-\node[text=cTeal] at (12,38.5) {GS};
-\draw[bus] (18.7,52)--(21,52)--(21,45);
-\draw[bus] (gspre.east)--(18,43);
-\draw[box,fill=cTeal!8] (18,45.5)--(18,40.5)--(23,42)--(23,44)--cycle;
-\draw[cDark,line width=.7pt] (23,43)--(24,43);
-\fill[cDark] (24,43) circle (.3mm);
-\draw[bus] (24,43)--(24,47)--(25,47);
-\node at (31,61) {capture};
-\foreach \yy/\txt in {55/{u_i,v_i,c_i},51/{\cdots},47/{u_j,v_j,c_j}} {
- \draw[reg] (25,\yy-2) rectangle (37,\yy+2);
- \node at (31,\yy) {$\txt$};
+ minimum size=5.6mm,inner sep=0pt] (npre) at (43,64) {$+/-$};
+\draw[bus] (33,64)--(npre.west);
+\fill[cDark] (36,64) circle (.3mm);
+\draw[bus] (36,64)--(36,70.5)--(56,70.5)--(56,66);
+\draw[box,fill=cTeal!10] (51,67)--(51,61)--(61,63)--(61,65)--cycle;
+\draw[bus] (npre.east)--(51,64);
+\node[text=cTeal] at (43,59.5) {GS};
+\node at (25,55.5) {$d$, op};
+\draw[ctrl] (25,57)--(25,59.3);
+\node at (56,57.5) {op};
+\draw[ctrl] (56,59)--(56,62);
+
+% The current first group and captured remaining groups meet at one mux.
+\draw[cDark,line width=.7pt] (61,64)--(64,64)--(64,54)--(26.5,54);
+\draw[bus] (26.5,54)--(26.5,52);
+\fill[cDark] (56,54) circle (.3mm);
+\draw[bus] (56,54)--(56,43)--(43,43)--(43,41);
+\node[anchor=west,inner sep=.3pt] at (58,48) {$k=0$};
+\draw[reg] (16,49) rectangle (37,52);
+\node at (26.5,50.5) {capture};
+\foreach \xx/\vv in {16/u_i,23/v_i,30/c_i} {
+ \draw[reg] (\xx,45) rectangle (\xx+7,49);
+ \node at (\xx+3.5,47) {$\vv$};
 }
-\draw[reg] (25,39)--(37,39)--(35.5,33.5)--(26.5,33.5)--cycle;
-\node at (31,36.3) {select};
-\draw[bus] (31,45)--(31,39);
-\draw[bus] (24,43)--(24,36)--(25.8,36);
-\node[fill=white,inner sep=.3pt,rotate=90] at (22.3,37) {beat 0};
-\draw[cDark,line width=.7pt] (36.3,36)--(40,36);
-\draw[cDark,line width=.7pt] (40,36)--(40,47);
-\node[mul] (m0) at (44,47) {$\times$};
-\node[mul] (m1) at (44,36) {$\times$};
-\draw[bus] (40,47)--(m0.west);
-\draw[bus] (40,36)--(m1.west);
-\node[text=cGold!85!black] at (44,57.5) {M2};
-\node at (44,31) {$32{\times}32$};
-\node[box,fill=cGold!9,minimum width=10mm,minimum height=21mm]
- (reduce) at (55,41.5) {$q_K/q_D$\\reduce};
-\draw[bus] (m0.east)--(50,47);
-\draw[bus] (m1.east)--(50,36);
-\node[box,fill=cTeal!10,minimum width=10mm,minimum height=17mm]
- (finish) at (66,42.5) {CT $\pm$\\GS sel.};
-\draw[bus] (60,47)--(61,47);
-\draw[bus] (60,36)--(61,36);
-\draw[bus,draw=cBlue] (38.5,36)--(38.5,65)--(66,65)--(66,51);
-\fill[cDark] (38.5,36) circle (.3mm);
-\fill[cBlue] (55,65) circle (.3mm);
-\draw[bus,draw=cBlue] (55,65)--(55,52);
-\node[anchor=west,text=cBlue,inner sep=.3pt] at (56,58) {K-GS};
-\draw[cBlue,line width=1pt] (48,63.5)--(48,66.5);
-\draw[cBlue,line width=.5pt] (48.7,63.5)--(48.7,66.5);
-\node[text=cBlue,inner sep=.3pt] at (53,69) {retained $c_i$: $a$ / sum};
-\node[reg,minimum width=18mm,minimum height=7mm] (mode) at (10,27)
- {$d$, mode\\CT / GS / MUL};
-\draw[ctrl] (3,30.5)--(2,30.5)--(2,51.5)--(5.4,51.5);
-\draw[ctrl] (mode.east)--(21,27)--(21,41.4);
-\node[reg,minimum width=12mm,minimum height=4mm] (beat) at (31,25)
- {beat, $d$};
-\draw[ctrl] (beat.north)--(31,33.5);
-\draw[cDark!65,dashed,line width=.45pt] (beat.east)--(66,25);
-\draw[ctrl] (55,25)--(55,31);
-\draw[ctrl] (66,25)--(66,34);
-% CT illustrates two lane writes; other modes use the same indexed vector.
-\node[anchor=west,inner sep=.3pt] at (1,20) {CT assembly};
-\foreach \xx/\ww/\vv in {1/9/{\cdots},10/16/{a+t},26/14/{\cdots},40/16/{a-t},56/16/{\cdots}} {
- \draw[reg,fill=cTeal!7] (\xx,8) rectangle (\xx+\ww,14);
- \node at (\xx+.5*\ww,11) {$\vv$};
+\draw[bus] (27,45)--(27,41);
+\node[anchor=east,inner sep=.3pt] at (25,42.7) {$k>0$};
+\draw[reg] (23,41)--(47,41)--(43,37)--(27,37)--cycle;
+\node at (35,39) {select};
+\node at (17,39) {$k$};
+\draw[ctrl] (18.5,39)--(25,39);
+
+% Two parallel products and a registered coefficient side path.
+\draw[cDark,line width=.7pt] (35,37)--(35,34.5);
+\draw[cDark,line width=.7pt] (25,34.5)--(45,34.5);
+\node[mul] (nm0) at (25,29.5) {$\times$};
+\node[mul] (nm1) at (45,29.5) {$\times$};
+\draw[bus] (25,34.5)--(nm0.north);
+\draw[bus] (45,34.5)--(nm1.north);
+\node[text=cGold!85!black] at (35,29.5) {$32{\times}32$};
+\draw[bus,draw=cBlue] (35,35.5)--(64,35.5)--(64,13.5)--(53,13.5);
+\fill[cDark] (35,35.5) circle (.3mm);
+\draw[box,draw=cBlue,fill=cBlue!10] (62.6,28) rectangle (65.4,31);
+\node[anchor=west,text=cBlue,inner sep=.3pt] at (66,29.5) {$c_i$};
+\node[box,fill=cGold!9,minimum width=36mm,minimum height=5mm]
+ (nreduce) at (35,22) {$q_K/q_D$ reduction};
+\draw[bus] (nm0.south)--(25,24.5);
+\draw[bus] (nm1.south)--(45,24.5);
+\node at (10,22) {K/D};
+\draw[ctrl] (13,22)--(nreduce.west);
+\draw[bus,draw=cBlue] (64,22)--(53,22);
+\fill[cBlue] (64,22) circle (.3mm);
+\node[text=cBlue,inner sep=.3pt] at (58.5,24.5) {K-GS};
+
+\node[box,fill=cTeal!10,minimum width=36mm,minimum height=5mm]
+ (nfinish) at (35,13.5) {CT $\pm$ / GS,MUL select};
+\draw[bus] (nreduce.south)--(nfinish.north);
+\node at (10,13.5) {op};
+\draw[ctrl] (12,13.5)--(nfinish.west);
+% CT is the illustrated mode; all modes accumulate in the same result vector.
+\node[anchor=west,inner sep=.3pt] at (1,10) {CT assembly};
+\foreach \xx/\vv in {10/{\cdots},20/{a+t},30/{\cdots},40/{a-t},50/{\cdots}} {
+ \draw[reg,fill=cTeal!7] (\xx,3) rectangle (\xx+10,8);
+ \node at (\xx+5,5.5) {$\vv$};
 }
-\draw[cDark,line width=.6pt] (71,42.5)--(72,42.5)--(72,17)--(18,17);
-\draw[wire] (18,17)--(18,14);
-\draw[wire] (48,17)--(48,14);
-\draw[ctrl] (37,25)--(40,25)--(40,20)--(33,20)--(33,14);
-\node at (18,5) {$p$};
-\node at (48,5) {$h=p\mathbin{\mathrm{xor}}d$};
-\draw[bus] (72,11)--(72.5,11)--(72.5,1.5)--(63,1.5);
-\node[anchor=east,inner sep=.3pt] at (62,1.5) {$r_d[0{:}31]$};
+\draw[wire] (25,11)--(25,8);
+\draw[wire] (45,11)--(45,8);
+\node at (25,1.2) {$p$};
+\node at (45,1.2) {$h=p\mathbin{\mathrm{xor}}d$};
+\node at (4,5.5) {$d,k$};
+\draw[ctrl] (7,5.5)--(10,5.5);
+\draw[bus] (60,5.5)--(70,5.5);
+\node at (65,9.5) {$r_d[0{:}31]$};
 \end{scope}
 
 % (c) Original symbol-level Keccak Stage, cleaned up at native 57 x 77 mm.
 % Three alternative paths, not a theta -> rho-pi -> chi-iota sequence.
-% A_i denotes 64-bit A[x,i] (the L/H pair); theta consumes both halves.
+% A_{x,i} denotes 64-bit A[x,i] (the L/H pair); theta consumes both halves.
 % u,v,w denote the selected RV32 halves of A[x,y], A[x+1,y], A[x+2,y].
-\begin{scope}[font=\fontsize{7.5}{8.5}\selectfont]
+\begin{scope}[font=\fontsize{7.5}{8.5}\selectfont,
+ every circle node/.style={outer sep=0pt}]
 \draw[reg] (122,65) rectangle (177.5,70);
 \node at (149.75,67.5) {$r_{s1},r_{s2}$: $L,H$ or $X,r$};
-\draw[cDark,line width=.55pt] (126.5,63.8)--(175,63.8);
-\draw[bus] (149.75,65)--(149.75,63.8);
-\draw[wire,draw=cGold] (150.8,63.8)--(150.8,59.8);
-\foreach \xx in {162,168.5,173.8} {
- \draw[wire,draw=cTeal] (\xx,63.8)--(\xx,61.3);
+\draw[wire,draw=cGold] (150,65)--(150,59.8);
+\foreach \xx in {159,165.5,172} {
+ \draw[wire,draw=cTeal] (\xx,65)--(\xx,61.3);
 }
-\foreach \xx/\op/\col in {131.9/\theta/cBlue,147.7/{\rho\pi}/cGold,170.9/{\chi\iota}/cTeal} {
- \node[text=\col,fill=white,inner sep=.4pt,font=\fontsize{8}{9}\selectfont] at (\xx,62.5) {$\op$};
+\node[text=cBlue,fill=white,inner sep=.2pt,font=\fontsize{8}{9}\selectfont] at (132,63.1) {$\theta$};
+\foreach \xx/\op/\col in {146.5/{\rho\pi}/cGold,169/{\chi\iota}/cTeal} {
+ \node[text=\col,fill=white,inner sep=.4pt,font=\fontsize{8}{9}\selectfont] at (\xx,63.1) {$\op$};
 }
 
 % theta: five labeled state words feed one column-parity XOR.
-\node[circle,draw=cBlue,line width=.6pt,fill=white,minimum size=4.4mm,inner sep=0pt,font=\fontsize{10}{10}\selectfont] (kparity) at (137.5,52.9) {$\oplus$};
+\node[circle,draw=cBlue,line width=.6pt,fill=white,minimum size=4.4mm,inner sep=0pt,font=\fontsize{10}{10}\selectfont] (kparity) at (139.5,52.9) {$\oplus$};
 \foreach \yy/\ii/\port in {59.7/0/135,56.3/1/157,52.9/2/180,49.5/3/203,46.1/4/225} {
- \draw[box,draw=cBlue,fill=cBlue!10] (123,\yy-1.45) rectangle (130,\yy+1.45);
- \node[text=cBlue] at (126.5,\yy) {$A_{\ii}$};
- \draw[cBlue,line width=.4pt] (130,\yy)--(kparity.\port);
+ \draw[box,draw=cBlue,fill=cBlue!10] (126,\yy-1.45) rectangle (133.8,\yy+1.45);
+ \node[text=cBlue] at (129.9,\yy) {$A_{x,\ii}$};
+ \draw[cBlue,line width=.4pt] (133.8,\yy)--(kparity.\port);
 }
-\draw[wire,draw=cBlue] (kparity.south)--(137.5,40);
-\node[text=cBlue,fill=white,inner sep=.4pt] at (137.5,46.0) {$C_x$};
+\draw[wire,draw=cBlue] (kparity.south)--(139.5,40);
+\node[text=cBlue,fill=white,inner sep=.4pt] at (139.5,46.0) {$C_x$};
 % The selected original state word is retained alongside its column parity.
-\draw[wire,draw=cBlue] (122.2,65)--(122.2,40);
-\node[text=cBlue,fill=white,inner sep=.3pt] at (124,43) {$X$};
-\draw[wire,draw=cBlue] (126.5,63.8)--(126.5,61.15);
+\draw[wire,draw=cBlue] (124.2,65)--(124.2,40);
+\node[text=cBlue,fill=white,inner sep=.3pt] at (124.2,43) {$X$};
+\draw[wire,draw=cBlue] (129.9,65)--(129.9,61.15);
 
 % rho-pi: the crossed lane wires express a fixed gather, then a rotation.
-\draw[box,draw=cGold,fill=cGold!8] (144.5,53.8) rectangle (157.1,59.8);
-\foreach \xx/\zz in {146.2/150.8,150.8/155.4,155.4/146.2} {
+\draw[box,draw=cGold,fill=cGold!8] (145.1,53.8) rectangle (154.9,59.8);
+\foreach \xx/\zz in {146.4/150,150/153.6,153.6/146.4} {
  \draw[cGold,line width=.55pt] (\xx,59.8)--(\zz,53.8);
 }
-\node[fill=cGold!8,text=cGold!85!black,inner sep=.2pt,font=\fontsize{9}{10}\selectfont] at (150.8,56.8) {$\pi$};
-\draw[wire,draw=cGold] (150.8,53.8)--(150.8,49.4);
-\node[box,draw=cGold,fill=cGold!9,minimum width=13mm,minimum height=4.4mm] (krotate) at (150.8,47.2) {$\mathrm{ROL}_{\rho}$};
-\draw[wire,draw=cGold] (krotate.south)--(150.8,40);
+\node[fill=cGold!8,text=cGold!85!black,inner sep=.2pt,font=\fontsize{9}{10}\selectfont] at (150,56.8) {$\pi$};
+\node[box,draw=cGold,fill=cGold!9,minimum width=10.4mm,minimum height=4.4mm] (krotate) at (150,47.2) {$\mathrm{ROL}_{\rho}$};
+\draw[wire,draw=cGold] (150,53.8)--(krotate.north);
+\draw[wire,draw=cGold] (krotate.south)--(150,40);
 
 % chi: three labeled row words feed the actual NOT / AND / XOR network.
-\foreach \xx/\vv in {162.0/u,168.5/v,173.8/w} {
- \draw[box,draw=cTeal,fill=cTeal!10] (\xx-2.3,58.3) rectangle (\xx+2.3,61.3);
+\foreach \xx/\vv in {159/u,165.5/v,172/w} {
+ \draw[box,draw=cTeal,fill=cTeal!10] (\xx-1.8,58.3) rectangle (\xx+1.8,61.3);
  \node[text=cTeal] at (\xx,59.8) {$\vv$};
 }
-\node[circle,draw=cTeal,line width=.6pt,fill=white,minimum size=3.6mm,inner sep=0pt,font=\fontsize{9}{9}\selectfont] (knot) at (168.5,53.5) {$\neg$};
-\node[circle,draw=cTeal,line width=.6pt,fill=white,minimum size=3.6mm,inner sep=0pt,font=\fontsize{9}{9}\selectfont] (kand) at (171,49.5) {$\land$};
-\node[circle,draw=cTeal,line width=.6pt,fill=white,minimum size=3.6mm,inner sep=0pt,font=\fontsize{9}{9}\selectfont] (kchi) at (165.5,43.5) {$\oplus$};
-\draw[wire,draw=cTeal] (168.5,58.3)--(knot.north);
-\draw[wire,draw=cTeal] (knot.south)--(168.5,49.5)--(kand.west);
-\draw[wire,draw=cTeal] (173.8,58.3)--(173.8,49.5)--(kand.east);
-\draw[wire,draw=cTeal] (162,58.3)--(162,43.5)--(kchi.west);
-\draw[wire,draw=cTeal] (kand.south)--(171,43.5)--(kchi.east);
-\draw[wire,draw=cTeal] (kchi.south)--(165.5,40);
+\node[circle,draw=cTeal,line width=.6pt,fill=white,minimum size=3.6mm,inner sep=0pt,font=\fontsize{9}{9}\selectfont] (knot) at (165.5,53.5) {$\neg$};
+\node[circle,draw=cTeal,line width=.6pt,fill=white,minimum size=3.6mm,inner sep=0pt,font=\fontsize{9}{9}\selectfont] (kand) at (168.75,49.5) {$\land$};
+\node[circle,draw=cTeal,line width=.6pt,fill=white,minimum size=3.6mm,inner sep=0pt,font=\fontsize{9}{9}\selectfont] (kchi) at (163.875,43.5) {$\oplus$};
+\draw[wire,draw=cTeal] (165.5,58.3)--(knot.north);
+\draw[wire,draw=cTeal] (knot.south)--(knot.south |- kand.west)--(kand.west);
+\draw[wire,draw=cTeal] (172,58.3)--(172,49.5)--(kand.east);
+\draw[wire,draw=cTeal] (159,58.3)--(159,43.5)--(kchi.west);
+\draw[wire,draw=cTeal] (kand.south)--(kand.south |- kchi.east)--(kchi.east);
+\draw[wire,draw=cTeal] (kchi.south)--(163.875,40);
 % The separate r operand indexes the round constant; it is not a row word.
-\node[box,draw=cTeal,fill=cTeal!9,minimum width=5.4mm,minimum height=3.8mm] (krc) at (174.6,43.5) {RC};
-\draw[wire,draw=cTeal] (177.7,65)--(177.7,47)--(174.6,47)--(krc.north);
-\node[text=cTeal,fill=white,inner sep=.3pt] at (177.7,54.5) {$r$};
-\draw[wire,draw=cTeal] (krc.south)--(174.6,40);
+\node[box,draw=cTeal,fill=cTeal!9,minimum width=5.4mm,minimum height=3.8mm] (krc) at (174.4,43.5) {RC};
+\draw[wire,draw=cTeal] (174.4,65)--(krc.north);
+\node[text=cTeal,fill=white,inner sep=.3pt] at (174.4,54.5) {$r$};
+\draw[wire,draw=cTeal] (krc.south)--(174.4,40);
 
 % First register boundary: alternative payloads occupy the same R1 stage.
-\draw[reg,fill=cBlue!10] (122,36) rectangle (142.4,40);
-\draw[reg,fill=cGold!10] (142.4,36) rectangle (159.1,40);
-\draw[reg,fill=cTeal!10] (159.1,36) rectangle (177.5,40);
+\draw[reg,fill=cBlue!10] (122,36) rectangle (144,40);
+\draw[reg,fill=cGold!10] (144,36) rectangle (156,40);
+\draw[reg,fill=cTeal!10] (156,36) rectangle (177.5,40);
 \node[anchor=west,inner sep=.3pt,font=\fontsize{8}{9}\selectfont] at (122.6,38) {$R_1$};
-\node[text=cBlue] at (134.7,38) {$X,C[0{:}4]$};
-\node[text=cGold!85!black] at (150.75,38) {$T_{\rho\pi}$};
-\node[text=cTeal] at (168.3,38) {$Y,\mathrm{RC}_{\ell}$};
+\node[text=cBlue] at (134.7,38) {$X,C_{0{:}4}$};
+\node[text=cGold!85!black] at (150,38) {$T_{\rho\pi}$};
+\node[text=cTeal] at (166.75,38) {$Y,\mathrm{RC}_{\ell}$};
 
 % theta second step: neighboring parities and the retained state word.
-\draw[wire,draw=cBlue] (129,36)--(129,33.3);
-\draw[wire,draw=cBlue] (138.8,36)--(138.8,33.3);
+\draw[wire,draw=cBlue,-] (129,36)--(129,33.3);
+\draw[wire,draw=cBlue,-] (138.8,36)--(138.8,33.3);
 \node[text=cBlue,fill=white,inner sep=.35pt] at (129,32.4) {$C_{x-1}$};
 \node[text=cBlue,fill=white,inner sep=.35pt] at (138.8,32.4) {$C_{x+1}$};
 \node[box,draw=cBlue,fill=cBlue!8,minimum width=8mm,minimum height=4.4mm] (krolone) at (138.8,27.3) {$\mathrm{ROL}_1$};
@@ -226,23 +220,23 @@
 \draw[wire,draw=cBlue] (krolone.south)--(138.8,21.8)--(kmix.east);
 \node[circle,draw=cBlue,fill=white,line width=.6pt,minimum size=4mm,inner sep=0pt,font=\fontsize{10}{10}\selectfont] (kthetaout) at (133,14.3) {$\oplus$};
 \draw[wire,draw=cBlue] (kmix.south)--(kthetaout.north);
-\draw[wire,draw=cBlue] (123.8,36)--(123.8,14.3)--(kthetaout.west);
-\node[text=cBlue,fill=white,inner sep=.4pt] at (123.8,26.3) {$X$};
+\draw[wire,draw=cBlue] (124.2,36)--(124.2,14.3)--(kthetaout.west);
+\node[text=cBlue,fill=white,inner sep=.4pt] at (124.2,26.3) {$X$};
 \draw[wire,draw=cBlue] (kthetaout.south)--(133,10);
 
 % rho-pi bypasses the second arithmetic step; this is a registered pass.
-\draw[wire,draw=cGold] (150.8,36)--(150.8,10);
-\node[text=cGold!85!black,fill=white,inner sep=.8pt] at (150.8,23.4) {pass};
+\draw[wire,draw=cGold] (150,36)--(150,10);
+\node[text=cGold!85!black,fill=white,inner sep=.8pt] at (150,23.4) {pass};
 
 % chi-iota second step: RC_l is zero except in state lane (0,0).
-\draw[wire,draw=cTeal] (163.1,36)--(163.1,33.3);
-\draw[wire,draw=cTeal] (174.6,36)--(174.6,33.3);
-\node[text=cTeal,fill=white,inner sep=.35pt] at (163.1,32.4) {$Y$};
-\node[text=cTeal,fill=white,inner sep=.35pt] at (174.6,32.4) {$\mathrm{RC}_{\ell}$};
-\node[circle,draw=cTeal,fill=white,line width=.6pt,minimum size=4mm,inner sep=0pt,font=\fontsize{10}{10}\selectfont] (kiotaout) at (168.3,21.8) {$\oplus$};
-\draw[wire,draw=cTeal] (163.1,31)--(163.1,21.8)--(kiotaout.west);
-\draw[wire,draw=cTeal] (174.6,31)--(174.6,21.8)--(kiotaout.east);
-\draw[wire,draw=cTeal] (kiotaout.south)--(168.3,10);
+\draw[wire,draw=cTeal,-] (160.5,36)--(160.5,33.3);
+\draw[wire,draw=cTeal,-] (174.4,36)--(174.4,33.3);
+\node[text=cTeal,fill=white,inner sep=.35pt] at (160.5,32.4) {$Y$};
+\node[text=cTeal,fill=white,inner sep=.35pt] at (174.4,32.4) {$\mathrm{RC}_{\ell}$};
+\node[circle,draw=cTeal,fill=white,line width=.6pt,minimum size=4mm,inner sep=0pt,font=\fontsize{10}{10}\selectfont] (kiotaout) at (167.45,21.8) {$\oplus$};
+\draw[wire,draw=cTeal] (160.5,31)--(160.5,21.8)--(kiotaout.west);
+\draw[wire,draw=cTeal] (174.4,31)--(174.4,21.8)--(kiotaout.east);
+\draw[wire,draw=cTeal] (kiotaout.south)--(167.45,10);
 
 % Second register boundary and the one-half RV32 destination.
 \draw[reg] (122,6) rectangle (177.5,10);
