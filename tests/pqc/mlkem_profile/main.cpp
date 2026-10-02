@@ -340,15 +340,48 @@ int main(int argc, char** argv) {
         }
 #endif
 #if defined(PQC_PROFILE_PHASES)
+        const char* operation_names[] = { "keypair", "encaps", "decaps" };
+        const unsigned primitive_cycles[] = { P_CYCLE_PERMUTE, P_CYCLE_NTT, P_CYCLE_INTT };
+        uint64_t primitive_totals[3] = {};
+        for (unsigned operation = 0; operation < 3; ++operation) {
+            const auto detail = cycles + P_CYCLE_KEYPAIR_PERMUTE + 3 * operation;
+            const uint64_t named = detail[0] + detail[1] + detail[2];
+            for (unsigned primitive = 0; primitive < 3; ++primitive) {
+                primitive_totals[primitive] += detail[primitive];
+            }
+            if (named > cycles[operation]) {
+                std::printf("*** request %u: primitive timings exceed %s interval\n",
+                            req, operation_names[operation]);
+                ++errors;
+            } else {
+                std::printf("DETAIL: id=%u phase=%s permute=%llu ntt=%llu intt=%llu "
+                            "residual=%llu total=%llu\n", req, operation_names[operation],
+                            (unsigned long long)detail[0],
+                            (unsigned long long)detail[1],
+                            (unsigned long long)detail[2],
+                            (unsigned long long)(cycles[operation] - named),
+                            (unsigned long long)cycles[operation]);
+            }
+        }
+        for (unsigned primitive = 0; primitive < 3; ++primitive) {
+            if (primitive_totals[primitive] != cycles[primitive_cycles[primitive]]) {
+                std::printf("*** request %u: primitive %u operation totals disagree\n",
+                            req, primitive);
+                ++errors;
+            }
+        }
         const struct {
             const char* name;
             unsigned cycle;
         } phases[] = {
             { "keccak_permute", P_CYCLE_PERMUTE },
+#if !defined(PQC_PROFILE_PRIMITIVES)
             { "keccak_absorb", P_CYCLE_ABSORB },
             { "keccak_squeeze", P_CYCLE_SQUEEZE },
+#endif
             { "ntt", P_CYCLE_NTT },
             { "intt", P_CYCLE_INTT },
+#if !defined(PQC_PROFILE_PRIMITIVES)
             { "rejection", P_CYCLE_REJECTION },
             { "codec", P_CYCLE_CODEC },
             { "noise", P_CYCLE_NOISE },
@@ -361,6 +394,7 @@ int main(int argc, char** argv) {
             { "mulcache", P_CYCLE_MULCACHE },
             { "basemul", P_CYCLE_BASEMUL },
             { "reduce", P_CYCLE_REDUCE },
+#endif
         };
         uint64_t profiled = 0;
         for (const auto& phase : phases) {

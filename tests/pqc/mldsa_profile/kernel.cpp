@@ -49,7 +49,7 @@ extern "C" __attribute__((noinline, used)) void mld_profile_main(kernel_arg_t* a
   auto cycles = reinterpret_cast<uint64_t*>(arg->cycles_addr) + req * MLDSA_CY_COUNT;
   auto arena  = reinterpret_cast<uint32_t*>(arg->arena_addr) + req * 4;
   auto pointwise_cycles = reinterpret_cast<uint64_t*>(arg->pointwise_cycles_addr)
-                        + req * MLDSA_POINTWISE_CY_COUNT;
+                        + req * MLDSA_PROFILE_CY_COUNT;
 
   uintptr_t sp0;
   const uint32_t span = pqc_stack_paint(&sp0);

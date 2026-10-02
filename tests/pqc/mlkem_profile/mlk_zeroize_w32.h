@@ -65,7 +65,7 @@ extern "C" __attribute__((naked, noinline)) void mlk_profile_zeroize_expand() {
 }
 
 extern "C" void mlk_profile_zeroize_warp(void* ptr, size_t len) {
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   const mlk_phase_scope_t scope = mlk_phase_begin();
 #endif
   auto& args = mlk_zeroize_args[vx_warp_id()];
@@ -75,7 +75,7 @@ extern "C" void mlk_profile_zeroize_warp(void* ptr, size_t len) {
   __syncthreads();
   mlk_profile_zeroize_expand();
   asm volatile ("" : : "r"(ptr) : "memory");
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   mlk_phase_end(MLK_PHASE_ZEROIZE, scope);
 #endif
 }

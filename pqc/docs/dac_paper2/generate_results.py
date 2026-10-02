@@ -32,21 +32,60 @@ def table(name, header, records):
 
 
 motivation = {}
-kem_ablation = rows("ablation_mlkem.csv")
-kem_base = one(kem_ablation, variant="baseline")
-for variant, primitive in (("ablate_keccak", "Keccak"), ("ablate_ntt", "Ntt")):
-    row = one(kem_ablation, variant=variant)
-    delta = int(kem_base["cycles"]) - int(row["cycles"])
-    assert delta == int(row["delta_vs_baseline"])
-    assert row["keccak_x1"] == kem_base["keccak_x1"] == "144"
-    motivation["MotivationKem" + primitive] = 100 * delta / int(kem_base["cycles"])
-dsa_ablation = rows("ablation_mldsa.csv")
-for basis, primitive in (("measured (ablation)", "Keccak"),
-                         ("measured (ablation, NTT)", "Ntt")):
-    row = one(dsa_ablation, scope="keypair", ram="full", basis=basis)
-    delta = int(row["baseline_cycles"]) - int(row["ablated_cycles"])
-    assert delta == int(row["delta"])
-    motivation["MotivationDsa" + primitive] = 100 * delta / int(row["baseline_cycles"])
+profile_manifest = json.loads((DATA / "baseline_profile_manifest_200mhz.json").read_text())
+profile_summary = json.loads((DATA / "baseline_profile_summary_200mhz.json").read_text())
+profile_rows = rows("baseline_profile_200mhz.csv")
+for name, key in (("baseline_profile_200mhz.csv", "data_sha256"),
+                  ("baseline_profile_summary_200mhz.json", "summary_sha256")):
+    assert hashlib.sha256((DATA / name).read_bytes()).hexdigest() == profile_manifest[key]
+assert profile_manifest["driver"] == "aved"
+assert profile_manifest["clock_before_hz"] == profile_manifest["clock_after_hz"] == 200_000_000
+assert profile_manifest["resident_workers"] == profile_manifest["warmups"] == 1
+assert profile_manifest["repetitions"] == 5
+profile_plot = []
+for index, (parameter, prefix, inputs, operations) in enumerate((
+        ("K768", "Kem", [0], ("keypair", "encaps", "decaps")),
+        ("D65", "Dsa", list(range(1, 33)), ("keypair", "sign", "verify")))):
+    records = [r for r in profile_rows if r["parameter"] == parameter]
+    expected_keys = {(mode, str(repeat), str(input_id), operation)
+                     for mode in ("control", "profile") for repeat in range(1, 6)
+                     for input_id in inputs for operation in operations}
+    assert len(records) == len(expected_keys)
+    assert {(r["mode"], r["repeat"], r["input_id"], r["operation"])
+            for r in records} == expected_keys
+    profiled = [r for r in records if r["mode"] == "profile"]
+    for row in profiled:
+        assert all(int(row[k + "_cycles"]) >= 0 for k in ("permute", "ntt", "intt", "other"))
+        assert sum(int(row[k + "_cycles"]) for k in ("permute", "ntt", "intt", "other")) == int(row["total_cycles"])
+    total = sum(int(r["total_cycles"]) for r in profiled)
+    totals = {kind: sum(int(r[kind + "_cycles"]) for r in profiled)
+              for kind in ("permute", "ntt", "intt", "other")}
+    archived = profile_summary[parameter]["profiles"]["complete"]
+    assert total == archived["total_cycles"] and totals == archived["cycles"]
+    fractions = [100 * totals["permute"] / total,
+                 100 * (totals["ntt"] + totals["intt"]) / total,
+                 100 * totals["other"] / total]
+    profile_plot.append((index, *fractions))
+    for name, value in zip(("Keccak", "Ntt", "Other"), fractions):
+        motivation["Motivation" + prefix + name] = value
+    overheads = []
+    for input_id in inputs:
+        medians = {}
+        for mode in ("control", "profile"):
+            medians[mode] = statistics.median(
+                sum(int(r["total_cycles"]) for r in records
+                    if (r["mode"], r["input_id"], r["repeat"]) == (mode, str(input_id), str(repeat)))
+                for repeat in range(1, 6))
+        overhead = 100 * (medians["profile"] / medians["control"] - 1)
+        archived_input = next(
+            r for r in profile_summary[parameter]["inputs"] if r["input"] == input_id)
+        assert medians["control"] == archived_input["control_median_cycles"]
+        assert medians["profile"] == archived_input["profile_median_cycles"]
+        assert abs(overhead - archived_input["overhead_pct"]) < 1e-9
+        overheads.append(overhead)
+    motivation["Motivation" + prefix + "OverheadMin"] = min(overheads)
+    motivation["Motivation" + prefix + "OverheadMax"] = max(overheads)
+table("motivation_profile.dat", ["index", "keccak", "ntt", "other"], profile_plot)
 
 
 kem = rows("keccak_ntt_unified_xrt.csv")
@@ -84,6 +123,18 @@ parameter_board = rows("parameter_board_200mhz.csv")
 parameter_summary = json.loads((DATA / "parameter_board_summary_200mhz.json").read_text())
 parameter_repeats = rows("parameter_board_repeats_200mhz.csv")
 full_build = json.loads((DATA / "full_mapping_build.json").read_text())
+assert profile_manifest["build"]["flags"] == full_build["flags"]
+assert profile_manifest["build"]["reference_manifest_sha256"] == hashlib.sha256(
+    (DATA / "full_mapping_build.json").read_bytes()).hexdigest()
+assert profile_manifest["image_sha256"] == parameter_summary["image_sha256"]
+for parameter, probe in (("K768", "primitives"), ("D65", "1")):
+    reference = full_build["apps"][parameter + "_A"]
+    control = profile_manifest["build"]["apps"][parameter + "_A_control"]
+    profiled = profile_manifest["build"]["apps"][parameter + "_A_profile"]
+    for key in ("kernel_sha256", "host_sha256"):
+        assert control[key] == reference[key]
+    assert control["command"][3:] == reference["options"]
+    assert profiled["command"] == control["command"] + ["PROFILE_PHASES=" + probe]
 opcodes = json.loads((DATA / "full_mapping_opcode_audit.json").read_text())
 provenance = json.loads((DATA / "full_mapping_sources.json").read_text())
 for name, expected in provenance["files"].items():

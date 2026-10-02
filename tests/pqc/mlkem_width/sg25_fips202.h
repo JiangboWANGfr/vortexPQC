@@ -25,6 +25,7 @@
 
 #if !defined(MLKSG_PROFILE_BEGIN)
 #define MLKSG_PROFILE_BEGIN(scope)
+#define MLKSG_PROFILE_SPONGE_BEGIN(scope)
 #define MLKSG_PROFILE_END(scope, phase)
 #define MLKSG_PROFILE_END_EXCLUDING_PERMUTE(scope, phase)
 #define MLKSG_DEFAULT_PROFILE
@@ -117,8 +118,12 @@ static MLK_INLINE mlk_shake128ctx *mlksg_broadcast_state(
 #endif
 #endif
 
+#if defined(PQC_PROFILE_PRIMITIVES)
+static __attribute__((noinline)) uint64_t mlksg_permute_body(uint64_t a) {
+#else
 static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
   MLKSG_PROFILE_BEGIN(profile);
+#endif
 #if defined(PQC_KECCAK_KROUND25)
   MLKSG_KROUND_STEP(0);  MLKSG_KROUND_STEP(1);
   MLKSG_KROUND_STEP(2);  MLKSG_KROUND_STEP(3);
@@ -178,9 +183,23 @@ static __attribute__((noinline)) uint64_t mlksg_permute(uint64_t a) {
 #endif
   }
 #endif
+#if !defined(PQC_PROFILE_PRIMITIVES)
+  MLKSG_PROFILE_END(profile, MLK_PHASE_PERMUTE);
+#endif
+  return a;
+}
+
+#if defined(PQC_PROFILE_PRIMITIVES)
+// Keep timer state out of the unrolled rounds to preserve register allocation.
+static inline __attribute__((always_inline)) uint64_t mlksg_permute(uint64_t a) {
+  // Finish absorb-side arithmetic before the permutation timer starts.
+  asm volatile ("" : "+r"(a) : : "memory");
+  MLKSG_PROFILE_BEGIN(profile);
+  a = mlksg_permute_body(a);
   MLKSG_PROFILE_END(profile, MLK_PHASE_PERMUTE);
   return a;
 }
+#endif
 
 #if defined(PQC_KECCAK_KROUND25)
 #undef MLKSG_KROUND_STEP
@@ -244,7 +263,7 @@ static __attribute__((noinline)) void mlksg_sponge_worker(
   uint64_t a = 0;
   unsigned permutations = 0;
 
-  MLKSG_PROFILE_BEGIN(absorb_profile);
+  MLKSG_PROFILE_SPONGE_BEGIN(absorb_profile);
   while (inlen >= rate) {
     a ^= mlksg_load_word(input, rate, lane);
     a = mlksg_permute(a);
@@ -262,7 +281,7 @@ static __attribute__((noinline)) void mlksg_sponge_worker(
   }
   MLKSG_PROFILE_END_EXCLUDING_PERMUTE(absorb_profile, MLK_PHASE_ABSORB);
 
-  MLKSG_PROFILE_BEGIN(squeeze_profile);
+  MLKSG_PROFILE_SPONGE_BEGIN(squeeze_profile);
   while (outlen != 0) {
     size_t length = outlen < rate ? outlen : rate;
     a = mlksg_permute(a);
@@ -301,7 +320,7 @@ static __attribute__((noinline)) void mlksg_shake128_absorb_once_worker(
   uint64_t a = 0;
   unsigned permutations = 0;
 
-  MLKSG_PROFILE_BEGIN(absorb_profile);
+  MLKSG_PROFILE_SPONGE_BEGIN(absorb_profile);
   while (inlen >= SHAKE128_RATE) {
     a ^= mlksg_load_word(input, SHAKE128_RATE, lane);
     a = mlksg_permute(a);
@@ -339,7 +358,7 @@ static __attribute__((noinline)) void mlksg_shake128_squeezeblocks_worker(
 
   const unsigned lane = (unsigned)vx_thread_id();
   uint64_t a = state->ctx[lane];
-  MLKSG_PROFILE_BEGIN(squeeze_profile);
+  MLKSG_PROFILE_SPONGE_BEGIN(squeeze_profile);
   size_t block;
   for (block = 0; block < nblocks; ++block) {
     a = mlksg_permute(a);
@@ -403,6 +422,7 @@ static MLK_INLINE void mlk_sha3_512(uint8_t *output, const uint8_t *input,
 #if defined(MLKSG_DEFAULT_PROFILE)
 #undef MLKSG_DEFAULT_PROFILE
 #undef MLKSG_PROFILE_END_EXCLUDING_PERMUTE
+#undef MLKSG_PROFILE_SPONGE_BEGIN
 #undef MLKSG_PROFILE_END
 #undef MLKSG_PROFILE_BEGIN
 #endif

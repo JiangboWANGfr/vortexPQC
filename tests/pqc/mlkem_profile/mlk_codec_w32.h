@@ -175,13 +175,13 @@ extern "C" __attribute__((naked, noinline)) void mlk_profile_codec_expand() {
 }
 
 static void mlk_profile_codec_dispatch() {
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   const mlk_phase_scope_t scope = mlk_phase_begin();
 #endif
   vx_fence();
   __syncthreads();
   mlk_profile_codec_expand();
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   mlk_phase_end(MLK_PHASE_CODEC, scope);
 #endif
 }

@@ -1,0 +1,42 @@
+\begin{tikzpicture}[x=1mm,y=1mm,font=\fontsize{8}{9}\selectfont]
+\path[use as bounding box] (0,0) rectangle (88.5,35);
+\pgfplotstableread{assets/motivation_profile.dat}\motivationdata
+
+\foreach \tick in {0,25,50,75,100}{
+  \pgfmathsetmacro{\xx}{21+.65*\tick}
+  \draw[black!10,line width=.3pt] (\xx,7)--(\xx,25.5);
+  \draw[black!65,line width=.35pt] (\xx,7)--(\xx,6.2);
+  \node at (\xx,4.5) {\tick};
+}
+\draw[black!65,line width=.35pt] (21,7)--(86,7);
+
+\foreach \row/\name/\yy in {0/{ML-KEM-768}/21.5,1/{ML-DSA-65}/12.5}{
+  \node[anchor=west,inner sep=0pt] at (.5,\yy) {\name};
+  \pgfplotstablegetelem{\row}{keccak}\of{\motivationdata}
+  \pgfmathsetmacro{\keccak}{\pgfplotsretval}
+  \pgfplotstablegetelem{\row}{ntt}\of{\motivationdata}
+  \pgfmathsetmacro{\ntt}{\pgfplotsretval}
+  \pgfplotstablegetelem{\row}{other}\of{\motivationdata}
+  \pgfmathsetmacro{\other}{\pgfplotsretval}
+  \pgfmathsetmacro{\xk}{21+.65*\keccak}
+  \pgfmathsetmacro{\xn}{\xk+.65*\ntt}
+  \pgfmathsetmacro{\xo}{\xn+.65*\other}
+  \path[fill=cBlue] (21,\yy-3) rectangle (\xk,\yy+3);
+  \path[fill=cOrange] (\xk,\yy-3) rectangle (\xn,\yy+3);
+  \path[fill=black!16] (\xn,\yy-3) rectangle (\xo,\yy+3);
+  \draw[white,line width=.4pt] (\xk,\yy-3)--(\xk,\yy+3);
+  \draw[white,line width=.4pt] (\xn,\yy-3)--(\xn,\yy+3);
+  \node[text=white,inner sep=0pt] at ({(21+\xk)/2},\yy)
+    {\pgfmathprintnumber[fixed,precision=1,zerofill]{\keccak}};
+  \node[inner sep=0pt] at ({(\xk+\xn)/2},\yy)
+    {\pgfmathprintnumber[fixed,precision=1,zerofill]{\ntt}};
+  \node[inner sep=0pt] at ({(\xn+\xo)/2},\yy)
+    {\pgfmathprintnumber[fixed,precision=1,zerofill]{\other}};
+}
+
+\foreach \xx/\shade/\name in {22/cBlue/{Keccak-f},44/cOrange/{NTT/INTT},68/{black!16}/{Other}}{
+  \path[fill=\shade] (\xx,30.5) rectangle (\xx+2,32.5);
+  \node[anchor=west,inner sep=0pt] at (\xx+3,31.5) {\name};
+}
+\node[inner sep=0pt] at (53.5,1.4) {Fraction of instrumented request (\%)};
+\end{tikzpicture}

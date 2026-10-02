@@ -1,0 +1,22 @@
+{
+  "noinline_wrapper": {
+    "source_run": "build32_pqc_board_profile/profile_board/20261002T030742Z",
+    "archive_sha256": "44dc8f9d4953f19145850e313167460cccccd3a6e203687c55c310746fb56160",
+    "kem": {
+      "input": 0,
+      "control_median_cycles": 4460200,
+      "profile_median_cycles": 4732561,
+      "overhead_pct": 6.106475045962068
+    }
+  },
+  "inline_wrapper_input_barrier": {
+    "source_run": "build32_pqc_board_profile/profile_board/20261002T032038Z",
+    "archive_sha256": "fef292d4e3b48e595d7ce70aa55f37e7f8bc37ac4676dafb5ca2c5cd45e3e68e",
+    "kem": {
+      "input": 0,
+      "control_median_cycles": 4459507,
+      "profile_median_cycles": 4663622,
+      "overhead_pct": 4.577075448025991
+    }
+  }
+}

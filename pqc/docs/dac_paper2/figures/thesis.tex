@@ -1,51 +1,60 @@
-\begin{tikzpicture}[x=1cm,y=1cm,font=\sffamily\scriptsize,
+\begin{tikzpicture}[x=1cm,y=1cm,font=\fontsize{8.5}{9.5}\selectfont,
   edge/.style={line width=.65pt,-{Latex[length=1.3mm]}},
   cell/.style={draw=black!50,line width=.35pt}]
-\path[use as bounding box] (-.06,-.15) rectangle (8.55,3.89);
-\node[anchor=west,font=\sffamily\scriptsize\bfseries] at (0,3.73) {(a) NTT: coefficient indices};
-\node[anchor=west,font=\sffamily\scriptsize\bfseries] at (4.43,3.73) {(b) Keccak: lane indices};
-\node[anchor=east] at (.58,3.39) {$l$};
-\foreach \x/\lane in {.65/0,1.27/1,2.12/16,2.74/17}{
-  \node at (\x+.28,3.39) {\lane};
+\path[use as bounding box] (-.12,-.04) rectangle (8.70,4.78);
+\begin{scope}[yshift=3mm]
+\node[anchor=east] at (.66,4.28) {$l$};
+\foreach \x/\lane in {.80/0,1.42/1,2.51/16,3.13/17}{
+  \node at (\x+.31,4.28) {\lane};
   \foreach \k in {0,...,7}{
     \pgfmathtruncatemacro{\coef}{\lane+32*\k}
-    \draw[cell,fill=black!3] (\x,2.87-.30*\k) rectangle ++(.56,.28);
-    \node at (\x+.28,3.01-.30*\k) {\coef};
+    \draw[cell,fill=black!3] (\x,3.605-.375*\k) rectangle ++(.62,.375);
+    \node at (\x+.31,3.7925-.375*\k) {\coef};
   }
 }
-\node at (1.975,3.39) {$\cdots$};
-\node at (3.59,3.39) {$k$};
-\foreach \k in {0,...,7}{\node[text=black!65] at (3.59,3.01-.30*\k) {\k};}
+\node at (2.275,4.28) {$\cdots$};
+\node at (4.10,4.28) {$k$};
+\foreach \k in {0,...,7}{
+  \node at (2.275,3.7925-.375*\k) {$\cdots$};
+  \node[text=black!65] at (4.10,3.7925-.375*\k) {\k};
+}
 \foreach \k/\coef in {0/0,4/128}{
-  \draw[cell,fill=cBlue!22,draw=cBlue] (.65,2.87-.30*\k) rectangle ++(.56,.28);
-  \node at (.93,3.01-.30*\k) {\coef};
+  \draw[cell,fill=cBlue!22,draw=cBlue] (.80,3.605-.375*\k) rectangle ++(.62,.375);
+  \node at (1.11,3.7925-.375*\k) {\coef};
 }
-\draw[edge,cBlue] (.65,3.01)--(.25,3.01)--(.25,1.81)--(.65,1.81);
-\node[rotate=90,text=cBlue] at (.02,2.41) {$d=128$};
-\foreach \x/\coef in {.65/224,2.12/240}{
-  \draw[cell,fill=cTeal!20,draw=cTeal] (\x,.77) rectangle ++(.56,.28);
-  \node at (\x+.28,.91) {\coef};
+\draw[edge,cBlue] (.80,3.7925)--(.40,3.7925)--(.40,2.2925)--(.80,2.2925);
+\node[rotate=90,text=cBlue] at (.10,3.0425) {stride 128};
+\foreach \x/\coef in {.80/224,2.51/240}{
+  \draw[cell,fill=cTeal!20,draw=cTeal] (\x,.98) rectangle ++(.62,.375);
+  \node at (\x+.31,1.1675) {\coef};
 }
-\draw[edge,cTeal] (.93,.77)--(.93,.50)--(2.40,.50)--(2.40,.77);
-\node[text=cTeal] at (1.66,.25) {XOR 16};
-\node[anchor=east,text=black!65] at (3.90,-.07) {$a[l+32k]$};
-\begin{scope}[shift={(4.88,.74)}]
+\draw[edge,cTeal] (1.11,.98)--(1.11,.72)--(2.82,.72)--(2.82,.98);
+\node[text=cTeal] at (1.965,.45) {lane XOR 16};
+\begin{scope}[shift={(4.90,.98)}]
 \foreach \x in {0,...,4}{\foreach \y in {0,...,4}{
   \pgfmathtruncatemacro{\lane}{\x+5*\y}
   \def\shade{black!3}
   \ifnum\x=2 \def\shade{cBlue!22}\fi
   \ifnum\y=2 \def\shade{cTeal!20}\fi
-  \draw[cell,fill=\shade] (.45*\x,.45*\y) rectangle ++(.43,.43);
-  \node at (.45*\x+.215,.45*\y+.215) {\lane};
+  \ifnum\lane=1 \def\shade{cOrange!20}\fi
+  \ifnum\lane=10 \def\shade{cOrange!20}\fi
+  \draw[cell,fill=\shade] (.60*\x,.60*\y) rectangle ++(.60,.60);
+  \node at (.60*\x+.30,.60*\y+.30) {\lane};
 }}
-\draw[cBlue,line width=.8pt] (.90,-.02) rectangle (1.35,2.25);
-\draw[cTeal,line width=.8pt] (-.02,.90) rectangle (2.25,1.35);
-\draw[edge,cOrange] (.665,0) .. controls (.665,-.55) and (-.42,-.55) .. (-.42,.55) -- (-.42,1.115) -- (0,1.115);
-\node[text=cOrange] at (-.28,-.53) {$\rho\pi$};
-\draw[edge,cBlue] (1.115,2.25)--(1.115,2.53);
-\node[text=cBlue] at (1.55,2.55) {$\theta$};
-\draw[edge,cTeal] (2.25,1.115)--(2.58,1.115);
-\node[text=cTeal,anchor=west] at (2.64,1.115) {$\chi$};
+\draw[cOrange,line width=.65pt] (.60,0) rectangle (1.20,.60);
+\draw[cOrange,line width=.65pt] (0,1.20) rectangle (.60,1.80);
+\draw[cBlue,line width=.8pt] (1.20,0) rectangle (1.80,3.00);
+\draw[cTeal,line width=.8pt] (0,1.20) rectangle (3.00,1.80);
+\draw[edge,cOrange,rounded corners=.5mm] (.90,0)--(.90,-.30)--(-.32,-.30)--(-.32,1.50)--(0,1.50);
+\node[text=cOrange] at (.20,-.53) {$\rho\pi$};
+\draw[edge,cBlue] (1.50,3.00)--(1.50,3.35);
+\node[text=cBlue] at (1.83,3.32) {$\theta$};
+\draw[edge,cTeal] (3.00,1.50)--(3.32,1.50);
+\node[text=cTeal,anchor=west] at (3.39,1.50) {$\chi$};
 \end{scope}
-\node[anchor=west,text=black!65] at (4.51,-.07) {$l=x+5y$ \quad $25\times64$ bits};
+\end{scope}
+\begin{scope}[yshift=-1.5mm]
+\node[font=\fontsize{8}{9}\selectfont] at (2.10,.30) {(a) NTT: coefficient indices};
+\node[font=\fontsize{8}{9}\selectfont] at (6.40,.30) {(b) Keccak: lane indices};
+\end{scope}
 \end{tikzpicture}

@@ -73,7 +73,7 @@ extern "C" __attribute__((naked, noinline)) void mlk_profile_noise_expand() {
 }
 
 static void mlk_profile_noise(int16_t* r, const uint8_t* a, unsigned eta) {
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   const mlk_phase_scope_t scope = mlk_phase_begin();
 #endif
   auto& args = mlk_noise_args[vx_warp_id()];
@@ -83,7 +83,7 @@ static void mlk_profile_noise(int16_t* r, const uint8_t* a, unsigned eta) {
   vx_fence();
   __syncthreads();
   mlk_profile_noise_expand();
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   mlk_phase_end(MLK_PHASE_NOISE, scope);
 #endif
 }

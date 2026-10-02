@@ -5,7 +5,8 @@
  axis lines*=left,
  tick label style={font=\scriptsize},
  label style={font=\scriptsize},
- title style={font=\scriptsize\bfseries},
+ title style={font=\fontsize{8}{9}\selectfont,
+  at={(.5,0)},anchor=north,yshift=-10mm},
  grid=major,grid style={black!8},
  every axis plot/.append style={semithick,mark size=1.2pt},
  cycle list={{cBlue,mark=*},{cOrange,mark=square*},
@@ -41,5 +42,5 @@
 \addplot table[x=requests,y=D87]{assets/parameter_batch.dat};
 \end{groupplot}
 \path (group c1r1.south west)--(group c2r1.south east)
- node[midway,below=10mm]{\pgfplotslegendfromname{scalinglegend}};
+ node[midway,below=14mm]{\pgfplotslegendfromname{scalinglegend}};
 \end{tikzpicture}

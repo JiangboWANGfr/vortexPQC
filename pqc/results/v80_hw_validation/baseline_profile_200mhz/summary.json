@@ -1,0 +1,332 @@
+{
+  "K768": {
+    "inputs": [
+      {
+        "input": 0,
+        "control_median_cycles": 4459507,
+        "profile_median_cycles": 4663622,
+        "overhead_pct": 4.577075448025991
+      }
+    ],
+    "profiles": {
+      "complete": {
+        "total_cycles": 23317419,
+        "cycles": {
+          "permute": 12177460,
+          "ntt": 992805,
+          "intt": 841611,
+          "other": 9305543
+        },
+        "shares_pct": {
+          "permute": 52.22473379236355,
+          "ntt": 4.257782561611986,
+          "intt": 3.6093660280325195,
+          "other": 39.90811761799194
+        }
+      },
+      "keypair": {
+        "total_cycles": 6658903,
+        "cycles": {
+          "permute": 3741395,
+          "ntt": 392193,
+          "intt": 0,
+          "other": 2525315
+        },
+        "shares_pct": {
+          "permute": 56.18635682183687,
+          "ntt": 5.88975391291929,
+          "intt": 0.0,
+          "other": 37.92388926524384
+        }
+      },
+      "encaps": {
+        "total_cycles": 7604349,
+        "cycles": {
+          "permute": 3810716,
+          "ntt": 198609,
+          "intt": 371214,
+          "other": 3223810
+        },
+        "shares_pct": {
+          "permute": 50.11232388203119,
+          "ntt": 2.6117817580439824,
+          "intt": 4.881601304727071,
+          "other": 42.39429305519776
+        }
+      },
+      "decaps": {
+        "total_cycles": 9054167,
+        "cycles": {
+          "permute": 4625349,
+          "ntt": 402003,
+          "intt": 470397,
+          "other": 3556418
+        },
+        "shares_pct": {
+          "permute": 51.08530690896247,
+          "ntt": 4.439977747262669,
+          "intt": 5.195364742002218,
+          "other": 39.27935060177264
+        }
+      }
+    }
+  },
+  "D65": {
+    "inputs": [
+      {
+        "input": 1,
+        "control_median_cycles": 40948335,
+        "profile_median_cycles": 41382639,
+        "overhead_pct": 1.0606145524598265
+      },
+      {
+        "input": 2,
+        "control_median_cycles": 38302020,
+        "profile_median_cycles": 38701763,
+        "overhead_pct": 1.0436603604718542
+      },
+      {
+        "input": 3,
+        "control_median_cycles": 25199175,
+        "profile_median_cycles": 25436181,
+        "overhead_pct": 0.9405307911866112
+      },
+      {
+        "input": 4,
+        "control_median_cycles": 47880535,
+        "profile_median_cycles": 48348924,
+        "overhead_pct": 0.9782451261248548
+      },
+      {
+        "input": 5,
+        "control_median_cycles": 27347092,
+        "profile_median_cycles": 27615288,
+        "overhead_pct": 0.9807112215075797
+      },
+      {
+        "input": 6,
+        "control_median_cycles": 24275714,
+        "profile_median_cycles": 24511235,
+        "overhead_pct": 0.9701918551190625
+      },
+      {
+        "input": 7,
+        "control_median_cycles": 48909713,
+        "profile_median_cycles": 49439490,
+        "overhead_pct": 1.0831733974803637
+      },
+      {
+        "input": 8,
+        "control_median_cycles": 37545221,
+        "profile_median_cycles": 37975978,
+        "overhead_pct": 1.1473018097296617
+      },
+      {
+        "input": 9,
+        "control_median_cycles": 46391305,
+        "profile_median_cycles": 46860682,
+        "overhead_pct": 1.0117779614089217
+      },
+      {
+        "input": 10,
+        "control_median_cycles": 36683313,
+        "profile_median_cycles": 37051315,
+        "overhead_pct": 1.0031863806848618
+      },
+      {
+        "input": 11,
+        "control_median_cycles": 24456191,
+        "profile_median_cycles": 24692620,
+        "overhead_pct": 0.9667449849406262
+      },
+      {
+        "input": 12,
+        "control_median_cycles": 22412580,
+        "profile_median_cycles": 22614918,
+        "overhead_pct": 0.9027876308751681
+      },
+      {
+        "input": 13,
+        "control_median_cycles": 22388114,
+        "profile_median_cycles": 22591491,
+        "overhead_pct": 0.9084150634573351
+      },
+      {
+        "input": 14,
+        "control_median_cycles": 27165396,
+        "profile_median_cycles": 27434132,
+        "overhead_pct": 0.9892585405344434
+      },
+      {
+        "input": 15,
+        "control_median_cycles": 38562127,
+        "profile_median_cycles": 38962549,
+        "overhead_pct": 1.0383815187372747
+      },
+      {
+        "input": 16,
+        "control_median_cycles": 38757681,
+        "profile_median_cycles": 39157811,
+        "overhead_pct": 1.0323889089236316
+      },
+      {
+        "input": 17,
+        "control_median_cycles": 30383121,
+        "profile_median_cycles": 30685744,
+        "overhead_pct": 0.9960234170808269
+      },
+      {
+        "input": 18,
+        "control_median_cycles": 29418822,
+        "profile_median_cycles": 29689081,
+        "overhead_pct": 0.9186601693296881
+      },
+      {
+        "input": 19,
+        "control_median_cycles": 52819368,
+        "profile_median_cycles": 53415389,
+        "overhead_pct": 1.128413728842803
+      },
+      {
+        "input": 20,
+        "control_median_cycles": 22395207,
+        "profile_median_cycles": 22599290,
+        "overhead_pct": 0.911279810898824
+      },
+      {
+        "input": 21,
+        "control_median_cycles": 26477913,
+        "profile_median_cycles": 26746914,
+        "overhead_pct": 1.0159448745072908
+      },
+      {
+        "input": 22,
+        "control_median_cycles": 27614640,
+        "profile_median_cycles": 27885275,
+        "overhead_pct": 0.9800417459724153
+      },
+      {
+        "input": 23,
+        "control_median_cycles": 28603457,
+        "profile_median_cycles": 28872188,
+        "overhead_pct": 0.939505319234657
+      },
+      {
+        "input": 24,
+        "control_median_cycles": 22419599,
+        "profile_median_cycles": 22622606,
+        "overhead_pct": 0.9054889875595107
+      },
+      {
+        "input": 25,
+        "control_median_cycles": 26938553,
+        "profile_median_cycles": 27206785,
+        "overhead_pct": 0.9957179214488576
+      },
+      {
+        "input": 26,
+        "control_median_cycles": 22415506,
+        "profile_median_cycles": 22617821,
+        "overhead_pct": 0.9025671782738165
+      },
+      {
+        "input": 27,
+        "control_median_cycles": 35646259,
+        "profile_median_cycles": 36013731,
+        "overhead_pct": 1.0308851764781357
+      },
+      {
+        "input": 28,
+        "control_median_cycles": 28211517,
+        "profile_median_cycles": 28482088,
+        "overhead_pct": 0.9590799388774496
+      },
+      {
+        "input": 29,
+        "control_median_cycles": 24971163,
+        "profile_median_cycles": 25208394,
+        "overhead_pct": 0.9500198288722173
+      },
+      {
+        "input": 30,
+        "control_median_cycles": 31814552,
+        "profile_median_cycles": 32117456,
+        "overhead_pct": 0.952092614725486
+      },
+      {
+        "input": 31,
+        "control_median_cycles": 24273016,
+        "profile_median_cycles": 24508347,
+        "overhead_pct": 0.96951693188847
+      },
+      {
+        "input": 32,
+        "control_median_cycles": 28832035,
+        "profile_median_cycles": 29131183,
+        "overhead_pct": 1.0375542343785238
+      }
+    ],
+    "profiles": {
+      "complete": {
+        "total_cycles": 5102870635,
+        "cycles": {
+          "permute": 2122283640,
+          "ntt": 199904441,
+          "intt": 342404704,
+          "other": 2438277850
+        },
+        "shares_pct": {
+          "permute": 41.589994961728046,
+          "ntt": 3.9174898855730054,
+          "intt": 6.7100408474297915,
+          "other": 47.782474305269155
+        }
+      },
+      "keypair": {
+        "total_cycles": 1136714756,
+        "cycles": {
+          "permute": 607238709,
+          "ntt": 16365363,
+          "intt": 25729663,
+          "other": 487381021
+        },
+        "shares_pct": {
+          "permute": 53.420500243774434,
+          "ntt": 1.4397070956999172,
+          "intt": 2.263510952434579,
+          "other": 42.876281708091064
+        }
+      },
+      "sign": {
+        "total_cycles": 2991705666,
+        "cycles": {
+          "permute": 958258247,
+          "ntt": 143443050,
+          "intt": 289582895,
+          "other": 1600421474
+        },
+        "shares_pct": {
+          "permute": 32.03049878503656,
+          "ntt": 4.79469125690388,
+          "intt": 9.679524904172174,
+          "other": 53.495285053887386
+        }
+      },
+      "verify": {
+        "total_cycles": 974450213,
+        "cycles": {
+          "permute": 556786684,
+          "ntt": 40096028,
+          "intt": 27092146,
+          "other": 350475355
+        },
+        "shares_pct": {
+          "permute": 57.13854608188176,
+          "ntt": 4.1147333609336485,
+          "intt": 2.7802493794518774,
+          "other": 35.96647117773271
+        }
+      }
+    }
+  }
+}

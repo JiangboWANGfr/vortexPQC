@@ -6,10 +6,10 @@
  wire/.style={draw=black!75,line width=.5pt,-{Latex[length=1.1mm,width=.8mm]}},
  span/.style={draw=black!75,line width=.45pt,{Latex[length=1mm,width=.7mm]}-{Latex[length=1mm,width=.7mm]}},
  grid/.style={draw=black!20,line width=.35pt,dashed},
- head/.style={font=\fontsize{8}{9}\selectfont\bfseries,anchor=west}]
+ head/.style={font=\fontsize{8}{9}\selectfont,inner sep=0pt}]
 \path[use as bounding box] (0,0) rectangle (84,67);
 
-\node[head] at (0,65.2) {(a) M2: sixteen products in eight beats};
+\begin{scope}[yshift=3mm]
 \node[anchor=east] at (14,60.7) {Beat $t$};
 \node[anchor=east] at (14,55.6) {Mul 0};
 \node[anchor=east] at (14,50.4) {Mul 1};
@@ -24,12 +24,12 @@
   \node at (\xx+3.75,50.4) {$P_{\odd}$};
 }
 \draw[wire,draw=black!55] (15,58.9)--(79.5,58.9);
-\node[anchor=east,text=black!65,font=\fontsize{7}{8}\selectfont]
-  at (80.3,46.1) {$P_{2t}$ / $P_{2t+1}$ at beat $t$};
+\end{scope}
+\node[head] at (42,47.2) {(a) M2: sixteen products in eight beats};
 
 \draw[black!18,line width=.45pt] (0,43.8)--(84,43.8);
 
-\node[head] at (0,41.8) {(b) M2: overlapped instruction execution};
+\begin{scope}[yshift=4.5mm]
 \node[anchor=east,inner sep=0pt,font=\fontsize{7.5}{8.5}\selectfont]
   at (10,36.3) {Cycle};
 \draw[wire,draw=black!70] (13,33.3)--(82,33.3);
@@ -64,10 +64,10 @@
   (55,27.0) circle (.75mm);
 \filldraw[draw=cBlue,fill=cBlue,line width=.5pt]
   (79,14.0) circle (.75mm);
-\node[anchor=south,inner sep=.4pt,text=cBlue]
-  at (55,30.7) {$r_d^0$};
-\node[anchor=south,inner sep=.4pt,text=cBlue]
-  at (79,17.7) {$r_d^1$};
+\node[anchor=north,inner sep=.4pt,fill=white,text=cBlue]
+  at (55,22.5) {$r_d^0$};
+\node[anchor=north,inner sep=.4pt,fill=white,text=cBlue]
+  at (79,9.5) {$r_d^1$};
 
 \draw[span] (13,20.5)--(37,20.5);
 \node[fill=white,inner sep=.5pt,font=\fontsize{7.5}{8.5}\selectfont]
@@ -78,4 +78,6 @@
 \node[inner sep=0pt] at (34,2.8) {latency $=14$};
 \node[anchor=east,text=black!65,inner sep=0pt,font=\fontsize{7}{8}\selectfont]
   at (83,0.8) {cells: input beats 0--7};
+\end{scope}
+\node[head] at (42,1.2) {(b) M2: overlapped instruction execution};
 \end{tikzpicture}

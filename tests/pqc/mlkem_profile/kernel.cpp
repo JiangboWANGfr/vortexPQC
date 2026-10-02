@@ -266,6 +266,7 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   }
 #endif
 #if defined(PQC_PROFILE_PHASES)
+  uint64_t primitive_snapshots[3][3];
   for (unsigned i = 0; i < MLK_PHASE_COUNT; ++i) {
     mlk_phase_cycles[vx_warp_id()][i] = 0;
   }
@@ -289,13 +290,22 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
   mlk_arena_reset();
   status[0] = mlkem_keypair_derand(s + P_OFF_PK, s + P_OFF_SK, s + P_OFF_COINS_KP);
   uint64_t t1 = vx_rdcycle();
+#if defined(PQC_PROFILE_PHASES)
+  mlk_phase_snapshot_primitives(primitive_snapshots[0]);
+#endif
   mlk_arena_reset();
   status[1] = mlkem_enc_derand(s + P_OFF_CT, s + P_OFF_SS_ENC, s + P_OFF_PK,
                                s + P_OFF_COINS_ENC);
   uint64_t t2 = vx_rdcycle();
+#if defined(PQC_PROFILE_PHASES)
+  mlk_phase_snapshot_primitives(primitive_snapshots[1]);
+#endif
   mlk_arena_reset();
   status[2] = mlkem_dec(s + P_OFF_SS_DEC, s + P_OFF_CT, s + P_OFF_SK);
   uint64_t t3 = vx_rdcycle();
+#if defined(PQC_PROFILE_PHASES)
+  mlk_phase_snapshot_primitives(primitive_snapshots[2]);
+#endif
 
   vx_barrier(1u << 8, arg->workers);
   cycles[P_CYCLE_KEYPAIR] = t1 - t0;
@@ -307,6 +317,13 @@ __kernel void kernel_main(kernel_arg_t* __UNIFORM__ arg) {
 #if defined(PQC_PROFILE_PHASES)
   for (unsigned i = 0; i < MLK_PHASE_COUNT; ++i) {
     cycles[P_CYCLE_PERMUTE + i] = mlk_phase_cycles[vx_warp_id()][i];
+  }
+  for (unsigned phase = 0; phase < 3; ++phase) {
+    for (unsigned primitive = 0; primitive < 3; ++primitive) {
+      const uint64_t previous = phase ? primitive_snapshots[phase - 1][primitive] : 0;
+      cycles[P_CYCLE_KEYPAIR_PERMUTE + 3 * phase + primitive] =
+          primitive_snapshots[phase][primitive] - previous;
+    }
   }
 #endif
 #if defined(PQC_PROFILE_ARITH)

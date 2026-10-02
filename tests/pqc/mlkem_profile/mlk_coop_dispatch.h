@@ -153,7 +153,7 @@ extern "C" void mlk_profile_ntt(int16_t* p, unsigned inverse) {
 #if defined(PQC_REJ_WARP)
 extern "C" int mlk_profile_rej_uniform(int16_t* r, unsigned len,
                                         const uint8_t* buf, unsigned buflen) {
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   const mlk_phase_scope_t scope = mlk_phase_begin();
 #endif
   auto& args = mlk_coop_args[vx_warp_id()];
@@ -164,7 +164,7 @@ extern "C" int mlk_profile_rej_uniform(int16_t* r, unsigned len,
   vx_fence();
   __syncthreads();
   mlk_profile_rej_uniform_expand(UINT32_MAX);
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   mlk_phase_end(MLK_PHASE_REJECTION, scope);
 #endif
   return (int)args.rej_count;

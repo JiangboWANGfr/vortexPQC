@@ -39,6 +39,15 @@ typedef struct {
 
 static uint64_t mlk_phase_cycles[VX_CFG_NUM_WARPS][MLK_PHASE_COUNT];
 
+static inline void mlk_phase_snapshot_primitives(uint64_t* snapshot) {
+  asm volatile ("" ::: "memory");
+  const auto cycles = mlk_phase_cycles[vx_warp_id()];
+  snapshot[0] = cycles[MLK_PHASE_PERMUTE];
+  snapshot[1] = cycles[MLK_PHASE_NTT];
+  snapshot[2] = cycles[MLK_PHASE_INTT];
+  asm volatile ("" ::: "memory");
+}
+
 static inline uint64_t mlk_phase_timestamp() {
   asm volatile ("" ::: "memory");
   const uint64_t value = vx_rdcycle();

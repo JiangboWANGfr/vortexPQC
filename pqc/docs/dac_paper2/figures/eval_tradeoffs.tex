@@ -1,5 +1,6 @@
 \begin{tikzpicture}[x=1mm,y=1mm,font=\fontsize{7}{8}\selectfont]
-\path[use as bounding box] (0,0) rectangle (178,49);
+\path[use as bounding box] (0,3) rectangle (178,46);
+\begin{scope}[yshift=6mm]
 \pgfplotsset{
  compactaxis/.style={
   scale only axis,anchor=south west,height=23mm,
@@ -70,14 +71,16 @@
  (27.5,36.8) rectangle (29.5,38.3);
 \node[anchor=west] at (30.5,37.55) {$N=8$};
 
-\node[font=\fontsize{7.5}{8.5}\selectfont\bfseries] at (25,47)
- {(a) Fusion};
-\node[font=\fontsize{7.5}{8.5}\selectfont\bfseries] at (70,47)
- {(b) NTT cycles};
-\node[font=\fontsize{7.5}{8.5}\selectfont\bfseries] at (115,47)
- {(c) Request cost};
-\node[font=\fontsize{7.5}{8.5}\selectfont\bfseries] at (160,47)
- {(d) NTT resources};
-\node[font=\fontsize{7}{8}\selectfont,text=black!70] at (116,1.8)
+\node[font=\fontsize{7}{8}\selectfont,text=black!70] at (116,3.5)
  {Physical multipliers};
+\end{scope}
+
+\node[font=\fontsize{8}{9}\selectfont] at (25,5.5)
+ {(a) Fusion};
+\node[font=\fontsize{8}{9}\selectfont] at (70,5.5)
+ {(b) NTT cycles};
+\node[font=\fontsize{8}{9}\selectfont] at (115,5.5)
+ {(c) Request cost};
+\node[font=\fontsize{8}{9}\selectfont] at (160,5.5)
+ {(d) NTT resources};
 \end{tikzpicture}

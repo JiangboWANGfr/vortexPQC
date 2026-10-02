@@ -77,16 +77,15 @@ a 25-thread Keccak mapping~\cite{mlcube}. These results motivate a complementary
 question for an extensible SIMT processor: which remaining work merits
 specialized hardware once the software already exploits warp parallelism?
 
-Our starting point is the cost shared by both schemes. In a historical
-single-lane RV32 software study, removing the Keccak permutation bodies
-reduces a complete ML-KEM-768 request by \MotivationKemKeccak{}\%, while
-independently removing NTT/INTT bodies reduces it by \MotivationKemNtt{}\%. ML-DSA key generation shows the same
-ordering (Section~\ref{sec:motivation}). These diagnostics identify two
-reusable targets; they do not predict the benefit over optimized GPU
-software. We therefore build a stronger comparison point: register-resident,
-warp-cooperative Keccak and NTT kernels, with parallel sampling, encoding,
-and auxiliary arithmetic enabled identically in every hardware comparison.
-Our reported gains measure specialization beyond that software mapping.
+Our starting point is the cost that remains after software cooperation.
+On the 200-MHz V80, instrumented complete requests in our cooperative
+software baseline attribute \MotivationKemKeccak{}\%/\MotivationDsaKeccak{}\%
+to Keccak-f and \MotivationKemNtt{}\%/\MotivationDsaNtt{}\% to NTT/INTT for
+ML-KEM-768/ML-DSA-65 (Fig.~\ref{fig:motivation}). Both families therefore
+remain useful specialization targets. This baseline keeps Keccak and NTT
+state in lane registers, with parallel sampling, encoding, and auxiliary
+arithmetic enabled identically in every hardware comparison. Our reported
+gains measure specialization beyond that software mapping.
 
 The obstacle is not a lack of arithmetic parallelism but the cost of making
 operands meet. Each NTT layer contains 128 independent butterflies. With
@@ -177,25 +176,28 @@ $q_K=3329$ and $q_D=8380417$; our library mappings use 16-bit KEM and
 32-bit DSA coefficients. Keccak updates a $25\times64$-bit state on RV32.
 Requests also include encoding and signing retries.
 
-Historical diagnostics in Table~\ref{tab:motivation} support studying both
-primitive families, with a larger reduction for Keccak. These reductions
-do not describe the later cooperative software baseline.
+Figure~\ref{fig:motivation} profiles correct cooperative software A on V80
+at 200 MHz with one active warp. Complete requests include KeyGen, Encaps,
+and Decaps for KEM, and KeyGen, Sign, and Verify for DSA. We use one KEM KAT
+input and 32 DSA inputs, with one warmup and five measurements per version.
+Each operation is timed separately within its complete request.
 
-\begin{table}[t]
-\caption{Historical single-lane SimX diagnostics: independently removing a
-primitive's body produces invalid outputs. Cycle reductions are not additive
-phase fractions; DSA covers key generation only.}
-\label{tab:motivation}
-\centering\footnotesize\setlength{\tabcolsep}{3.2pt}
-\begin{tabular}{@{}lrr@{}}
-\toprule
-Workload & Keccak & NTT/INTT\\
-\midrule
-ML-KEM-768 complete request & \MotivationKemKeccak{}\% & \MotivationKemNtt{}\%\\
-ML-DSA-65 key generation (full RAM) & \MotivationDsaKeccak{}\% & \MotivationDsaNtt{}\%\\
-\bottomrule
-\end{tabular}
-\end{table}
+Disjoint Keccak-f and NTT/INTT intervals are summed across the measured
+requests and divided by their instrumented total cycles. Keccak timing
+covers KEM's in-register permutation and DSA's permutation wrapper; the
+latter includes dispatch and state transfer. Sponge absorption and extraction
+remain in Other. Relative to matched controls without these additional phase
+probes, profiling adds \MotivationKemOverheadMax{}\% for KEM and
+\MotivationDsaOverheadMin{}--\MotivationDsaOverheadMax{}\% across DSA inputs.
+The plot retains this overhead and identifies major costs rather than an
+exact uninstrumented breakdown.
+
+\begin{figure}[t]
+\centering\input{figures/motivation_profile.tex}
+\caption{Complete-request cycle composition of cooperative software A on
+the 200-MHz V80.}
+\label{fig:motivation}
+\end{figure}
 
 \subsection{Warp-Cooperative Execution and Communication}
 Vortex lanes share an instruction stream over private GPRs~\cite{vortex}.
@@ -208,6 +210,7 @@ $d=1$ for ML-DSA. Inverse traversal reverses this progression.
 
 \begin{figure}[t]
 \centering\input{figures/thesis.tex}
+\par\vspace{1.5mm}
 \caption{Register placement determines the communication. (a) Selected NTT
 lanes: indices 0 and 128 pair within lane 0; 224 and 240 pair across lanes 0
 and 16. (b) Keccak uses column parity ($\theta$), a fixed permutation
@@ -434,6 +437,16 @@ binaries checked through XRT integration.
 
 \section{Evaluation}
 \label{sec:evaluation}
+\begin{figure*}[t]
+\centering\input{figures/eval_tradeoffs.tex}
+\caption{Controlled granularity and capacity studies. (a) Round/Stage for
+XRT Keccak intervals and SimX KEM launch cycles, $N=1/8$. (b) Historical
+W4T32 NTTBF.K test cycles. (c) Maximum W8T32 XRT request overhead across
+KEM-768/DSA-65 and $N=1/8$, with Pointer Keccak fixed. (d) Independent
+200-MHz NTT resources. M16 is the bank reference; gold marks M2.}
+\label{fig:tradeoffs}
+\end{figure*}
+
 \subsection{Experimental Methodology}
 Table~\ref{tab:setup} specifies the V80 configuration: the NTT bank has two
 multipliers, the D-cache is write-through, and L2/L3 are disabled. All physical
@@ -535,16 +548,6 @@ has no paired XRT run. An instrumented XRT control attributes only
 control finds Round \RoundVsPointerOne{}$\times$ faster than Pointer at one
 request, whereas Pointer is \PointerVsRoundEight{}$\times$ faster at eight.
 Thus fusion and offload must be evaluated at request scope and target concurrency.
-
-\begin{figure*}[t]
-\centering\input{figures/eval_tradeoffs.tex}
-\caption{Controlled granularity and capacity studies. (a) Round/Stage for
-XRT Keccak intervals and SimX KEM launch cycles, $N=1/8$. (b) Historical
-W4T32 NTTBF.K test cycles. (c) Maximum W8T32 XRT request overhead across
-KEM-768/DSA-65 and $N=1/8$, with Pointer Keccak fixed. (d) Independent
-200-MHz NTT resources. M16 is the bank reference; gold marks M2.}
-\label{fig:tradeoffs}
-\end{figure*}
 
 Figures~\ref{fig:tradeoffs}(b,c) distinguish test-program cycles from
 complete requests. The former uses historical RV32IMF W4T32 processor RTL,

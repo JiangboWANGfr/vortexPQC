@@ -1,4 +1,4 @@
-% Native 178 x 77 mm.
+% Native 178 x 77.7 mm.
 \definecolor{cDark}{HTML}{343B42}
 \definecolor{cGray}{HTML}{CDD3D9}
 \begin{tikzpicture}[
@@ -9,13 +9,10 @@
  box/.style={draw=cDark!65,line width=.45pt,fill=white,inner sep=1pt,align=center},
  reg/.style={box,fill=cGray!18},
  ctrl/.style={draw=cDark!65,dashed,line width=.45pt,-{Latex[length=1.1mm,width=.8mm]}},
- head/.style={font=\fontsize{8}{9}\selectfont\bfseries,anchor=west},
+ subcaption/.style={font=\fontsize{8}{9}\selectfont,anchor=base,inner sep=0pt},
  mul/.style={circle,draw=cGold,line width=.7pt,fill=cGold!12,
    minimum size=5.6mm,inner sep=0pt,font=\fontsize{12}{12}\selectfont}]
-\path[use as bounding box] (0,0) rectangle (178,77);
-\node[head] at (.5,75) {(a) Core integration};
-\node[head] at (48,75) {(b) Shared NTT (M2)};
-\node[head] at (123,75) {(c) Keccak Stage};
+\path[use as bounding box] (0,-4.2) rectangle (178,73.5);
 \draw[cDark!18,line width=.45pt] (46,3)--(46,71.5);
 \draw[cDark!18,line width=.45pt] (121,3)--(121,71.5);
 
@@ -253,5 +250,9 @@
 \draw[bus] (149.75,6)--(149.75,2.3);
 \node[anchor=west,inner sep=.5pt] at (152.0,2.5) {$r_d=L'$ or $H'$};
 \end{scope}
+
+\node[subcaption] at (23,-3.3) {(a) Core integration};
+\node[subcaption] at (84.5,-3.3) {(b) Shared NTT (M2)};
+\node[subcaption] at (149.5,-3.3) {(c) Keccak Stage};
 
 \end{tikzpicture}

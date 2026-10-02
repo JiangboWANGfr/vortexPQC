@@ -1,0 +1,158 @@
+{
+  "build_manifest_sha256": "f2cf0625dc9d85655d5e65ca4d8a3e1e90fa343dded874127ee903e915ae2a5c",
+  "runtime": {
+    "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/sw/runtime/libvortex.so": "9ea289a7bfe7e70ea985f6ea31d4a7e9bf5aff0e95e5b85f924c6aac0ae04770",
+    "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/sw/runtime/libvortex-aved.so": "fef1181d7b7efc7e332f7267531b3a395cdd3c3454afcc840a5582dcda3bad0a",
+    "/home/jiangbowang/aphdcode/vortex_v80/slash/vrt/build/lib/libvrt.so.1.0.0": "1095d1481dff0a9ec3da403963a4dfc5d7d82223f6d176b371f7260561b8bc62",
+    "/home/jiangbowang/aphdcode/vortex_v80/slash/vrt/vrtd/build/libvrtd/src/libvrtd.so.1.0.0": "95600a1c10cd1839f7fe327a0d37b2ad7c93325f337852afa3de8f64a7c99cc8"
+  },
+  "driver": "aved",
+  "image_path": "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_aved_hw/bin/vortex_afu.vbin",
+  "image_sha256": "c98747981d05748cca5b5cf517044206cc06c83d7847335bdb9dcedb004adf73",
+  "runner_sha256": "c04f8f789ebef486d18ee3e2da6dfb90fcf1716e781944b56ce153034573e0f4",
+  "warmups": 1,
+  "repetitions": 5,
+  "requests": {
+    "K768": 1,
+    "D65": 32
+  },
+  "resident_workers": 1,
+  "dsa_input_start": 1,
+  "environment": {
+    "LD_LIBRARY_PATH": "/home/jiangbowang/aphdcode/vortex_v80/slash/vrt/vrtd/build/libvrtd/src:/home/jiangbowang/aphdcode/vortex_v80/slash/vrt/build/lib:/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/sw/runtime",
+    "VORTEX_DRIVER": "aved",
+    "VRT_DEVICE_BDF": "02:00",
+    "VRT_VBIN_PATH": "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_v80_pqc_hw/hw/syn/xilinx/aved/v80_pqc_w8t32_200_id16_wt_multiout_aved_hw/bin/vortex_afu.vbin",
+    "VORTEX_AVED_NO_PROGRAM": "1",
+    "VORTEX_PROFILING": "0"
+  },
+  "scope": "Per-request API intervals, not batch makespan; shares sum all five measured repetitions.",
+  "instrumented_boundaries": {
+    "K768": "Keccak: 24 rounds with state in lane registers; NTT/INTT: transform dispatch intervals.",
+    "D65": "Keccak: permutation call including dispatch and state load/store; NTT/INTT: transform calls.",
+    "shares": "Instrumented request denominators; Keccak excludes absorb/squeeze; no overhead subtraction.",
+    "overhead": "Incremental cost of added phase probes; baseline counters and DSA pointwise timers are retained in both modes."
+  },
+  "image_note": "Resident image reused without programming; metadata cannot attest its PDI identity.",
+  "clock_before_hz": 200000000,
+  "clock_after_hz": 200000000,
+  "build": {
+    "flags": "-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2 -DVX_CFG_DCACHE_WRITEBACK=0",
+    "apps": {
+      "K768_A_control": {
+        "folder": "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_pqc_board_profile/tests/pqc/K768_A_control",
+        "project": "mlkem_profile",
+        "command": [
+          "make",
+          "-j2",
+          "CONFIGS=-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2 -DVX_CFG_DCACHE_WRITEBACK=0",
+          "PARAM=768",
+          "NTT=reg32",
+          "UNROLL=1",
+          "SERIAL=1",
+          "ARITH=all",
+          "SAMPLER=warp",
+          "CODEC=all",
+          "NOISE=warp",
+          "LINEAR=warp",
+          "ZEROIZE=warp",
+          "KECCAK=sg25_sw"
+        ],
+        "kernel_sha256": "087e7f618236d7086c53f454ad813bcaa11e405d85febac73b8205ed860f11f9",
+        "host_sha256": "f65c04625c474cf396fc12e5f4069ac18a21c27c0637c999ce55b9241511ede6"
+      },
+      "K768_A_profile": {
+        "folder": "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_pqc_board_profile/tests/pqc/K768_A_profile",
+        "project": "mlkem_profile",
+        "command": [
+          "make",
+          "-j2",
+          "CONFIGS=-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2 -DVX_CFG_DCACHE_WRITEBACK=0",
+          "PARAM=768",
+          "NTT=reg32",
+          "UNROLL=1",
+          "SERIAL=1",
+          "ARITH=all",
+          "SAMPLER=warp",
+          "CODEC=all",
+          "NOISE=warp",
+          "LINEAR=warp",
+          "ZEROIZE=warp",
+          "KECCAK=sg25_sw",
+          "PROFILE_PHASES=primitives"
+        ],
+        "kernel_sha256": "55826abb1ba86e5443f663f73033b96caaff70e1a2679522a9c8dc0dcf41c3ca",
+        "host_sha256": "95cb076f2d00a3450136f6ec42f008c06fdff28687cbaae01cd3832ea5398e7c"
+      },
+      "D65_A_control": {
+        "folder": "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_pqc_board_profile/tests/pqc/D65_A_control",
+        "project": "mldsa_profile",
+        "command": [
+          "make",
+          "-j2",
+          "CONFIGS=-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2 -DVX_CFG_DCACHE_WRITEBACK=0",
+          "PARAM=65",
+          "NTT=reg32",
+          "UNROLL=1",
+          "MLDSA_RAM=full",
+          "POINTWISE_L5=w32",
+          "SAMPLER=warp",
+          "SHAKE_EXTRACT=warp",
+          "SIGN_ARITH=warp",
+          "ZEROIZE=warp",
+          "KECCAK=sg25_sw"
+        ],
+        "kernel_sha256": "3e71cd91a09424b5081615c5aa5e4d65117beb49e67595f248b01e21764e7a9b",
+        "host_sha256": "a078ff30704ca0b21ef458293b7c8a933e7c63a59bfbd170230761bb9a7b1cb2"
+      },
+      "D65_A_profile": {
+        "folder": "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/build32_pqc_board_profile/tests/pqc/D65_A_profile",
+        "project": "mldsa_profile",
+        "command": [
+          "make",
+          "-j2",
+          "CONFIGS=-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2 -DVX_CFG_DCACHE_WRITEBACK=0",
+          "PARAM=65",
+          "NTT=reg32",
+          "UNROLL=1",
+          "MLDSA_RAM=full",
+          "POINTWISE_L5=w32",
+          "SAMPLER=warp",
+          "SHAKE_EXTRACT=warp",
+          "SIGN_ARITH=warp",
+          "ZEROIZE=warp",
+          "KECCAK=sg25_sw",
+          "PROFILE_PHASES=1"
+        ],
+        "kernel_sha256": "7f9fd264e4b2d297ddc378aae3a61c06d44d437f2d65dddc0d7aca20c298da3f",
+        "host_sha256": "2f72c520b85893d21030cdd3c6fd23a815e151cc7e0569c9c2c0f7f7869bbe5e"
+      }
+    },
+    "reference_manifest_sha256": "b2b2d61a41ad0f709029a1528389f91b2ade4590bd6e125ea0e7baf2c662bf7c",
+    "setup_commands": [
+      [
+        "/home/jiangbowang/aphdcode/vortex_v80/vortexPQC/configure",
+        "--xlen=32",
+        "--tooldir=/home/jiangbowang/tools-pqc-v3.0.1"
+      ],
+      [
+        "make",
+        "-C",
+        "sw/kernel",
+        "-j2",
+        "CONFIGS=-DVX_CFG_EXT_F_DISABLE -DVX_CFG_EXT_D_DISABLE -DVX_CFG_EXT_PQC_ENABLE -DVX_CFG_EXT_NTT_ENABLE -DVX_CFG_EXT_KSG25_ENABLE -DVX_CFG_EXT_KROUND25_ENABLE -DVX_CFG_NUM_WARPS=8 -DVX_CFG_NUM_THREADS=32 -DVX_CFG_NTT_MUL_LANES=2 -DVX_CFG_DCACHE_WRITEBACK=0"
+      ]
+    ],
+    "build_environment": {
+      "LIBC_PATH": "/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libc32",
+      "LIBCRT_PATH": "/home/jiangbowang/aphdcode/vortex_v80/toolchains-im/libcrt32"
+    },
+    "link_runtime_sha256": "9ea289a7bfe7e70ea985f6ea31d4a7e9bf5aff0e95e5b85f924c6aac0ae04770"
+  },
+  "source_run": "build32_pqc_board_profile/profile_board/20261002T032038Z",
+  "archive_path": "pqc/results/v80_hw_validation/baseline_profile_200mhz/baseline_profile_sources.zip",
+  "archive_sha256": "fef292d4e3b48e595d7ce70aa55f37e7f8bc37ac4676dafb5ca2c5cd45e3e68e",
+  "full_manifest_sha256": "abb2119db3a3a90c62be3c6e74991bc5d60a74e77fdfe6652ee814eacb758926",
+  "data_sha256": "392685dace210d368c432ed099e93dfd3e090f84a820fc28b43b3599beea676f",
+  "summary_sha256": "8f77c0ea4c6fc119cf3362117180dd773dcd75513869ec6c10cc29930958e700"
+}

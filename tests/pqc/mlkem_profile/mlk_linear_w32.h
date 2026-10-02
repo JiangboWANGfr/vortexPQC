@@ -90,7 +90,7 @@ static void mlk_profile_linear_dispatch(unsigned operation, int16_t* output,
                                         const int16_t* input, unsigned count,
                                         uint8_t* bytes,
                                         const uint8_t* input_bytes) {
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   const mlk_phase_scope_t scope = mlk_phase_begin();
 #endif
   auto& args = mlk_linear_args[vx_warp_id()];
@@ -103,7 +103,7 @@ static void mlk_profile_linear_dispatch(unsigned operation, int16_t* output,
   vx_fence();
   __syncthreads();
   mlk_profile_linear_expand();
-#if defined(PQC_PROFILE_PHASES)
+#if defined(PQC_PROFILE_PHASES) && !defined(PQC_PROFILE_PRIMITIVES)
   mlk_phase_end(MLK_PHASE_LINEAR, scope);
 #endif
 }

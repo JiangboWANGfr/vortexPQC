@@ -15,8 +15,14 @@
   mlk_phase_scope_t scope = mlk_phase_begin()
 #define MLKSG_PROFILE_END(scope, phase) \
   mlk_phase_end((phase), (scope))
+#if defined(PQC_PROFILE_PRIMITIVES)
+#define MLKSG_PROFILE_SPONGE_BEGIN(scope)
+#define MLKSG_PROFILE_END_EXCLUDING_PERMUTE(scope, phase)
+#else
+#define MLKSG_PROFILE_SPONGE_BEGIN(scope) MLKSG_PROFILE_BEGIN(scope)
 #define MLKSG_PROFILE_END_EXCLUDING_PERMUTE(scope, phase) \
   mlk_phase_end_excluding_permute((phase), (scope))
+#endif
 #endif
 
 #define MLKSG_COUNT_PERMUTATIONS(permutations) do {                       \
@@ -28,6 +34,7 @@
 #undef MLKSG_COUNT_PERMUTATIONS
 #if defined(PQC_PROFILE_PHASES)
 #undef MLKSG_PROFILE_END_EXCLUDING_PERMUTE
+#undef MLKSG_PROFILE_SPONGE_BEGIN
 #undef MLKSG_PROFILE_END
 #undef MLKSG_PROFILE_BEGIN
 #endif

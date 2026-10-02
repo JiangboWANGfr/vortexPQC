@@ -213,17 +213,28 @@ else ifneq ($(PROFILE_ARITH),)
 $(error PROFILE_ARITH must be 1 or unset)
 endif
 
-ifeq ($(PROFILE_PHASES),1)
+ifneq ($(filter 1 primitives,$(PROFILE_PHASES)),)
 ifneq ($(SERIAL),1)
 $(error PROFILE_PHASES requires SERIAL=1)
 endif
 ifneq ($(NTT),reg32)
 $(error PROFILE_PHASES requires NTT=reg32)
 endif
+ifeq ($(PROFILE_PHASES),primitives)
+ifeq ($(filter sg25 sg25_sw kround,$(KECCAK)),)
+$(error PROFILE_PHASES=primitives requires KECCAK=sg25, sg25_sw, or kround)
+endif
+ifneq ($(PROFILE_ARITH),)
+$(error PROFILE_PHASES=primitives cannot be combined with PROFILE_ARITH)
+endif
+	VX_CFLAGS += -DPQC_PROFILE_PHASES -DPQC_PROFILE_PRIMITIVES
+	CXXFLAGS  += -DPQC_PROFILE_PHASES -DPQC_PROFILE_PRIMITIVES
+else
 	VX_CFLAGS += -DPQC_PROFILE_PHASES -DPQC_PROFILE_ARITH
 	CXXFLAGS  += -DPQC_PROFILE_PHASES -DPQC_PROFILE_ARITH
+endif
 else ifneq ($(PROFILE_PHASES),)
-$(error PROFILE_PHASES must be 1 or unset)
+$(error PROFILE_PHASES must be 1, primitives, or unset)
 endif
 
 ifeq ($(ABLATE),keccak)
