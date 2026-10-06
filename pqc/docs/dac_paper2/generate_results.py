@@ -255,9 +255,9 @@ for scheme, sets in (("Kem", parameters[:3]), ("Dsa", parameters[3:])):
         values = [gain(p, before, after, batch) for p in sets for batch in (1, 8)]
         parameter_numbers[scheme + name + "Min"] = min(values)
         parameter_numbers[scheme + name + "Max"] = max(values)
-    latencies = [parameter_cycles(p, "E", 1, 1) / 200000 for p in sets]
-    parameter_numbers[scheme + "LatencyMin"] = min(latencies)
-    parameter_numbers[scheme + "LatencyMax"] = max(latencies)
+    request_mcycles = [parameter_cycles(p, "E", 1, 1) / 1_000_000 for p in sets]
+    parameter_numbers[scheme + "RequestMcyclesMin"] = min(request_mcycles)
+    parameter_numbers[scheme + "RequestMcyclesMax"] = max(request_mcycles)
 occupancy = [parameter_cycles(p, "E", 8, 1) / parameter_cycles(p, "E", 8, 8) for p in parameters]
 batch_throughput = [8 * parameter_cycles(p, "E", 8, 8) / parameter_cycles(p, "E", 64, 8) for p in parameters]
 parameter_numbers.update(ParameterOccupancyMin=min(occupancy), ParameterOccupancyMax=max(occupancy),
@@ -507,9 +507,6 @@ for m, name in [(1, "One"), (8, "Eight")]:
     s = one(kem_controls, arm="stage_unrolled", driver="simx", batch=m)
     r = one(kem_controls, arm="kround", driver="simx", batch=m)
     numbers["FusionKem" + name] = int(s["device_cycles"]) / int(r["device_cycles"])
-table("fusion_scope.dat", ["scope", "one", "eight"],
-      [(0, numbers["FusionOne"], numbers["FusionEight"]),
-       (1, numbers["FusionKemOne"], numbers["FusionKemEight"])])
 def latex_number(key, value):
     if key.startswith("Motivation"):
         return f"{value:.2f}"

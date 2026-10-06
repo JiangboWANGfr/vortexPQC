@@ -91,12 +91,13 @@ the captions.
 | 2 | `figures/thesis.tex` | Single-column coefficient-index matrix and Keccak lane neighborhoods |
 | 3 | `figures/architecture_v2.tex` | Core integration, symbol-level K/D preparation and indexed assembly, and expanded Keccak logic across R1/R2 |
 | 4 | `figures/datapath_detail.tex` | Single-column M2 product assignment and overlapped instruction lifetime |
-| 5 | `figures/eval_tradeoffs.tex` | One-row comparison of fusion, NTTBF test cycles, maximum complete-request bank sensitivity, and NTT resources |
+| 5 | `figures/eval_tradeoffs.tex` | Single-column comparison of NTTBF test cycles, maximum complete-request bank sensitivity, and NTT resources |
 | 6 | `figures/eval_scaling.tex` | Six-set occupancy and fixed-W8 batch throughput from the same board cohort |
 
-The manuscript contains five tables: collective interfaces, experimental setup,
-two single-column complete-request tables, and matched post-route cost cohorts.
-Tables III--IV report cumulative speedups over A for all six
+The manuscript contains four tables: collective interfaces, two single-column
+complete-request tables, and matched post-route cost cohorts. The platform
+configuration is described in the Experimental Methodology prose.
+Tables II--III report cumulative speedups over A for all six
 parameter sets at one and eight requests as `S_B`--`S_E`; bold marks final mode E.
 
 Figure 1 uses two stacked bars for Keccak-f, NTT/INTT, and Other, with fractions
@@ -117,29 +118,44 @@ products onto two multipliers and shows
 how the following instruction enters while its predecessor drains, separating
 the eight-cycle initiation interval from the 14-cycle commit latency.
 
-Figure 5 is authored at 178-mm width as four aligned compact panels. It retains
-the primitive/request fusion contrast, highlights M2 in each bank panel, and
-reduces complete-request sensitivity to the maximum overhead across KEM/DSA and
-one/eight requests. Figure 6 remains a single-column two-panel throughput plot.
-Whole-core and AFU resources remain in Table V.
+Figure 5 is authored at 85-mm width in a two-over-one layout: test and request
+cycle overheads share the top row, and the three resource curves span the bottom
+row. It highlights M2 in each panel and reduces complete-request sensitivity to
+the maximum overhead across KEM/DSA and one/eight requests. The primitive/request
+fusion comparison remains in the prose. Figure 6 remains a single-column
+two-panel throughput plot.
+Whole-core and AFU resources remain in Table IV and the routed-cost prose.
 
-Evaluation has six subsections: methodology, complete-request acceleration,
+Evaluation has five subsections: methodology, complete-request acceleration with
 hardware contributions, granularity/capacity, concurrency/batches, and routed
-cost/scope. Figure 6 and Table V use independent single-column floats so the
+cost/scope. Single-request execution cycles are reported in Mcycles.
+Figure 6 and Table IV use independent single-column floats so the
 occupancy curves and routed design point remain adjacent to their discussion.
 
 ## Reproducible numbers
 
 `data/` contains archived measurement snapshots from `pqc/results/`. The core PPA
 sweep is routed at 200 MHz with the board's write-through D-cache setting.
+Vivado 2025.1 OPT3 applies to the independent core implementations; the board
+image retains its separately archived routing strategy.
 The complete-mapping board sweep measures 156 configurations with one warmup
 and five timed repetitions each (780 measurements). It includes A--E at one
 and eight requests plus A/E occupancy and fixed-W8 batches through 64 requests.
 Its source record is
 `pqc/results/v80_hw_validation/parameter_full_board_200mhz/`.
+Each run measures batch cycles as `C_batch = max(end_i) - min(start_i)`,
+from the first request's API start to the last request's API completion.
+This excludes host transfers and the initial setup/final diagnostics, while
+retaining gaps between waves. `C_X` is the median of five measured runs after
+one warmup; primary speedup is `C_A / C_X`. At the fixed `f = 200 MHz`,
+`T = C / f`, so cycle and time ratios coincide. Figure 6 normalizes throughput
+`R = N f / C_X` at `W = 1` for fixed `N = 8` in (a), and at `N = 8` for
+fixed `W = 8` in (b).
 All arms enable the same software mapping; A/B contain no NTT instructions,
 including Montgomery conversion. Zeroization uses warp cooperation for one
 worker and leader execution otherwise, consistently across arms.
+Primary A--E runs omit Figure 1's additional phase probes; baseline call
+counters and existing DSA pointwise probes remain enabled consistently.
 
 The primary A/E speedups are 2.314--2.365x / 2.004--2.126x for ML-KEM and
 1.910--2.150x / 1.914--2.023x for ML-DSA (one/eight requests). Hardware NTT
@@ -158,13 +174,16 @@ of the live queue. `full_mapping_sources.json` records hashes and scope.
 The older middle-set board JSONs remain historical snapshots, not headline
 inputs. Separate fusion/bank timing controls retain their archived write-back
 configuration; the primary board/model cohort and routed PPA use write-through.
+Figure 5 preserves distinct measurement windows: (a) NTTBF test-program cycles
+and (b) request batch makespan cycles; (c) reports resources. The fusion prose
+compares XRT permutation spans and SimX KEM launch cycles.
 `generate_results.py` validates matched binaries, correctness status, instruction
 equality, parity bounds, configuration, and routing status before generating:
 
 - `assets/numbers.tex` for reported values;
 - `assets/motivation_profile.dat`, `assets/board_kem.dat`, `assets/board_dsa.dat`, `assets/parameter_speedup.dat`,
   `assets/parameter_occupancy.dat`, `assets/parameter_batch.dat`,
-  `assets/fusion_scope.dat`, `assets/ntt_bank.dat`, and
+  `assets/ntt_bank.dat`, and
   `assets/ntt_bank_requests.dat`, `assets/ntt_bank_request_max.dat` for plots;
 - `assets/parameter_ablation_one_rows.tex`,
   `assets/parameter_ablation_eight_rows.tex`, and `assets/cost_rows.tex` for
@@ -182,7 +201,8 @@ with one warmup and five timed repetitions of both profile and control builds.
 
 Keccak-f, NTT, and INTT intervals do not overlap. The figure combines NTT/INTT
 and computes Other as the request total minus those measured primitive intervals;
-it sums cycles across the measured requests before calculating percentages.
+it divides summed primitive cycles by summed three-API request cycles across
+all measured repetitions, rather than using batch makespan or averaging shares.
 The current Keccak timer boundaries differ: KEM measures its in-register
 24-round permutation, while DSA measures the permutation wrapper including
 dispatch and state transfer. Sponge absorption and extraction remain in Other.
@@ -207,7 +227,7 @@ contains additional optional Keccak units; its AFU area is reported separately
 from the lean core sweep. Power and energy are excluded because no
 workload-activity-based measurement is available.
 
-The Figure 5 timing controls are distinct from the main board cohort:
+The fusion and Figure 5 timing controls are distinct from the main board cohort:
 
 - Fusion uses XRT isolated-permutation intervals and SimX whole-KEM launch
   cycles. The eight-request KEM fusion point has no paired XRT run.

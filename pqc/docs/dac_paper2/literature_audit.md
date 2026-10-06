@@ -82,9 +82,13 @@ Keccak, first warp collective, or first unified Kyber/Dilithium hardware. The
 paper's contribution is the SIMT operand/writeback contract, its shared serialized
 implementation, and controlled complete-request evaluation of the design choices.
 
-## Motivation and baseline boundaries
+## Historical motivation and baseline boundaries (superseded)
 
-Table I uses raw baseline/ablation cycles from `data/ablation_mlkem.csv` and
+The historical motivation table has been replaced by Figure 1's real AVED board
+profiling of complete KEM and DSA requests; see the current README and
+`data/baseline_profile_200mhz.csv` for its measurement scope.
+
+The removed table used raw baseline/ablation cycles from `data/ablation_mlkem.csv` and
 `data/ablation_mldsa.csv`. KEM: 33,492,153 baseline cycles, 21,986,475 Keccak delta,
 4,243,182 NTT/INTT delta. DSA key generation, full RAM: 39,121,351 baseline,
 29,119,995 Keccak delta, 2,981,695 NTT/INTT delta. Independent stubs yield invalid
@@ -99,3 +103,24 @@ mapped, register-resident cooperative implementation on the same Vortex core.
 B/C/D/E isolate Keccak Stage, NTT, their combination, and arithmetic reuse.
 Old hotspot shares are not fractions of A or E, and do not prove that NTT becomes
 the dominant phase after Keccak acceleration.
+
+## Evaluation-method presentation
+
+Checked 2026-10-02 against page 5 of the local primary papers:
+
+- [SynGPU](https://chenzhangsjtu.github.io/files/2025-DAC_SynGPU-3.pdf),
+  Section V-A, describes software workloads and hardware evaluation in separate
+  prose paragraphs, including the simulator, synthesis tools, and technology.
+- [PacQ](https://ruokaiyin.github.io/papers/pacq.pdf), Section V's Experimental
+  Setup, explains simulation and synthesis in prose and uses Table I for the
+  detailed configurations of PacQ and its baselines.
+- [CHAM](https://renxuanle.github.io/pub/cham2023.pdf), Section V-A, describes
+  platforms and tool flow in prose, then reports resource utilization in Table II.
+
+These examples support either prose or tables according to the information being
+presented; they do not establish a DAC prohibition on configuration tables. Our
+former six-entry setup table is absorbed into the platform paragraph, while
+comparative speedups and routed resources retain tables. The paper keeps the
+measurement protocol readable in prose; the README preserves the detailed cycle
+and throughput definitions. These are editorial references, not additions to the
+manuscript bibliography.

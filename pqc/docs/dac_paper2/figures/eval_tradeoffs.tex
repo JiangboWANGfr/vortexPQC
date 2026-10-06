@@ -1,9 +1,8 @@
 \begin{tikzpicture}[x=1mm,y=1mm,font=\fontsize{7}{8}\selectfont]
-\path[use as bounding box] (0,3) rectangle (178,46);
-\begin{scope}[yshift=6mm]
+\path[use as bounding box] (0,0) rectangle (85,76);
 \pgfplotsset{
  compactaxis/.style={
-  scale only axis,anchor=south west,height=23mm,
+  scale only axis,anchor=south west,height=21mm,
   axis lines*=left,axis line style={black!65,line width=.35pt},
   tick align=outside,major tick length=1.3pt,
   tick style={black!65,line width=.35pt},
@@ -15,22 +14,9 @@
   legend style={font=\fontsize{6.5}{7.5}\selectfont,draw=none,fill=none,
    inner sep=.3pt,legend cell align=left}},
  bankaxis/.style={compactaxis,xmin=-.4,xmax=4.4,
-  xtick={0,1,2,3,4},xticklabels={M16,M8,M4,M2,M1}},
- onebar/.style={draw=cBlue,fill=cBlue!78,line width=.35pt},
- eightbar/.style={draw=cTeal,fill=cTeal!70,line width=.35pt}}
+  xtick={0,1,2,3,4},xticklabels={M16,M8,M4,M2,M1}}}
 
-\begin{axis}[compactaxis,at={(8mm,10mm)},width=34mm,
- xmin=-.5,xmax=1.5,ymin=0,ymax=3.65,ytick={0,1,2,3},ylabel={Speedup},
- xtick={0,1},xticklabels={Perm.,KEM},
- ybar,bar width=4.5pt]
- \draw[black!45,dashed,line width=.4pt] (axis cs:-.5,1)--(axis cs:1.5,1);
- \addplot[onebar,bar shift=-2.5pt]
-  table[x=scope,y=one]{assets/fusion_scope.dat};
- \addplot[eightbar,bar shift=2.5pt]
-  table[x=scope,y=eight]{assets/fusion_scope.dat};
-\end{axis}
-
-\begin{axis}[bankaxis,at={(54mm,10mm)},width=32mm,
+\begin{axis}[bankaxis,at={(7mm,53mm)},width=32mm,
  ymin=0,ymax=28.5,ytick={0,10,20},ylabel={Cycle $\Delta$ (\%)}]
  \path[fill=cGold!13,draw=none] (axis cs:2.7,0) rectangle (axis cs:3.3,28.5);
  \addplot[cBlue,mark=*]
@@ -39,8 +25,8 @@
   at (axis cs:3,4.2) {2.963};
 \end{axis}
 
-\begin{axis}[bankaxis,at={(99mm,10mm)},width=32mm,
- ymin=0,ymax=.6,ytick={0,.3,.6},ylabel={Max. request $\Delta$ (\%)},
+\begin{axis}[bankaxis,at={(51mm,53mm)},width=32mm,
+ ymin=0,ymax=.6,ytick={0,.3,.6},ylabel={Max. cycle overhead (\%)},
  yticklabel style={/pgf/number format/fixed,/pgf/number format/precision=1}]
  \path[fill=cGold!13,draw=none] (axis cs:2.7,0) rectangle (axis cs:3.3,.6);
  \addplot[cTeal,mark=square*]
@@ -49,7 +35,7 @@
   at (axis cs:3,.17) {0.143};
 \end{axis}
 
-\begin{axis}[bankaxis,at={(144mm,10mm)},width=32mm,
+\begin{axis}[bankaxis,at={(7mm,14mm)},width=76mm,
  ymin=0,ymax=110,ytick={0,50,100},ylabel={Resource (\% of M16)},
  legend style={at={(.5,1.02)},anchor=south,legend columns=3,column sep=.8mm}]
  \path[fill=cGold!13,draw=none] (axis cs:2.7,0) rectangle (axis cs:3.3,110);
@@ -64,23 +50,13 @@
  \addlegendentry{DSP}
 \end{axis}
 
-\path[draw=cBlue,fill=cBlue!78,line width=.35pt]
- (13.5,36.8) rectangle (15.5,38.3);
-\node[anchor=west] at (16.5,37.55) {$N=1$};
-\path[draw=cTeal,fill=cTeal!70,line width=.35pt]
- (27.5,36.8) rectangle (29.5,38.3);
-\node[anchor=west] at (30.5,37.55) {$N=8$};
-
-\node[font=\fontsize{7}{8}\selectfont,text=black!70] at (116,3.5)
+\node[font=\fontsize{7}{8}\selectfont,text=black!70] at (45,6.5)
  {Physical multipliers};
-\end{scope}
 
-\node[font=\fontsize{8}{9}\selectfont] at (25,5.5)
- {(a) Fusion};
-\node[font=\fontsize{8}{9}\selectfont] at (70,5.5)
- {(b) NTT cycles};
-\node[font=\fontsize{8}{9}\selectfont] at (115,5.5)
- {(c) Request cost};
-\node[font=\fontsize{8}{9}\selectfont] at (160,5.5)
- {(d) NTT resources};
+\node[font=\fontsize{8}{9}\selectfont] at (23,45)
+ {(a) NTT cycles};
+\node[font=\fontsize{8}{9}\selectfont] at (67,45)
+ {(b) Request cycles};
+\node[font=\fontsize{8}{9}\selectfont] at (45,2)
+ {(c) NTT resources};
 \end{tikzpicture}
