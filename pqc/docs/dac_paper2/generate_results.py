@@ -172,10 +172,13 @@ def board_samples(row):
             ("parameter", "arm", "requests", "resident", "input_start"))]
 
 
+repeat_spreads = []
 for row in parameter_board:
     samples = board_samples(row)
     assert sorted(int(r["repeat"]) for r in samples) == [1, 2, 3, 4, 5]
-    assert statistics.median(int(r["cycles"]) for r in samples) == int(row["cycles"])
+    values = [int(r["cycles"]) for r in samples]
+    assert statistics.median(values) == int(row["cycles"])
+    repeat_spreads.append(100 * (max(values) - min(values)) / int(row["cycles"]))
 hashes = parameter_summary["call_count_sha256"]
 for parameter in parameters:
     assert len({hashes[f"{parameter}_m8_w{w}"] for w in (1, 2, 4, 8)}) == 1
@@ -210,7 +213,9 @@ def gain(parameter, before, after, batch):
     return parameter_cycles(parameter, before, batch, batch) / parameter_cycles(parameter, after, batch, batch)
 
 
-board_numbers = {"HeadlineParityMax": max(headline_gaps)}
+board_numbers = {"HeadlineParityMax": max(headline_gaps),
+                 "BoardRepeatSpreadMedian": statistics.median(repeat_spreads),
+                 "BoardRepeatSpreadMax": max(repeat_spreads)}
 for batch, suffix in ((1, "One"), (8, "Eight")):
     for name, parameter, before, after in (
             ("BoardKemStage", "K768", "A", "B"), ("BoardKemNtt", "K768", "B", "D"),
@@ -225,18 +230,20 @@ for scheme, parameter in (("kem", "K768"), ("dsa", "D65")):
            for i, arm in enumerate("ABCDE")])
 parameter_labels = ("KEM-512", "KEM-768", "KEM-1024",
                     "DSA-44", "DSA-65", "DSA-87")
-for batch, suffix in ((1, "one"), (8, "eight")):
-    lines = []
-    for parameter, label in zip(parameters, parameter_labels):
+lines = []
+for index, (parameter, label) in enumerate(zip(parameters, parameter_labels)):
+    for batch in (1, 8):
         values = [gain(parameter, "A", arm, batch) for arm in "BCDE"]
         cells = [f"{value:.3f}" for value in values]
         cells[-1] = r"\textbf{" + cells[-1] + "}"
+        cells.append(f"{parameter_cycles(parameter, 'E', batch, batch) / 1_000_000:.3f}")
         lines.append(
-            f"{label} & " + " & ".join(cells) + " " + r"\\")
-        if parameter == parameters[2]:
-            lines.append(r"\midrule")
-    (OUT / f"parameter_ablation_{suffix}_rows.tex").write_text(
-        "\n".join(lines) + "\n")
+            f"{label if batch == 1 else ''} & {batch} & " + " & ".join(cells) + " " + r"\\")
+    if index == 2:
+        lines.append(r"\midrule")
+    elif index < len(parameters) - 1:
+        lines.append(r"\addlinespace[1pt]")
+(OUT / "parameter_ablation_rows.tex").write_text("\n".join(lines) + "\n")
 for prefix, hierarchy in (("BoardCore", "vortex_core"), ("BoardAfu", "reconfigurable_afu")):
     for name, key in (("Luts", "luts"), ("Ffs", "ffs"), ("Dsps", "dsps")):
         board_numbers[prefix + name] = board_resources["resources"][hierarchy][key]
@@ -268,9 +275,11 @@ parameter_numbers["ParameterBatchPeak"] = max(
 table("parameter_occupancy.dat", ["workers", *parameters],
       [(w, *[parameter_cycles(p, "E", 8, 1) / parameter_cycles(p, "E", 8, w)
              for p in parameters]) for w in (1, 2, 4, 8)])
-table("parameter_batch.dat", ["requests", *parameters],
-      [(b, *[(b / 8) * parameter_cycles(p, "E", 8, 8) / parameter_cycles(p, "E", b, 8)
-             for p in parameters]) for b in (8, 16, 32, 64)])
+worker_speedups = [(w, *[parameter_cycles(p, "A", 8, w) / parameter_cycles(p, "E", 8, w)
+                         for p in parameters]) for w in (1, 2, 4, 8)]
+table("parameter_worker_speedup.dat", ["workers", *parameters], worker_speedups)
+parameter_numbers["ParameterWorkerSpeedupMin"] = min(v for row in worker_speedups for v in row[1:])
+parameter_numbers["ParameterWorkerSpeedupMax"] = max(v for row in worker_speedups for v in row[1:])
 
 pointwise = rows("mldsa_pointwise.csv")
 assert all(r["result"] == "PASS" for r in pointwise)
@@ -395,14 +404,6 @@ assert all(r["instructions"] == "59534" and r["result"] == "PASS"
            for r in bank_nttbf)
 nttbf_base = int(bank_nttbf[0]["rtl_cycles"])
 ppa_base = one(ppa, multipliers=16, keccak="base")
-table("ntt_bank.dat",
-      ["bank", "cycles", "nttlut", "nttff", "nttdsp"],
-      [(bank,
-        100 * int(one(bank_nttbf, multipliers=bank)["rtl_cycles"]) / nttbf_base,
-        100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_luts"]) / int(ppa_base["ntt_luts"]),
-        100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_ffs"]) / int(ppa_base["ntt_ffs"]),
-        100 * int(one(ppa, multipliers=bank, keccak="base")["ntt_dsps"]) / int(ppa_base["ntt_dsps"]))
-       for bank in bank_order])
 request_changes = {}
 for scheme in ("mlkem", "mldsa"):
     for batch in (1, 8):
@@ -421,10 +422,18 @@ table("ntt_bank_requests.dat", ["bank", "kem_one", "kem_eight", "dsa_one", "dsa_
       [(bank, *(request_changes[scheme, batch, bank]
                  for scheme in ("mlkem", "mldsa") for batch in (1, 8)))
        for bank in bank_order])
-table("ntt_bank_request_max.dat", ["bank", "maximum"],
-      [(bank, max(request_changes[scheme, batch, bank]
-                  for scheme in ("mlkem", "mldsa") for batch in (1, 8)))
-       for bank in bank_order])
+bank_lines = []
+for bank in bank_order:
+    program_change = 100 * (int(one(bank_nttbf, multipliers=bank)["rtl_cycles"]) / nttbf_base - 1)
+    request_change = max(request_changes[scheme, batch, bank]
+                         for scheme in ("mlkem", "mldsa") for batch in (1, 8))
+    resources = one(ppa, multipliers=bank, keccak="base")
+    cells = [f"M{bank}", f"{program_change:.3f}", f"{request_change:.3f}",
+             *[f"{int(resources[key]):,}" for key in ("ntt_luts", "ntt_ffs", "ntt_dsps")]]
+    if bank == 2:
+        cells = [r"\textbf{" + cell + "}" for cell in cells]
+    bank_lines.append(" & ".join(cells) + " " + r"\\")
+(OUT / "ntt_bank_rows.tex").write_text("\n".join(bank_lines) + "\n")
 bank_two_ppa = one(ppa, multipliers=2, keccak="base")
 bank_two_perf = [r for r in bank_perf
                  if r["multipliers"] == "2" and r["driver"] == "xrt"]
@@ -450,15 +459,15 @@ bank_numbers = {
     "BankParityMax": max(float(r["model_gap_pct"]) for r in bank_nttbf),
 }
 cost_lines = []
-for bank, keccak, label in [(16, "base", "M16 base"),
-                            (16, "stage", "M16 + Stage"),
-                            (16, "round", "M16 + Round"),
-                            (16, "pointer", "M16 + Pointer")]:
+for bank, keccak, label in [(16, "base", "NTT-M16"),
+                            (16, "stage", "NTT-M16 + Stage"),
+                            (16, "round", "NTT-M16 + Round"),
+                            (16, "pointer", "NTT-M16 + Pointer")]:
     r = one(ppa, multipliers=bank, keccak=keccak)
     cost_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & "
                       f"{r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")
 cost_lines.append(r"\midrule")
-for keccak, label in [("base", "M2 base"), ("stage", "M2 + Stage")]:
+for keccak, label in [("base", "NTT-M2"), ("stage", "NTT-M2 + Stage")]:
     r = one(ppa, multipliers=2, keccak=keccak)
     cost_lines.append(f"{label} & {int(r['total_luts']):,} & {int(r['ffs']):,} & "
                       f"{r['dsps']} & {float(r['wns_ns']):+.3f} " + r"\\")

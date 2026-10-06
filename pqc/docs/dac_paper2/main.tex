@@ -8,7 +8,7 @@
 \renewcommand{\textfraction}{0.1}
 \usepgfplotslibrary{groupplots}
 \usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing}
-\usepackage[hidelinks]{hyperref}
+\usepackage{hyperref}
 \input{assets/numbers.tex}
 
 \definecolor{cBlue}{HTML}{315C85}
@@ -21,7 +21,8 @@
 \makeatletter
 \newcommand{\tablerows}[1]{\@@input #1 }
 \makeatother
-\hypersetup{pdftitle={Communication-Matched Warp Collectives for ML-KEM and ML-DSA on a RISC-V SIMT GPU},pdfauthor={Anonymous authors}}
+\hypersetup{colorlinks=true,allcolors=cBlue,
+ pdftitle={Communication-Matched Warp Collectives for ML-KEM and ML-DSA on a RISC-V SIMT GPU},pdfauthor={Anonymous authors}}
 
 \title{Communication-Matched Warp Collectives for\\
 ML-KEM and ML-DSA on a RISC-V SIMT GPU}
@@ -41,11 +42,12 @@ writeback, and implement fixed Keccak neighborhoods or paired NTT butterflies.
 A serialized modular unit shares its routing and multiplier bank across the
 16-bit ML-KEM and 32-bit ML-DSA datapaths. A 200-MHz V80 evaluation covers all
 six standardized parameter sets against a matched, optimized cooperative
-software mapping. Stage, shared NTT, and arithmetic reuse accelerate complete
-single-request ML-KEM by \KemParameterMinOne{}--\KemParameterMaxOne{}$\times$
-and ML-DSA by \DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$;
+software mapping. Stage, shared NTT, and arithmetic reuse accelerate single
+ML-KEM requests (KeyGen--Encaps--Decaps) by
+\KemParameterMinOne{}--\KemParameterMaxOne{}$\times$ and ML-DSA requests
+(KeyGen--Sign--Verify) by \DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$;
 eight-request batches gain \ParameterMinEight{}--\ParameterMaxEight{}$\times$.
-A separate five-point bank sweep selects two multipliers: it removes
+A separate five-point bank sweep supports two multipliers: this design removes
 \BankTwoNttDspSaved{}\% of NTT-hierarchy DSPs at a
 \BankTwoNttPenalty{}\% NTTBF test-cycle and at most
 \BankTwoEndToEndMax{}\% request penalty in middle-set Pointer controls. The results show that GPU
@@ -148,8 +150,8 @@ accelerates complete single-request ML-KEM by
 software on a 200-MHz Alveo V80. All six standardized parameter sets are
 covered. NTT specialization provides additional request-level gains after
 Keccak acceleration. A separate bank sweep finds that two multipliers replace
-16 with at most \BankTwoEndToEndMax{}\% request-cycle increase in its measured
-workloads. Our contributions are:
+16 with at most \BankTwoEndToEndMax{}\% request-cycle increase in
+its middle-set Pointer controls. Our contributions are:
 \begin{itemize}
 \item A stateless SIMT instruction interface for Keccak neighborhoods and
 XOR-paired NTT butterflies, with ordinary operand tracking and one destination
@@ -200,6 +202,7 @@ software A on the 200-MHz V80.}
 \end{figure}
 
 \subsection{Warp-Cooperative Execution and Communication}
+\label{sec:software-mapping}
 Vortex lanes share an instruction stream over private GPRs~\cite{vortex}.
 We assign one primitive to a 32-lane warp and independent requests to
 resident warps. Figure~\ref{fig:thesis} shows the resulting communication.
@@ -438,156 +441,139 @@ binaries checked through XRT integration.
 \section{Evaluation}
 \label{sec:evaluation}
 \subsection{Experimental Methodology}
-We evaluate the extensions on an Alveo V80 FPGA with one RV32IM Vortex
-core operating at 200 MHz. The core supports eight resident 32-lane warps,
-with 16 KiB each of instruction cache, data cache, and local memory. The
-data cache is write-through, L2/L3 are disabled, and the shared NTT bank
-contains two multipliers. FPGA implementations use Vivado 2025.1; the
-independent core implementations use OPT3. We verify the board clock before
-and after each measurement.
+We use a 200-MHz Alveo V80 with one RV32IM Vortex core, eight resident
+32-lane warps, and 16 KiB each of instruction cache, write-through data cache,
+and local memory. L2/L3 are disabled; the NTT bank has two multipliers.
+Vivado 2025.1 produces the FPGA implementations, with OPT3 for independent
+core routing. The board clock is checked before and after measurement.
 
-The workloads cover ML-KEM-512/768/1024 and ML-DSA-44/65/87. Each request
-executes KeyGen, Encaps, and Decaps for KEM, or KeyGen, Sign, and Verify
-for DSA. Baseline A uses the cooperative software mapping described in
-Section III. B adds Stage, C adds shared NTT, D combines both, and E extends
-D with NTTMUL outside transforms. All modes retain the same surrounding
-software optimizations and zeroization policy and execute matched inputs
-on the same board image. Opcode audits confirm that A contains no PQC
-instructions and A/B contain no NTT instructions. Portable C provides
-correctness references; PQRV's scalar Keccak~\cite{pqrv} is used only in
-separate controls.
+Each request executes KeyGen--Encaps--Decaps for ML-KEM or
+KeyGen--Sign--Verify for ML-DSA. All six standardized parameter sets are
+covered. A worker is a resident warp processing one request at a time.
+Baseline A uses Section~\ref{sec:software-mapping}'s cooperative mapping;
+B adds Stage, C adds NTT, D combines both, and E adds NTTMUL outside
+transforms. At each worker count, all modes use matched inputs, surrounding
+software, zeroization, and board image. Opcode audits verify that A has no
+PQC instructions and A/B have no NTT instructions.
 
-We measure on-device cycles from the earliest request start to the latest
-completion, excluding host transfers and setup outside this
-interval. Batch measurements retain any gaps between execution waves.
-Each configuration is run once for warmup and five times for measurement;
-reported speedups compare median cycle counts against A for the same
-batch size. These runs
-omit the additional phase probes used in Fig.~\ref{fig:motivation}.
-Separate fusion and bank studies retain their archived write-back
-configurations and timing windows, specified with their results.
-
-All 156 board configurations (780 measured runs) pass byte-exact checks
-against portable C. RTL tests cover both moduli, transform directions,
-lane pairing, masks, and backpressure. Across the 60 single/eight-request
-A--E pairs, SimX and XRT RTL integration retire identical instruction
-counts and differ by at most \HeadlineParityMax{}\% in device cycles.
-The board runs also match the XRT instruction counts.
+Request-batch makespan is measured in on-device cycles from the earliest
+request start to the latest completion, including gaps between waves but
+excluding host transfers and setup outside this interval.
+After one warmup, five runs yield the median $C_X$; speedup is $C_A/C_X$
+at matched batch size and worker count. Across 156 configurations, the
+five-run range divided by the median has median \BoardRepeatSpreadMedian{}\% and maximum \BoardRepeatSpreadMax{}\%.
+Repeated inputs measure timing variation, not the distribution of signing
+retries. These runs omit Fig.~\ref{fig:motivation}'s extra phase probes.
+All 780 measurements match portable C byte-for-byte. RTL tests cover both
+moduli, directions, lane pairing, masks, and backpressure; 60 headline
+SimX/XRT pairs retire identical instruction counts, with at most
+\HeadlineParityMax{}\% difference in whole-device PERF cycle counts.
+Board instruction counts also match XRT.
 
 \begin{table}[t]
-\caption{Complete-request speedup over A at 200 MHz ($N=1$).
-$S_X=C_A/C_X$, where $C_X$ is the median cycle count of mode $X$;
-bold marks final mode E.}
-\label{tab:requests-one}
+\caption{Request batches at 200 MHz, with $N$ requests on $W=N$ workers.
+Each request executes KeyGen--Encaps--Decaps (KEM) or
+KeyGen--Sign--Verify (DSA). $S_X=C_A/C_X$ uses five-run medians;
+$C_E$ is E's batch makespan in Mcycles. Bold marks E.}
+\label{tab:requests}
 \centering\footnotesize
-\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lrrrr@{}}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lrrrrrr@{}}
 \toprule
-Parameter set & $S_B$ & $S_C$ & $S_D$ & $\mathbf{S_E}$\\
+Parameter & $N$ & $S_B$ & $S_C$ & $S_D$ & $\mathbf{S_E}$ & $C_E$\\
 \midrule
-\tablerows{assets/parameter_ablation_one_rows.tex}
-\bottomrule
-\end{tabular*}
-\end{table}
-
-\begin{table}[t]
-\caption{Cumulative batch speedup over A at 200 MHz for $N=8$ concurrent requests.
-$S_X$ follows Table~\ref{tab:requests-one}; bold marks final mode E.}
-\label{tab:requests-eight}
-\centering\footnotesize
-\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lrrrr@{}}
-\toprule
-Parameter set & $S_B$ & $S_C$ & $S_D$ & $\mathbf{S_E}$\\
-\midrule
-\tablerows{assets/parameter_ablation_eight_rows.tex}
+\tablerows{assets/parameter_ablation_rows.tex}
 \bottomrule
 \end{tabular*}
 \end{table}
 
 \subsection{Complete-Request Acceleration}
-Tables~\ref{tab:requests-one} and~\ref{tab:requests-eight} report every
-cumulative mode for all six sets. E accelerates one-request KEM/DSA by
+Table~\ref{tab:requests} reports B--E relative to A. E accelerates
+single-request KEM/DSA by
 \KemParameterMinOne{}--\KemParameterMaxOne{}$\times$/
-\DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$ over A; at eight
-requests the ranges are \KemParameterMinEight{}--\KemParameterMaxEight{}$\times$/
-\DsaParameterMinEight{}--\DsaParameterMaxEight{}$\times$. E completes a
-single request in \KemRequestMcyclesMin{}--\KemRequestMcyclesMax{} Mcycles
-for KEM and \DsaRequestMcyclesMin{}--\DsaRequestMcyclesMax{} Mcycles for DSA.
+\DsaParameterMinOne{}--\DsaParameterMaxOne{}$\times$; at eight requests,
+the ranges are \KemParameterMinEight{}--\KemParameterMaxEight{}$\times$/
+\DsaParameterMinEight{}--\DsaParameterMaxEight{}$\times$.
+Single-request E takes \KemRequestMcyclesMin{}--\KemRequestMcyclesMax{}
+Mcycles for KEM and \DsaRequestMcyclesMin{}--\DsaRequestMcyclesMax{} for DSA.
 
-The same measurements isolate each hardware contribution. Across all sets
-and one/eight requests, Stage gives
-\KemStageMin{}--\KemStageMax{}$\times$ for KEM and
-\DsaStageMin{}--\DsaStageMax{}$\times$ for DSA (A/B). With Stage fixed,
-shared NTT adds \KemNttMin{}--\KemNttMax{}$\times$/
-\DsaNttMin{}--\DsaNttMax{}$\times$ (B/D), so NTT retains request-level value.
-Modular reuse outside transforms adds \DsaArithmeticMin{}--\DsaArithmeticMax{}$\times$
-for DSA without new RTL, but only \KemArithmeticMin{}--\KemArithmeticMax{}$\times$
-for KEM (D/E); KEM-768 is within 0.2\% of D. Headlines use E. Within one
-case, $(A/B)(B/D)(D/E)=A/E$; separate cohorts are not combined.
+Across all sets and both batch sizes, Stage alone gives
+\KemStageMin{}--\KemStageMax{}$\times$/\DsaStageMin{}--\DsaStageMax{}$\times$
+for KEM/DSA (A/B). With Stage fixed, NTT adds
+\KemNttMin{}--\KemNttMax{}$\times$/\DsaNttMin{}--\DsaNttMax{}$\times$ (B/D).
+Arithmetic reuse gives another \DsaArithmeticMin{}--\DsaArithmeticMax{}$\times$
+for DSA without new RTL. KEM changes only
+\KemArithmeticMin{}--\KemArithmeticMax{}$\times$ (D/E); KEM-768 shows no
+improvement. These ratios isolate successive contributions within each
+matched case; all headline results use E.
 
 \subsection{Granularity and Arithmetic Capacity}
-We compare Round with equally unrolled Stage using XRT permutation intervals.
-Fusion improves dependent permutation throughput by \FusionOne{}$\times$/
-\FusionEight{}$\times$ at one/eight warps, but separate SimX complete-KEM
-gains are only \FusionKemOne{}$\times$/\FusionKemEight{}$\times$; the latter
-has no paired XRT run. An instrumented XRT control attributes only
-\StagePermPct{}\% of a request to Stage permutation. A separate fixed-mapping
-control finds Round \RoundVsPointerOne{}$\times$ faster than Pointer at one
-request, whereas Pointer is \PointerVsRoundEight{}$\times$ faster at eight.
-Thus fusion and offload must be evaluated at request scope and target concurrency.
+Archived fusion controls use write-back caching. Relative to equally unrolled
+Stage, Round improves XRT permutation throughput by
+\FusionOne{}$\times$/\FusionEight{}$\times$ at one/eight warps, but separate
+SimX complete-KEM gains are only \FusionKemOne{}$\times$/\FusionKemEight{}$\times$
+(no paired XRT run for the latter). An instrumented XRT request spends only
+\StagePermPct{}\% in Stage permutation. A fixed-mapping control favors Round
+over Pointer by \RoundVsPointerOne{}$\times$ for one request, but Pointer
+over Round by \PointerVsRoundEight{}$\times$ for eight: the preferred
+interface depends on request scope and concurrency.
 
-\begin{figure}[t]
-\centering\input{figures/eval_tradeoffs.tex}
-\caption{NTT multiplier-bank tradeoffs. (a) Historical W4T32 NTTBF.K test
-cycles. (b) Maximum W8T32 XRT request-cycle overhead across KEM-768/DSA-65
-and $N=1/8$, with Pointer Keccak fixed. (c) Independent 200-MHz NTT resources.
-M16 is the bank reference; gold marks M2.}
-\label{fig:tradeoffs}
-\end{figure}
+\begin{table}[t]
+\caption{NTT bank tradeoffs relative to M16. Program cycles use historical
+W4T32 NTTBF.K RTL; request overhead is the maximum over W8T32 Pointer
+controls (KEM-768/DSA-65, $N=1/8$). NTT counts use independent 200-MHz routing.}
+\label{tab:bank}
+\centering\footnotesize
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{Cycle increase (\%)} & \multicolumn{3}{c}{NTT hierarchy}\\
+\cmidrule(lr){2-3}\cmidrule(l){4-6}
+Bank & Program & Max. request & LUT & FF & DSP\\
+\midrule
+\tablerows{assets/ntt_bank_rows.tex}
+\bottomrule
+\end{tabular*}
+\end{table}
 
-Figures~\ref{fig:tradeoffs}(a,b) distinguish test-program cycles from
-complete requests. The former uses historical RV32IMF W4T32 processor RTL,
-including loads, stores, and loops. The latter fixes Pointer Keccak in RV32IM
-W8T32 write-back XRT runs for KEM-768/DSA-65 at one/eight requests. Each timing
-experiment preserves its binary and inputs across banks.
+Table~\ref{tab:bank} separates three experiments. NTTBF test cycles include
+loads, stores, and loops on historical RV32IMF W4T32 RTL. Request overheads
+use RV32IM W8T32 write-back XRT with Pointer fixed, for KEM-768/DSA-65 and
+one/eight requests. Resources come from independent 200-MHz routed cores.
+Each timing sweep preserves its binary and inputs across banks.
+M2 raises NTTBF cycles by \BankTwoNttPenalty{}\% and requests by at most
+\BankTwoEndToEndMax{}\%, while removing \BankTwoNttLutSaved{}\% of NTT LUTs,
+\BankTwoNttFfSaved{}\% of FFs, and \BankTwoNttDspSaved{}\% of DSPs.
+M1 saves only five more core DSPs, increases NTT FFs, and raises test cycles
+by \BankOneNttPenalty{}\%. All banks pass 1,044 test vectors and retire
+59,534 test instructions, within \BankParityMax{}\% SimX/RTL cycle difference.
+The smaller request sensitivity supports M2 in this cohort; it does not
+isolate latency hiding or establish Stage+M2 joint optimality.
 
-M16 minimizes NTTBF test cycles. M8 and M4 increase them by
-\BankEightNttPenalty{}\% and \BankFourNttPenalty{}\%; M2 increases them by
-\BankTwoNttPenalty{}\%, with at most \BankTwoEndToEndMax{}\% request-cycle overhead.
-The independent routed study in Fig.~\ref{fig:tradeoffs}(c) finds that M2
-removes \BankTwoNttLutSaved{}\% of NTT LUTs, \BankTwoNttFfSaved{}\% of FFs,
-and \BankTwoNttDspSaved{}\% of DSPs. M1 saves only five more core DSPs and
-increases NTT FFs, while test cycles rise by \BankOneNttPenalty{}\% over M16.
-M2 retains most resource savings with little measured request penalty.
-
-All five NTTBF tests retire 59,534 instructions, pass 1,044 vectors, and stay
-within \BankParityMax{}\% SimX/RTL difference. Request sensitivity is much
-smaller than test-program sensitivity; matched instruction counts exclude a
-software change but do not isolate latency hiding.
-
-\subsection{Concurrency and Batch Size}
+\subsection{Worker Count and Batch Size}
 \begin{figure}[t]
 \centering\input{figures/eval_scaling.tex}
-\caption{Normalized 200-MHz throughput for E across six sets: (a) eight inputs versus
-workers, normalized at $W=1$; (b) batch size at $W=8$, normalized at $N=8$.}
+\caption{Fixed eight-request workload on the 200-MHz V80.
+(a) E throughput relative to E at one worker.
+(b) E speedup over software A at the same worker count.
+Each worker is one warp; curves use five-run medians.}
 \label{fig:scaling}
 \end{figure}
-Figure~\ref{fig:scaling} separates occupancy from batch size. Throughput for E is
-$R=Nf/C_E$ requests/s at $f=200$ MHz, using its median batch makespan;
-the figure reports $R/R_{\mathrm{ref}}$. The reference is $W=1$ at fixed
-$N=8$ in (a), and $N=8$ at fixed $W=8$ in (b). On eight fixed inputs,
-increasing workers from one to eight raises E throughput by
-\ParameterOccupancyMin{}--\ParameterOccupancyMax{}$\times$. With eight workers
-fixed, extending batches from eight to 64 changes throughput to only
-\ParameterBatchMin{}--\ParameterBatchMax{}$\times$ its eight-request value.
-Intermediate DSA batches peak at \ParameterBatchPeak{}$\times$, so throughput
-is not monotonic. Batches use synchronized waves. DSA signing retries vary by input;
-extending a batch also extends its input prefix, so its curve includes both
-amortization and workload variation.
+Figure~\ref{fig:scaling} fixes eight inputs. With $R_E=8f/C_E$ at
+$f=200$ MHz, panel (a) normalizes E throughput to one worker; panel (b)
+compares E with A at the same worker count: E retains a \ParameterWorkerSpeedupMin{}--\ParameterWorkerSpeedupMax{}$\times$
+advantage across these configurations. One to eight workers increases
+E throughput by \ParameterOccupancyMin{}--\ParameterOccupancyMax{}$\times$.
+This includes a zeroization-policy change: one worker uses cooperative
+zeroization; multiple workers use leader execution, identically for A/E.
+Thus the curve does not isolate occupancy. Separately, at eight workers,
+extending batches from eight to 64 changes throughput by only
+\ParameterBatchMin{}--\ParameterBatchMax{}$\times$; intermediate DSA batches
+peak at \ParameterBatchPeak{}$\times$. Synchronized waves and longer input
+prefixes combine amortization with input-dependent signing retries.
 
 \subsection{Routed Cost and Design Scope}
 \begin{table}[t]
-\caption{Independent 200-MHz post-route RV32IM cores; M16 varies Keccak and
-M2 is measured with and without Stage.}
+\caption{Independent 200-MHz post-route RV32IM cores with NTT.
+Stage, Round, and Pointer add alternative Keccak units.}
 \label{tab:cost}
 \centering\footnotesize\setlength{\tabcolsep}{3.4pt}
 \begin{tabular}{@{}lrrrr@{}}
@@ -598,38 +584,32 @@ Variant & LUT & FF & DSP & WNS (ns)\\
 \bottomrule
 \end{tabular}
 \end{table}
-All cores in Table~\ref{tab:cost} close without routing errors. M2 reduces
-whole-core LUTs/DSPs by \BankTwoCoreLutSaved{}\%/\BankTwoCoreDspSaved{}\%
-over M16; Stage adds \JointStageLutPct{}\% LUTs to M2. At M16, Round uses
-fewer LUTs but more FFs than Stage, so neither dominates in resource cost.
-The board AFU also includes optional engines: \BoardAfuLuts{} LUTs,
-\BoardAfuFfs{} FFs, \BoardAfuDsps{} DSPs, and \BoardWns{} ns setup slack.
-Board ratios compare software paths within this image.
-
-Six-parameter results validate Stage+M2, without repeating the bank sweep or
-establishing joint optimality. Other transform intensity or concurrency may
-favor another design point. Energy and host-to-host latency are unmeasured.
+All Table~\ref{tab:cost} cores close at 200 MHz without routing errors.
+NTT-M2 saves \BankTwoCoreLutSaved{}\% whole-core LUTs and
+\BankTwoCoreDspSaved{}\% DSPs over NTT-M16. Stage adds \JointStageLutPct{}\% LUTs
+to an M2 core that already includes NTT; this is incremental Keccak cost.
+Round uses fewer LUTs but more FFs than Stage at M16. The board AFU includes
+optional engines (\BoardAfuLuts{} LUTs, \BoardAfuFfs{} FFs,
+\BoardAfuDsps{} DSPs; \BoardWns{} ns slack); board ratios compare software
+paths within that image. Six-set results validate Stage+M2, while the bank
+sweep remains a separate Pointer control. Energy and host-to-host latency
+are unmeasured.
 
 \section{Conclusion}
-We presented stateless warp collectives that expose Keccak neighborhoods and
-XOR-paired NTT butterflies through ordinary lane registers. A shared K/D
-modular datapath supports both coefficient widths and reuses its multiplier
-bank beyond transforms, while retaining standard operand tracking and
-single-destination writeback. On a 200-MHz V80, Stage+M2 with modular reuse
-accelerates complete requests across all six parameter sets by
-\ParameterMinOne{}--\ParameterMaxOne{}$\times$ for one request and
-\ParameterMinEight{}--\ParameterMaxEight{}$\times$ for eight-request batches
-relative to matched cooperative software.
-
-Independent routed comparisons show that M2 removes
-\BankTwoNttDspSaved{}\% of NTT-hierarchy DSPs relative to M16. A separate
-bank sweep with Pointer Keccak on KEM-768/DSA-65 measures at most
-\BankTwoEndToEndMax{}\% request-cycle overhead for M2. Together with the
-granularity study, these results support choosing collective operations and
-arithmetic capacity against complete-request cost and target concurrency.
-The design integrates specialized communication and modular arithmetic into
-a programmable SIMT core while preserving its register interface and
-surrounding software mapping.
+Stateless warp collectives match Keccak neighborhoods and XOR-paired NTT
+butterflies to ordinary lane registers. A shared K/D modular datapath
+supports both coefficient widths and arithmetic reuse while retaining
+single-destination writeback. On a 200-MHz V80, Stage+M2 with reuse accelerates
+three-API requests across all six parameter sets by
+\ParameterMinOne{}--\ParameterMaxOne{}$\times$ individually and
+\ParameterMinEight{}--\ParameterMaxEight{}$\times$ in eight-request batches
+over matched cooperative software. Independent routing shows
+\BankTwoNttDspSaved{}\% fewer NTT DSPs for M2 than M16; a separate Pointer
+control measures at most \BankTwoEndToEndMax{}\% request-cycle overhead.
+These results support choosing communication, instruction granularity, and
+arithmetic capacity using complete-request cost at the intended concurrency.
+Register residency lets these operations coexist with optimized sampling,
+encoding, and request scheduling on a programmable SIMT core.
 
 \clearpage
 \bibliographystyle{IEEEtran}
